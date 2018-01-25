@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GitHub TestScript
-// @version      0.1
+// @version      0.3
 // @include      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_download
@@ -15,10 +15,10 @@
 
 
 //'use strict';
-const constant = 'test constant';
-console.log('This is the GitHub Test Script existing.');
+const constant = 'test constant 3';
+console.log('This is the GitHub Test Script 3 existing.');
 
 function test(){
-  console.log('Test function');
-  alert('test function from GitHub test script.');
+  console.log('Test function 3');
+  alert('test function from GitHub test script 3.');
 }
