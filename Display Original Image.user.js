@@ -1,6 +1,6 @@
 //==UserScript==
 //@name         Display Original Image
-//@version      0.1.3
+//@version      0.1.4
 //@namespace    eight04.blogspot.com
 //@description  This script will replace thumbnail with full size image if available.
 //@exclude      *kfupm.edu*
