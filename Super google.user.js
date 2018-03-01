@@ -10,7 +10,7 @@
 // @grant        GM_getValue
 // @grant        unsafeWindow
 // @require      http://code.jquery.com/jquery-latest.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
+// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // @run-at       document-end
 // ==/UserScript==
 
