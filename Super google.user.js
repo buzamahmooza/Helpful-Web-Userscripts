@@ -10,9 +10,12 @@
 // @grant        GM_getValue
 // @grant        unsafeWindow
 // @require      http://code.jquery.com/jquery-latest.js
-// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
+// @require      https://greasyfork.org/scripts/38996-faris-handy-webdev-javascript-functions/code/Faris%20Handy%20Webdev%20JavaScript%20functions.user.js
 // @run-at       document-end
 // ==/UserScript==
+// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
+
+
 
 // noinspection ES6ConvertVarToLetConst
 var debug;
