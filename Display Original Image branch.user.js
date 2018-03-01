@@ -21,12 +21,14 @@
 //@grant        window.close
 //@grant        window.focus
 //@run-at       document-end
-//@require 	    https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
+//@require      https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 //@require      http://code.jquery.com/jquery-latest.js
-//@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\download_script.user.js
-//@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
+//@require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
+//@require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/download_script.user.js
 //==/UserScript==
 
+//@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\download_script.user.js
+//@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
 //UserscriptDownloader
 //@require      https://gist.github.com/buzamahmooza/73774aa6900fc4281d01c844433b9031/raw/
 
