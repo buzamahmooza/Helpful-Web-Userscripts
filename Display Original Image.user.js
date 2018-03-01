@@ -1,5 +1,5 @@
 //==UserScript==
-//@name         Display Original Image branch
+//@name         Display Original Image
 //@version      0.1.3
 //@namespace    eight04.blogspot.com
 //@description  This script will replace thumbnail with full size image if available.
