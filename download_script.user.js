@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Downloader
 // @namespace    UserscriptDownloader
-// @version      0.4
+// @version      0.5
 // @description  try to take over the world!
 // @author       Faris Hijazi
 // @match        *
@@ -14,8 +14,9 @@
 // @grant        unsafeWindow
 // @grant        window.close
 // @grant        window.focus
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
+// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // ==/UserScript==
+// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
 
 // 'use strict';
 // noinspection ES6ConvertVarToLetConst
