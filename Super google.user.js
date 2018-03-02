@@ -28,9 +28,15 @@ if (typeof log === 'undefined') {
     };
 }
 
+if (typeof AUTO_SAVE_UBL_SITES === 'undefined')
+    AUTO_SAVE_UBL_SITES = false;
+if (typeof REPLACE_IMG_DATA === 'undefined')
+    REPLACE_IMG_DATA = false;
 gImgSearchUrl = "https://encrypted.google.com/search?&hl=en&tbm=isch&q=";
-const AUTO_SAVE_UBL_SITES = false;
-const REPLACE_IMG_DATA = false;
+
+let storedSuccessfulUrlsSet = GM_getValue('unblocked sites of og images', new Set(['forumophilia.com']));
+let ublSitesMap = GM_getValue('ublSitesMap', new Map([['forumphilia.com', '']]));
+let successfulUrlsSet = new Set();
 
 if (typeof GM === 'undefined') // PRE GM4
 {
@@ -41,9 +47,6 @@ if (typeof GM === 'undefined') // PRE GM4
     GM.setValue = GM_setValue;
 }
 
-let storedSuccessfulUrlsSet = GM_getValue('unblocked sites of og images', new Set(['forumophilia.com']));
-let ublSitesMap = GM_getValue('ublSitesMap', new Map([['forumphilia.com', '']]));
-let successfulUrlsSet = new Set();
 
 if (typeof unsafeWindow === "undefined") {
     unsafeWindow = window;
@@ -398,20 +401,22 @@ class ImagePanel {
         // this.relatedImagesDiv = {divElement: this.element,}
     }
 
-    makeDescriptionClickable() {
-        this.descriptionEl.addEventListener("click", function (e) {
-            const search = gImgSearchUrl + this.innerHTML;
-            window.open(search, "_blank");
-        });
+    static get mainPanel() {
+        const mainPanelEl = q("#irc_cc");
+        return mainPanelEl ? new ImagePanel(mainPanelEl) : false;
+    }
+
+    /**
+     * @returns {ElementTagNameMap[string] | Element} returns the panel that is currently in focus (there are 3 panels)
+     */
+    static get focusedPanel() {
+        var p = this.mainPanel ? this.mainPanel.querySelector('div.irc_c[style*="translate3d(0px, 0px, 0px)"]') : null;
+        console.log('mainPanel:', p);
+        return p;
     }
 
     get isFocused() {
         return "translate3d(0px, 0px, 0px)".test(this.getAttribute('style'));
-    }
-
-    static get mainPanel() {
-        const mainPanelEl = q("#irc_cc");
-        return mainPanelEl ? new ImagePanel(mainPanelEl) : false;
     }
 
     get titleAndDescriptionDiv() {
@@ -460,13 +465,11 @@ class ImagePanel {
         return this.element.querySelector('img#irc_mi,img.irc_mut');
     }
 
-    /**
-     * @returns {ElementTagNameMap[string] | Element} returns the panel that is currently in focus (there are 3 panels)
-     */
-    static get focusedPanel() {
-        var p = this.mainPanel ? this.mainPanel.querySelector('div.irc_c[style*="translate3d(0px, 0px, 0px)"]') : null;
-        console.log('mainPanel:', p);
-        return p;
+    makeDescriptionClickable() {
+        this.descriptionEl.addEventListener("click", function (e) {
+            const search = gImgSearchUrl + this.innerHTML;
+            window.open(search, "_blank");
+        });
     }
 
     // TODO: getters:
