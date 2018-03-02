@@ -29,27 +29,32 @@ if (typeof log === 'undefined') {
         if (debug) console.log('Log:', msg);
     };
 }
+try {
+    DELAY_BETWEEN_DOWNLOADS = 300;
+    BLACK_LIST = new Set(["https://raw.githubusercontent.com/RaitaroH/DuckDuckGo-DeepDark/master/Images/BigLogo.png"]);
+    MAX_DOWNLOADS = GM_getValue("MAX_DOWNLOADS", 200); // maximum number of downloads per batch
+    DOWNLOAD_ATTEMPTS = 5; // Default number of download attempts until giving up
+    MAIN_DIRECTORY = 'GM_Downloads'; //'↓GM_Downloads';
+    NEST_DIRECTORIES = GM_getValue("NEST_DIRECTORIES", true); // if set to true: batch directories will be stored under the main tempDirectory.
+    ALLOW_BASE64_IMAGE_DOWNLOADS = false;
+    ALLOW_DUPES = GM_getValue("ALLOW_DUPES", true); // if set to true: batch directories will be stored under the main tempDirectory.
+    IMG_MIN_WIDTH = GM_getValue("imgMinWidth", 200);
+    IMG_MIN_HEIGHT = GM_getValue("imgMinHeight", 200);
+    /**
+     * Element attributes to get their name from (such as "alt-text" etc..)
+     * @type {string[]}
+     */
+    NAME_ATTRIBUTES = ["download-name", "alt", "content", "description", "name"];
+    NAME_FILES_BY_NUMBER = GM_getValue("NAME_FILES_BY_NUMBER", false);
+    let fileNumber = 1;
 
-const DELAY_BETWEEN_DOWNLOADS = 300;
-const BLACK_LIST = new Set(["https://raw.githubusercontent.com/RaitaroH/DuckDuckGo-DeepDark/master/Images/BigLogo.png"]);
-const MAX_DOWNLOADS = GM_getValue("MAX_DOWNLOADS", 200); // maximum number of downloads per batch
-const DOWNLOAD_ATTEMPTS = 5; // Default number of download attempts until giving up
-const MAIN_DIRECTORY = 'GM_Downloads'; //'↓GM_Downloads';
-const NEST_DIRECTORIES = GM_getValue("NEST_DIRECTORIES", true); // if set to true: batch directories will be stored under the main tempDirectory.
-const ALLOW_BASE64_IMAGE_DOWNLOADS = false;
-const ALLOW_DUPES = GM_getValue("ALLOW_DUPES", true); // if set to true: batch directories will be stored under the main tempDirectory.
-const IMG_MIN_WIDTH = GM_getValue("imgMinWidth", 200);
-const IMG_MIN_HEIGHT = GM_getValue("imgMinHeight", 200);
-/**
- * Element attributes to get their name from (such as "alt-text" etc..)
- * @type {string[]}
- */
-const NAME_ATTRIBUTES = ["download-name", "alt", "content", "description", "name"];
-let NAME_FILES_BY_NUMBER = GM_getValue("NAME_FILES_BY_NUMBER", false);
-let fileNumber = 1;
+    let downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
+    let tempDirectory = "";
+} catch (declarationException) {
+    console.log("Caught exception in declaration:", declarationException);
+}
 
-let downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
-let tempDirectory = "";
+
 // console.log("IMG_MIN_WIDTH: " + IMG_MIN_WIDTH + "\nIMG_MIN_HEIGHT: " + IMG_MIN_HEIGHT);
 // console.log('NAME_FILES_BY_NUMBER=', NAME_FILES_BY_NUMBER);
 function setNameFilesByNumber(newValue) {
