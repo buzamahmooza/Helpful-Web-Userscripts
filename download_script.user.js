@@ -46,13 +46,15 @@ try {
      */
     NAME_ATTRIBUTES = ["download-name", "alt", "content", "description", "name"];
     NAME_FILES_BY_NUMBER = GM_getValue("NAME_FILES_BY_NUMBER", false);
-    let fileNumber = 1;
-
-    let downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
-    let tempDirectory = "";
+    fileNumber = 1;
 } catch (declarationException) {
     console.log("Caught exception in declaration:", declarationException);
 }
+
+if (typeof downloadSet === 'undefined')
+    downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
+if (typeof tempDirectory === 'undefined')
+    tempDirectory = "";
 
 
 // console.log("IMG_MIN_WIDTH: " + IMG_MIN_WIDTH + "\nIMG_MIN_HEIGHT: " + IMG_MIN_HEIGHT);
