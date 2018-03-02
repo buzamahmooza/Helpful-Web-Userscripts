@@ -97,6 +97,12 @@ function download(fileUrl, fileName, downloadDirectory, element) {
         console.error("input URL is null!");
         return;
     }
+    if(typeof fileUrl === 'object'){
+        downloadBatch(fileUrl);
+        console.warn('The file url passed to be downloaded is an object, trying to download it as multiple urls:', fileUrl);
+        return;
+    }
+
     fileUrl = getAbsoluteURI(('' + fileUrl).replace(/['"]/gi, ''));
 
     if (/data:image\/jpeg;/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
