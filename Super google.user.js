@@ -520,14 +520,14 @@ if (typeof KeyEvent === "undefined") {
     };
 }
 
-function onkeydown(b) {
-    const a = (window.event) ? b.keyCode : b.which;
+function onkeydown(e) {
+    const k = (window.event) ? e.keyCode : e.which;
     /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
     const ModifierKeys = {
-        CTRL_ONLY: b.ctrlKey && !b.altKey && !b.shiftKey && !b.metaKey,
-        SHIFT_ONLY: !b.ctrlKey && !b.altKey && b.shiftKey && !b.metaKey,
-        ALT_ONLY: !b.ctrlKey && b.altKey && !b.shiftKey && !b.metaKey,
-        NONE: !b.ctrlKey && !b.shiftKey && !b.altKey && !b.metaKey
+        CTRL_ONLY: e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey,
+        SHIFT_ONLY: !e.ctrlKey && !e.altKey && e.shiftKey && !e.metaKey,
+        ALT_ONLY: !e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey,
+        NONE: !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
     };
     // 	if(b.ctrlKey && a == KeyEvent.DOM_VK_S)
     // 	{
@@ -602,7 +602,7 @@ function onkeydown(b) {
         openInTab(siteSearchUrl(getHostname(subtitleEl.href)));
     }
 
-    switch (a) {
+    switch (k) {
         // Search by image/ site search
         case KeyEvent.DOM_VK_V:
         case KeyEvent.DOM_VK_NUMPAD1:
@@ -632,6 +632,7 @@ function onkeydown(b) {
                 openInTab(focusedRelatedImage.querySelector('a').href);
             } else if (ModifierKeys.CTRL_ONLY) {
                 download(focusedRelatedImage.querySelector('a').href, undefined, undefined, focusedRelatedImage);
+                e.preventDefault();
             }
             break;
         // Previous related image
@@ -667,9 +668,9 @@ function onkeydown(b) {
                 lookupTitle();
             } else if (ModifierKeys.CTRL_ONLY) { // site search
                 siteSearch();
+                e.preventDefault();
             }
             break;
-
         case KeyEvent.DOM_VK_S:
             siteSearch();
             break;
