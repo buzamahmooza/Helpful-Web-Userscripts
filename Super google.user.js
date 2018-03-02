@@ -28,7 +28,7 @@ if (typeof log === 'undefined') {
     };
 }
 
-const gImgSearchUrl = "https://encrypted.google.com/search?&hl=en&tbm=isch&q=";
+gImgSearchUrl = "https://encrypted.google.com/search?&hl=en&tbm=isch&q=";
 const AUTO_SAVE_UBL_SITES = false;
 const REPLACE_IMG_DATA = false;
 
