@@ -87,7 +87,7 @@ document.head.appendChild(cssBlock);
 
 document.addEventListener('keydown', function (e) {
     const ignores = document.getElementsByTagName('input');
-    const target = event.target;
+    const target = e.target;
     for (let ignore of ignores)
         if (target === ignore || ignore.contains(target)) {
             // console.log('The target recieving the keycode is of type "input", so it will not recieve your keystroke', target);
