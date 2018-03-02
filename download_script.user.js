@@ -289,7 +289,7 @@ function downloadBatch(inputUrls, maxDlCount) { // download batch but with a max
     let dlCount = 0;
     for (let url of inputUrls) {
         if (Array.isArray(url)) {
-            downloadBatch(inputUrls, maxDlCount);
+            downloadBatch(url, maxDlCount);
             break;
         }
         if (++dlCount >= maxDlCount) { // recursive call in case this element is an array
@@ -314,7 +314,7 @@ function downloadImageBatch(inputUrls) {
     let dlCount = 0;
     for (let url of inputUrls) {
         if (Array.isArray(url)) { // recursive call in case this element is an array
-            downloadImageBatch(inputUrls);
+            downloadImageBatch(url);
             break;
         }
         if (++dlCount >= MAX_DOWNLOADS) {

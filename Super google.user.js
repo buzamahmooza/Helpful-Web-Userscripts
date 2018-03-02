@@ -559,10 +559,10 @@ function onkeydown(e) {
     const panelImage = panel.querySelector('img#irc_mi,img.irc_mut');
     /**
      * @type {any | NodeListOf<Element>}
-     * 0 - Visit
-     * 1 - Save
-     * 2 - View saved
-     * 3 - Share
+     * 0 - Visit:       a.i3599.irc_vpl.irc_lth
+     * 1 - Save:        a.i15087
+     * 2 - View saved:  a.i18192.r-iXoO2jjyyEGY
+     * 3 - Share:       a.i17628
      */
     const buttons = panel.querySelectorAll('.irc_but_r > tbody > tr a');
 

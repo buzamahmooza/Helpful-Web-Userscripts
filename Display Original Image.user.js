@@ -76,6 +76,7 @@ const showFailedImages = function () {
 };
 const SUCCESSFUL_URLS = new Set();
 const cssBlock = document.createElement('style');
+
 cssBlock.innerText = '' +
     '.tooltip {' +
     'position: relative;' +
@@ -84,10 +85,9 @@ cssBlock.innerText = '' +
     '}'
 ;
 document.head.appendChild(cssBlock);
-
 document.addEventListener('keydown', function (e) {
     const ignores = document.getElementsByTagName('input');
-    const target = event.target;
+    const target = e.target;
     for (let ignore of ignores)
         if (target === ignore || ignore.contains(target)) {
             // console.log('The target recieving the keycode is of type "input", so it will not recieve your keystroke', target);
@@ -112,6 +112,7 @@ window.onkeyup = function (e) {
             break;
     }
 };
+
 
 function displayImages() {
     log("Displaying originals\nOriginal Images Displayed:\n" + Array.from(SUCCESSFUL_URLS));
@@ -385,7 +386,7 @@ function markNotFound(node) {
     if (!showFailedImages()) {
         setVisible(node, false);
     }
-    SUCCESSFUL_URLS.remove(node.src);
+    SUCCESSFUL_URLS.delete(node.src);
 }
 
 function setVisibilityForFailedImages(visibility) {
