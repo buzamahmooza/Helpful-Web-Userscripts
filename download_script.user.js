@@ -234,7 +234,8 @@ function download(fileUrl, fileName, downloadDirectory, element) {
                 case 'not_permitted':
                 case 'not_supported':
                     break;
-                case 'not_whitelisted':
+//                 case 'not_whitelisted':
+//                     break;
                 default:
                     retry(fileUrl, finalName, 1);
             }
