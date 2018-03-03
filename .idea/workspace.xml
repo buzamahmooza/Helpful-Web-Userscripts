@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9a182d5d-cbaa-4cd8-8d1c-21449f7b9db5" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change beforePath="$PROJECT_DIR$/download_script.user.js" afterPath="$PROJECT_DIR$/download_script.user.js" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
@@ -29,12 +28,15 @@
                 <element signature="e#3423#3485#0" expanded="false" />
                 <element signature="e#3516#3578#0" expanded="false" />
                 <element signature="e#3617#3687#0" expanded="false" />
+                <marker date="1520018385769" expanded="true" signature="8199:8207" ph="..." />
+                <marker date="1520018385769" expanded="true" signature="8316:8324" ph="..." />
+                <marker date="1520018385769" expanded="true" signature="8424:8432" ph="..." />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="false">
+      <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/download_script.user.js">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="2730">
@@ -57,14 +59,12 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Handy AF functions Faris.user.js" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Handy AF functions Faris.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Handy AF functions Faris.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-              <folding>
-                <element signature="n#!!doc" expanded="true" />
-              </folding>
+            <state relative-caret-position="372">
+              <caret line="12" column="29" lean-forward="true" selection-start-line="12" selection-start-column="29" selection-end-line="12" selection-end-column="29" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -300,12 +300,12 @@
       <workItem from="1519324634000" duration="52469000" />
       <workItem from="1519901673468" duration="6968000" />
       <workItem from="1519980287569" duration="16283000" />
-      <workItem from="1520083701177" duration="2792000" />
+      <workItem from="1520083701177" duration="3416000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="165120000" />
+    <option name="totallyTimeSpent" value="165744000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="2576" height="1510" extended-state="6" />
@@ -355,6 +355,9 @@
             <element signature="e#3423#3485#0" expanded="false" />
             <element signature="e#3516#3578#0" expanded="false" />
             <element signature="e#3617#3687#0" expanded="false" />
+            <marker date="1520018385769" expanded="true" signature="8199:8207" ph="..." />
+            <marker date="1520018385769" expanded="true" signature="8316:8324" ph="..." />
+            <marker date="1520018385769" expanded="true" signature="8424:8432" ph="..." />
           </folding>
         </state>
       </provider>
@@ -373,9 +376,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="816">
           <caret line="63" column="2" lean-forward="true" selection-start-line="63" selection-start-column="2" selection-end-line="63" selection-end-column="2" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -443,9 +444,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2125">
           <caret line="183" column="43" lean-forward="false" selection-start-line="183" selection-start-column="43" selection-end-line="183" selection-end-column="43" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -483,9 +482,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="544">
           <caret line="60" column="66" lean-forward="false" selection-start-line="60" selection-start-column="66" selection-end-line="60" selection-end-column="66" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -512,9 +509,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="510">
           <caret line="38" column="30" lean-forward="false" selection-start-line="38" selection-start-column="30" selection-end-line="38" selection-end-column="30" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -531,9 +526,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="510">
           <caret line="38" column="44" lean-forward="false" selection-start-line="38" selection-start-column="44" selection-end-line="38" selection-end-column="44" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -639,17 +632,20 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
+    <entry file="file://$PROJECT_DIR$/Handy AF functions Faris.user.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="369" column="20" lean-forward="false" selection-start-line="369" selection-start-column="20" selection-end-line="369" selection-end-column="20" />
+        <state relative-caret-position="372">
+          <caret line="12" column="29" lean-forward="true" selection-start-line="12" selection-start-column="29" selection-end-line="12" selection-end-column="29" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DDGP Unblocker.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#1144#1240#0" expanded="false" />
-            <element signature="e#1462#1565#0" expanded="false" />
-            <element signature="e#2659#2667#0" expanded="false" />
-            <element signature="e#3423#3485#0" expanded="false" />
-            <element signature="e#3516#3578#0" expanded="false" />
-            <element signature="e#3617#3687#0" expanded="false" />
+            <element signature="n#!!doc" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -664,12 +660,20 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/DDGP Unblocker.user.js">
+    <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        <state relative-caret-position="17">
+          <caret line="369" column="20" lean-forward="false" selection-start-line="369" selection-start-column="20" selection-end-line="369" selection-end-column="20" />
           <folding>
-            <element signature="n#!!doc" expanded="true" />
+            <element signature="e#1144#1240#0" expanded="false" />
+            <element signature="e#1462#1565#0" expanded="false" />
+            <element signature="e#2659#2667#0" expanded="false" />
+            <element signature="e#3423#3485#0" expanded="false" />
+            <element signature="e#3516#3578#0" expanded="false" />
+            <element signature="e#3617#3687#0" expanded="false" />
+            <marker date="1520018385769" expanded="true" signature="8199:8207" ph="..." />
+            <marker date="1520018385769" expanded="true" signature="8316:8324" ph="..." />
+            <marker date="1520018385769" expanded="true" signature="8424:8432" ph="..." />
           </folding>
         </state>
       </provider>
@@ -691,16 +695,6 @@
             <element signature="e#4102#4170#0" expanded="false" />
             <element signature="e#6370#8011#0" expanded="false" />
             <element signature="n#!!block;n#downloadImageBatch#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Handy AF functions Faris.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="n#!!doc" expanded="true" />
           </folding>
         </state>
       </provider>

@@ -97,6 +97,12 @@ function download(fileUrl, fileName, downloadDirectory, element) {
         console.error("input URL is null!");
         return;
     }
+    if (typeof fileUrl === 'object') {
+        downloadBatch(fileUrl);
+        console.warn('The file url passed to be downloaded is an object, trying to download it as multiple urls:', fileUrl);
+        return;
+    }
+
     fileUrl = getAbsoluteURI(('' + fileUrl).replace(/['"]/gi, ''));
 
     if (/data:image\/jpeg;/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
@@ -137,8 +143,8 @@ function download(fileUrl, fileName, downloadDirectory, element) {
     } else { // dirctory NOT passed
         downloadDirectory = cleanDirectoryName(
             tempDirectory.length > 1 ? tempDirectory : // use tempDirectory if valid
-                namePassed && (/[^\/]+\/[^\/]+/).test(fileName) ? // name passed && contains "/" in middle?
-                    fileName.split(/[\/-]/)[0] : // then, Directory = first part of passed-name
+                // namePassed && (/[^\/]+\/[^\/]+/).test(fileName) ? // name passed && contains "/" in middle?
+                //     fileName.split(/[\/-]/)[0] : // then, Directory = first part of passed-name
                     document.title               // last resort: use title
         );
     }
@@ -189,9 +195,9 @@ function download(fileUrl, fileName, downloadDirectory, element) {
     );
 
     let finalName = removeDoubleSpaces(
-        (NEST_DIRECTORIES ? (MAIN_DIRECTORY + '/') : '') +
-        (downloadDirectory.length > 1 ? downloadDirectory + "/" : "") +
-        fileName + '.' + fileExtension
+        ((NEST_DIRECTORIES ? (MAIN_DIRECTORY + '/') : '') +
+            (downloadDirectory.length > 1 ? downloadDirectory + "/" : "") +
+            fileName).slice(0, 99) + '.' + fileExtension
     );
 
     console.log('finalName:', finalName);
@@ -414,6 +420,6 @@ function cleanDirectoryName(directoryName) {
 }
 
 function clearUrlGibberish(str) {
-    return decodeURIComponent(str).replace(/(^site)|www(\.?)|http(s?):\/\/|proxy\.duckduckgo|&\f=\1|&reload=on/gi, "");
+    return removeDoubleSpaces(decodeURIComponent(str).replace(/(^site)|www(\.?)|http(s?):\/\/|proxy\.duckduckgo|&\f=\1|&reload=on/gi, ""));
 }
 
