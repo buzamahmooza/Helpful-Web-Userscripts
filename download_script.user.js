@@ -97,7 +97,11 @@ function download(fileUrl, fileName, downloadDirectory, element) {
         console.error("input URL is null!");
         return;
     }
+<<<<<<< HEAD
     if (typeof fileUrl === 'object') {
+=======
+    if(typeof fileUrl === 'object'){
+>>>>>>> origin/master
         downloadBatch(fileUrl);
         console.warn('The file url passed to be downloaded is an object, trying to download it as multiple urls:', fileUrl);
         return;
