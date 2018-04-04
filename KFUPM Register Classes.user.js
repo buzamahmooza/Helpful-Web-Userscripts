@@ -2,7 +2,7 @@
 // @name         KFUPM Register Classes
 // @namespace    http://tampermonkey.net/
 // @author       Faris Hijazi
-// @version      0.1
+// @version      0.2
 // @icon	 	 https://www.google.com/s2/favicons?domain=http://registrar.kfupm.edu.sa
 // @include      http://ssbweb.kfupm.edu.sa/PROD8/bwskfreg.P_AltPin
 // @grant        GM_xmlhttpRequest
@@ -78,11 +78,12 @@ console.log("CRNs:", CRNs);
 
 var q = (selector) => document.querySelector(selector);
 var qa = (selector) => document.querySelectorAll(selector);
-
+function reload(){	location.reload(); }
 (function(){
 	console.log("This is the KFUPM class register script");
 	observeDocument(function(mutation){
 		try{
+			clearTimeout(reload);
 			var finalSubmitBtn = q('[value="Submit Changes"]');
 			var boxes = Array.from(qa('INPUT[type="text"]'));
 			var submitBtn = q('button#id____UID5[value="Submit"]'); // The button after choosing which semester
@@ -92,9 +93,7 @@ var qa = (selector) => document.querySelectorAll(selector);
 
 			if(!boxes.length || !finalSubmitBtn){
 				console.log('No textboxes found reloading page...');
-				setTimeout(function(){
-					location.reload();
-				}, 700);
+				setTimeout(reload, 700);
 			}
 
 

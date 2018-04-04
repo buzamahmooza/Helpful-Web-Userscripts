@@ -2,13 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9a182d5d-cbaa-4cd8-8d1c-21449f7b9db5" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/GM_xmlhttpResponse response data.txt" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/JSZip.js" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/KFUPM Register Classes.js" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/OCRAD teter.user.js" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/arrows.svg" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/https---raw.githubusercontent.com-bijij-ViewImage-chrome-manifest.json.url" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/jszip.min.js" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -191,11 +185,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Display Original Image.user.js" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Display Original Image.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="492">
-              <caret line="79" column="21" lean-forward="false" selection-start-line="79" selection-start-column="21" selection-end-line="79" selection-end-column="21" />
+            <state relative-caret-position="419">
+              <caret line="173" column="51" lean-forward="false" selection-start-line="173" selection-start-column="51" selection-end-line="173" selection-end-column="51" />
               <folding>
                 <element signature="e#1168#1289#0" expanded="false" />
                 <element signature="e#1512#1621#0" expanded="false" />
@@ -208,9 +202,6 @@
                 <element signature="e#5362#5510#0" expanded="false" />
                 <element signature="e#5545#6163#0" expanded="false" />
                 <element signature="e#5966#6122#0" expanded="false" />
-                <element signature="e#6195#8596#0" expanded="false" />
-                <element signature="e#6252#6907#0" expanded="false" />
-                <element signature="e#6262#6329#0" expanded="false" />
                 <element signature="e#6506#6543#0" expanded="false" />
                 <element signature="e#6553#6622#0" expanded="false" />
                 <element signature="e#6789#6826#0" expanded="false" />
@@ -313,14 +304,18 @@
                 <element signature="e#25389#25579#0" expanded="false" />
                 <element signature="e#25495#25573#0" expanded="false" />
                 <element signature="n#!!block;n#setVisible#0" expanded="false" />
-                <element signature="e#25950#26756#0" expanded="false" />
-                <marker date="1522850842100" expanded="false" signature="4291:4308" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="4318:4409" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="4479:4508" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="4693:4885" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="4916:4946" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="4973:5006" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="5040:5073" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4291:4308" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4318:4409" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4479:4508" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4693:4885" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4916:4946" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="4973:5006" ph="{...}" />
+                <marker date="1522855770431" expanded="false" signature="5040:5073" ph="{...}" />
+                <marker date="1522855770431" expanded="true" signature="9884:9890" ph=" " />
+                <marker date="1522855770431" expanded="true" signature="9896:9902" ph=" " />
+                <marker date="1522855770431" expanded="true" signature="10458:10464" ph=" " />
+                <marker date="1522855770431" expanded="true" signature="10989:10995" ph=" " />
+                <marker date="1522855770431" expanded="true" signature="11940:11948" ph="..." />
               </folding>
             </state>
           </provider>
@@ -329,8 +324,8 @@
       <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/download_script.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="756">
-              <caret line="393" column="9" lean-forward="false" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
+            <state relative-caret-position="419">
+              <caret line="218" column="22" lean-forward="false" selection-start-line="218" selection-start-column="22" selection-end-line="218" selection-end-column="22" />
               <folding>
                 <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
                 <element signature="n#!!block;n#retry#0" expanded="false" />
@@ -339,11 +334,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="DDGP Unblocker.user.js" pinned="false" current-in-tab="false">
+      <file leaf-file-name="DDGP Unblocker.user.js" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/DDGP Unblocker.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="527">
-              <caret line="45" column="65" lean-forward="false" selection-start-line="45" selection-start-column="65" selection-end-line="45" selection-end-column="65" />
+            <state relative-caret-position="238">
+              <caret line="26" column="18" lean-forward="false" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
               <folding>
                 <element signature="e#892#931#0" expanded="false" />
                 <element signature="e#2773#2845#0" expanded="false" />
@@ -384,7 +379,6 @@
                 <element signature="e#7378#7484#0" expanded="false" />
                 <element signature="n#!!block;n#printState#0" expanded="false" />
                 <element signature="n#!!block;n#alertState#0" expanded="false" />
-                <element signature="n#!!block;n#ddgProxy#0" expanded="false" />
                 <element signature="n#!!block;n#isDdgUrl#0" expanded="false" />
               </folding>
             </state>
@@ -685,7 +679,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>referrerpolicy=&quot;no-referrer&quot;</find>
       <find>sbi</find>
       <find>download_</find>
       <find>download_ris</find>
@@ -715,6 +708,7 @@
       <find>&quot;&quot;</find>
       <find>genzip</find>
       <find>base64</find>
+      <find>porn</find>
     </findStrings>
     <replaceStrings>
       <replace>previous</replace>
@@ -774,8 +768,8 @@
         <option value="$PROJECT_DIR$/DDGP Unblocker.user.js" />
         <option value="$PROJECT_DIR$/Super google.user.js" />
         <option value="$PROJECT_DIR$/Handy AF functions Faris.user.js" />
-        <option value="$PROJECT_DIR$/Display Original Image.user.js" />
         <option value="$PROJECT_DIR$/download_script.user.js" />
+        <option value="$PROJECT_DIR$/Display Original Image.user.js" />
       </list>
     </option>
   </component>
@@ -924,12 +918,12 @@
       <workItem from="1522507907547" duration="2168000" />
       <workItem from="1522555308273" duration="20619000" />
       <workItem from="1522760329565" duration="18904000" />
-      <workItem from="1522847263813" duration="4001000" />
+      <workItem from="1522847263813" duration="5480000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="588693000" />
+    <option name="totallyTimeSpent" value="590172000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -1204,6 +1198,14 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1244">
           <caret line="109" column="9" lean-forward="false" selection-start-line="109" selection-start-column="9" selection-end-line="109" selection-end-column="9" />
+          <folding>
+            <marker date="1521059221034" expanded="true" signature="3118:3126" ph="..." />
+            <marker date="1521059221034" expanded="true" signature="3270:3278" ph="..." />
+            <marker date="1521059221034" expanded="false" signature="3524:3532" ph="..." />
+            <marker date="1521059221034" expanded="true" signature="3533:3618" ph="..." />
+            <marker date="1521059221034" expanded="true" signature="3721:3729" ph="..." />
+            <marker date="1521059221034" expanded="true" signature="4570:4576" ph=" " />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -1494,72 +1496,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/DDGP Unblocker.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="527">
-          <caret line="45" column="65" lean-forward="false" selection-start-line="45" selection-start-column="65" selection-end-line="45" selection-end-column="65" />
-          <folding>
-            <element signature="e#892#931#0" expanded="false" />
-            <element signature="e#2773#2845#0" expanded="false" />
-            <element signature="e#3031#3136#0" expanded="false" />
-            <element signature="e#3142#3245#0" expanded="false" />
-            <element signature="e#3306#3401#0" expanded="false" />
-            <element signature="n#!!block;n#go#0" expanded="false" />
-            <element signature="e#3500#4881#0" expanded="false" />
-            <element signature="e#3567#4218#0" expanded="false" />
-            <element signature="e#3569#3602#0" expanded="false" />
-            <element signature="e#3674#3811#0" expanded="false" />
-            <element signature="e#3866#3894#0" expanded="false" />
-            <element signature="e#3907#3995#0" expanded="false" />
-            <element signature="e#4008#4208#0" expanded="false" />
-            <element signature="e#4285#4873#0" expanded="false" />
-            <element signature="e#4287#4320#0" expanded="false" />
-            <element signature="e#4392#4520#0" expanded="false" />
-            <element signature="e#4575#4602#0" expanded="false" />
-            <element signature="e#4615#4701#0" expanded="false" />
-            <element signature="e#4714#4863#0" expanded="false" />
-            <element signature="n#!!block;n#handleElement#0" expanded="false" />
-            <element signature="e#4920#4947#0" expanded="false" />
-            <element signature="e#5077#5147#0" expanded="false" />
-            <element signature="e#5160#5826#0" expanded="false" />
-            <element signature="e#5174#5713#0" expanded="false" />
-            <element signature="e#5227#5701#0" expanded="false" />
-            <element signature="e#5315#5685#0" expanded="false" />
-            <element signature="e#5456#5511#0" expanded="false" />
-            <element signature="e#5727#5820#0" expanded="false" />
-            <element signature="n#!!block;n#ddgReplaceElementAttributes#0" expanded="false" />
-            <element signature="e#6461#6538#0" expanded="false" />
-            <element signature="e#6580#6787#0" expanded="false" />
-            <element signature="n#!!block;n#observeAllFrames#0" expanded="false" />
-            <element signature="e#6927#7099#0" expanded="false" />
-            <element signature="e#6980#7093#0" expanded="false" />
-            <element signature="e#7141#7235#0" expanded="false" />
-            <element signature="e#7304#7492#0" expanded="false" />
-            <element signature="e#7378#7484#0" expanded="false" />
-            <element signature="n#!!block;n#printState#0" expanded="false" />
-            <element signature="n#!!block;n#alertState#0" expanded="false" />
-            <element signature="n#!!block;n#ddgProxy#0" expanded="false" />
-            <element signature="n#!!block;n#isDdgUrl#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Bookmarklets/Linked Images Bookmarklet.js">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="578">
           <caret line="43" column="14" lean-forward="false" selection-start-line="43" selection-start-column="14" selection-end-line="43" selection-end-column="14" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/download_script.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="756">
-          <caret line="393" column="9" lean-forward="false" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
-          <folding>
-            <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
-            <element signature="n#!!block;n#retry#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1732,8 +1673,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="492">
-          <caret line="79" column="21" lean-forward="false" selection-start-line="79" selection-start-column="21" selection-end-line="79" selection-end-column="21" />
+        <state relative-caret-position="419">
+          <caret line="173" column="51" lean-forward="false" selection-start-line="173" selection-start-column="51" selection-end-line="173" selection-end-column="51" />
           <folding>
             <element signature="e#1168#1289#0" expanded="false" />
             <element signature="e#1512#1621#0" expanded="false" />
@@ -1746,9 +1687,6 @@
             <element signature="e#5362#5510#0" expanded="false" />
             <element signature="e#5545#6163#0" expanded="false" />
             <element signature="e#5966#6122#0" expanded="false" />
-            <element signature="e#6195#8596#0" expanded="false" />
-            <element signature="e#6252#6907#0" expanded="false" />
-            <element signature="e#6262#6329#0" expanded="false" />
             <element signature="e#6506#6543#0" expanded="false" />
             <element signature="e#6553#6622#0" expanded="false" />
             <element signature="e#6789#6826#0" expanded="false" />
@@ -1851,14 +1789,78 @@
             <element signature="e#25389#25579#0" expanded="false" />
             <element signature="e#25495#25573#0" expanded="false" />
             <element signature="n#!!block;n#setVisible#0" expanded="false" />
-            <element signature="e#25950#26756#0" expanded="false" />
-            <marker date="1522850842100" expanded="false" signature="4291:4308" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="4318:4409" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="4479:4508" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="4693:4885" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="4916:4946" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="4973:5006" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="5040:5073" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4291:4308" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4318:4409" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4479:4508" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4693:4885" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4916:4946" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="4973:5006" ph="{...}" />
+            <marker date="1522855770431" expanded="false" signature="5040:5073" ph="{...}" />
+            <marker date="1522855770431" expanded="true" signature="9884:9890" ph=" " />
+            <marker date="1522855770431" expanded="true" signature="9896:9902" ph=" " />
+            <marker date="1522855770431" expanded="true" signature="10458:10464" ph=" " />
+            <marker date="1522855770431" expanded="true" signature="10989:10995" ph=" " />
+            <marker date="1522855770431" expanded="true" signature="11940:11948" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/download_script.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="419">
+          <caret line="218" column="22" lean-forward="false" selection-start-line="218" selection-start-column="22" selection-end-line="218" selection-end-column="22" />
+          <folding>
+            <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
+            <element signature="n#!!block;n#retry#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DDGP Unblocker.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="238">
+          <caret line="26" column="18" lean-forward="false" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
+          <folding>
+            <element signature="e#892#931#0" expanded="false" />
+            <element signature="e#2773#2845#0" expanded="false" />
+            <element signature="e#3031#3136#0" expanded="false" />
+            <element signature="e#3142#3245#0" expanded="false" />
+            <element signature="e#3306#3401#0" expanded="false" />
+            <element signature="n#!!block;n#go#0" expanded="false" />
+            <element signature="e#3500#4881#0" expanded="false" />
+            <element signature="e#3567#4218#0" expanded="false" />
+            <element signature="e#3569#3602#0" expanded="false" />
+            <element signature="e#3674#3811#0" expanded="false" />
+            <element signature="e#3866#3894#0" expanded="false" />
+            <element signature="e#3907#3995#0" expanded="false" />
+            <element signature="e#4008#4208#0" expanded="false" />
+            <element signature="e#4285#4873#0" expanded="false" />
+            <element signature="e#4287#4320#0" expanded="false" />
+            <element signature="e#4392#4520#0" expanded="false" />
+            <element signature="e#4575#4602#0" expanded="false" />
+            <element signature="e#4615#4701#0" expanded="false" />
+            <element signature="e#4714#4863#0" expanded="false" />
+            <element signature="n#!!block;n#handleElement#0" expanded="false" />
+            <element signature="e#4920#4947#0" expanded="false" />
+            <element signature="e#5077#5147#0" expanded="false" />
+            <element signature="e#5160#5826#0" expanded="false" />
+            <element signature="e#5174#5713#0" expanded="false" />
+            <element signature="e#5227#5701#0" expanded="false" />
+            <element signature="e#5315#5685#0" expanded="false" />
+            <element signature="e#5456#5511#0" expanded="false" />
+            <element signature="e#5727#5820#0" expanded="false" />
+            <element signature="n#!!block;n#ddgReplaceElementAttributes#0" expanded="false" />
+            <element signature="e#6461#6538#0" expanded="false" />
+            <element signature="e#6580#6787#0" expanded="false" />
+            <element signature="n#!!block;n#observeAllFrames#0" expanded="false" />
+            <element signature="e#6927#7099#0" expanded="false" />
+            <element signature="e#6980#7093#0" expanded="false" />
+            <element signature="e#7141#7235#0" expanded="false" />
+            <element signature="e#7304#7492#0" expanded="false" />
+            <element signature="e#7378#7484#0" expanded="false" />
+            <element signature="n#!!block;n#printState#0" expanded="false" />
+            <element signature="n#!!block;n#alertState#0" expanded="false" />
+            <element signature="n#!!block;n#isDdgUrl#0" expanded="false" />
           </folding>
         </state>
       </provider>
