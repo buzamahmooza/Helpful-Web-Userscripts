@@ -23,10 +23,10 @@
 const IMG_SEARCH_URL = "https://www.google.com/search?&tbm=isch&q=";
 
 (function () {
-    const ogLink = getOGZscalarLink(location.href);
+    const ogLink = getOGZscalarUrl(location.href);
     console.log('Link:', ogLink);
 
-    var cssRules = '' +
+    const cssRules = '' +
         '.myAnchors { text-align: center; } ' +
         '.myAnchors a img { transition: transform 250ms ease; width:100px; max-width:150;translate3d(0, 0, 100); padding:5px 5px; } ' +
         '.myAnchors a:hover img { transform: scale(1.6, 1.6); } ' +
@@ -37,55 +37,48 @@ const IMG_SEARCH_URL = "https://www.google.com/search?&tbm=isch&q=";
         'a.myAnchors:{font-size: 8px; padding:5px 5px;}' +
         'body {' +
         'background-color: #474747;' +
-        /*     background-image: url(https://thumbs.gfycat.com/CoordinatedWindyArrowworm-mobile.jpg); */
-        /*     background-image: url(http://i.imgur.com/L0bKOnv.jpg); */
-        'background-image: url(http://www.blur.com/assets/uploads/2016/04/doom_tv_06.jpg);' +
+        /*     background-mainImage: url(https://thumbs.gfycat.com/CoordinatedWindyArrowworm-mobile.jpg); */
+        /*     background-mainImage: url(http://i.imgur.com/L0bKOnv.jpg); */
+        'background-mainImage: url(http://www.blur.com/assets/uploads/2016/04/doom_tv_06.jpg);' +
         'background-size:     cover;' +
         'background-repeat:   no-repeat;' +
-        'background-position: center center;' + /* optional, center the image */
+        'background-position: center center;' + /* optional, center the mainImage */
         '}';
 
-    var cssBlock = document.createElement('style');
+    const cssBlock = document.createElement('style');
     cssBlock.innerText = cssRules;
     document.getElementsByTagName('head')[0].appendChild(cssBlock);
 
-    var p = document.querySelector("p>strong").parentNode;
-    var strongs = document.querySelectorAll("p>strong");
-    var pReason = strongs[1].parentNode,
+    const p = document.querySelector("p>strong").parentNode;
+    const strongs = document.querySelectorAll("p>strong");
+    const pReason = strongs[1].parentNode,
         strong = strongs[0];
 
     const URL_START_INDEX = 31;
-    var link = p.innerHTML.substring(URL_START_INDEX, p.innerHTML.length);
-    var ssCell = document.createElement('div');
+    const theUrl = p.innerHTML.substring(URL_START_INDEX, p.innerHTML.length);
+    const ssCell = document.createElement('div');
 
-    var urlAnchor = createElement(
-        '<a id="urlAnchor" class="myAnchors" style="display:"' +
-        //		',text-align:center'+
-        'href="' + link + '">' + // href
-        (link + '\"') + // innerText
-        '</a>'
+    const urlAnchor = createElement(
+        `<a id="urlAnchor" class="myAnchors" style="display:"href="${theUrl}">${theUrl}"</a>`
     );
-    var siteSearchAnchor = createElement(
-        '<a id="siteSearchAnchor" class="myAnchors" style="display:" ' +
-        'href="' + (IMG_SEARCH_URL + escape('site:' + getHostname(link))) + '">' + // href
-        ('GOOGLE SITE SEARCH \"') + escape(getHostname(link)) + '\"' + // innerText
-        '</a>'
+    const siteSearchAnchor = createElement(
+        `<a id="siteSearchAnchor" class="myAnchors" style="display:" href="${IMG_SEARCH_URL + decodeURI('site:' + getHostname(theUrl))}">GOOGLE SITE SEARCH "${decodeURI(getHostname(theUrl))}"</a>`
     );
-    var siteSearchUrlAnchor = createElement(
-        '<a id="siteSearchUrlAnchor" class="myAnchors" style="display:" ' +
-        'href="' + (IMG_SEARCH_URL + ('site:' + escape(link))) + '">' + // href
-        ('image search:	' + link) + // innerText
-        '</a>'
+    const siteSearchUrlAnchor = createElement(
+        `<a id="siteSearchUrlAnchor" class="myAnchors" style="display:" 
+href="${IMG_SEARCH_URL}site:${decodeURI(theUrl)}">
+mainImage search:\t${theUrl}
+</a>`
     );
-    var toDdgAnchor = createElement(
+    const toDdgAnchor = createElement(
         '<a id="toDdgAnchor" class="myAnchors" style="display:" ' +
         'href="' + ddgProxy(ogLink) + '">' + // href
         'To DDG Proxy' + // innerText
         '</a>'
     );
 
-    var replacedNode = p.appendChild(urlAnchor, strong);
-    var replacedNode1 = p.appendChild(siteSearchAnchor, strong);
+    const replacedNode = p.appendChild(urlAnchor, strong);
+    const replacedNode1 = p.appendChild(siteSearchAnchor, strong);
     ssCell.appendChild(siteSearchAnchor);
 
     p.innerHTML = urlAnchor.outerHTML;
@@ -99,12 +92,12 @@ const IMG_SEARCH_URL = "https://www.google.com/search?&tbm=isch&q=";
 
     console.log("p: " + pReason.innerHTML);
 
-    document.body.style.backgroundImage = "url('')"; // set background image
+    document.body.style.backgroundImage = "url('')"; // set background mainImage
     document.body.style.backgroundSize = "1200px";
     document.body.style.color = "#aa0000";
 
 
-    var stringReason = pReason.innerHTML.replace("<strong>Reason:</strong>&nbsp;", "");
+    const stringReason = pReason.innerHTML.replace("<strong>Reason:</strong>&nbsp;", "");
     switch (stringReason) {
         case "Not allowed to browse Pornography category":
             // document.body.style.size = "700px 800px";
@@ -115,7 +108,7 @@ const IMG_SEARCH_URL = "https://www.google.com/search?&tbm=isch&q=";
 })();
 
 function getHostname(href) {
-    var l = document.createElement("a");
+    const l = document.createElement("a");
     l.href = href;
     return l.hostname;
 }

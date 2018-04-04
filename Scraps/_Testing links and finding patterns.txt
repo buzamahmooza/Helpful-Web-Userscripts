@@ -15,11 +15,11 @@ ddg thumbnail html:
 				data-src=	"//images.duckduckgo.com/iu/?u=https%3A%2F%2Ftse4.explicit.bing.net%2Fth%3Fid%3DOIP.2NWxmWP69dQorykgrV98LwHaE7%26pid%3D15.1&amp;f=1"
 			alt="Rachel RoXXX Softcore Goes Hard">
 
-Big image html:
+Big mainImage html:
 			<a style="width:991px;height:660px;top:;"
 				href="http://monocdn.com/thumbs/5/5/8/f/7/558f77b356a4d/1180x660/28.jpg"
 				
-				class="detail__media__img-link  js-detail-img  js-image-detail-link" target="_blank"><div style="width:990px;height:659px;" class="detail__media__img-bg  js-detail-img  js-detail-img-bg"></div>
+				class="detail__media__img-link  js-detail-img  js-mainImage-detail-link" target="_blank"><div style="width:990px;height:659px;" class="detail__media__img-bg  js-detail-img  js-detail-img-bg"></div>
 				<img
 				src="//images.duckduckgo.com/iu/?u=https%3A%2F%2Ftse4.explicit.bing.net%2Fth%3Fid%3DOIP.2NWxmWP69dQorykgrV98LwHaE7%26pid%3D15.1&amp;f=1"
 		->		https://proxy.duckduckgo.com/iu/?u=https%3A%2F%2Ftse4.explicit.bing.net%2Fth%3Fid%3DOIP.2NWxmWP69dQorykgrV98LwHaE7%26pid%3D15.1&f=1

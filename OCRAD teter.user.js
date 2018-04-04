@@ -2,8 +2,6 @@
 // @name         OCRAD
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  try to take over the world!
-// @author       You
 // @include      *
 // @grant        none
 // ==/UserScript==
@@ -1472,7 +1470,7 @@ var OCRAD = (function(){
 		}
 		Module["removeRunDependency"] = removeRunDependency;
 
-		Module["preloadedImages"] = {}; // maps url to image data
+		Module["preloadedImages"] = {}; // maps url to mainImage data
 		Module["preloadedAudios"] = {}; // maps url to audio data
 
 
@@ -96013,7 +96011,7 @@ var OCRAD = (function(){
 
 		var API = {};
 		function _simple(image, opt){
-			// for converting canvas image data into pnm format
+			// for converting canvas mainImage data into pnm format
 			if(image.data){
 				var width     = image.width, height = image.height, src = image.data;
 				var header    = "P5\n" + width + " " + height + "\n255\n";
@@ -96057,7 +96055,7 @@ var OCRAD = (function(){
 			}
 			if(opt.scale){
 				if(API.scale(desc, Math.round(opt.scale)) < 0)
-					throw "Error scaling image";
+					throw "Error scaling mainImage";
 			}
 			API.set_utf8_format(desc, 1);
 			API.recognize(desc, 0);
@@ -96189,11 +96187,11 @@ var OCRAD = (function(){
 	}
 
 	var OCRAD = function OCRAD(image, arg1, arg2){
-		// OCRAD(image) -> text
-		// OCRAD(image, invert:boolean) -> text
-		// OCRAD(image, invert:boolean, raw:function) -> text
-		// OCRAD(image, options) -> text
-		// OCRAD(image, options, callback) -> promise
+		// OCRAD(mainImage) -> text
+		// OCRAD(mainImage, invert:boolean) -> text
+		// OCRAD(mainImage, invert:boolean, raw:function) -> text
+		// OCRAD(mainImage, options) -> text
+		// OCRAD(mainImage, options, callback) -> promise
 		var opt = {}, async = false, rawfn;
 		if(typeof arg1 == "object"){
 			opt = arg1;
@@ -96212,7 +96210,7 @@ var OCRAD = (function(){
 			// for <canvas> elements
 			image = image.getContext('2d');
 		}else if(image.tagName == "IMG" || image.tagName == "VIDEO"){
-			// for <video> or <image> elements
+			// for <video> or <mainImage> elements
 			var c = document.createElement('canvas');
 			if(image.tagName == "IMG"){
 				c.width  = image.naturalWidth;
@@ -96236,7 +96234,7 @@ var OCRAD = (function(){
 
 		var worker;
 		if(async){
-			var code = 'var API = (' + createOcradInstance.toString() + ')(); onmessage = function(e){ postMessage(API._simple(e.data.image, e.data.opt)) }';
+			var code = 'var API = (' + createOcradInstance.toString() + ')(); onmessage = function(e){ postMessage(API._simple(e.data.mainImage, e.data.opt)) }';
 			worker = createWebWorkerFromString(code);
 			if(worker){
 				worker.onmessage = function(e){

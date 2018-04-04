@@ -5,7 +5,7 @@
 
 
 
-
+console.log('HELLO!');
 
 // make a hot-key to reply to the last message
 var contextMenu = document.querySelector('._2uLFU');
@@ -143,3 +143,48 @@ simulateCssEvent = function(target, type){
             return stopEvent();
     }
 }
+
+
+
+
+// this part is in charge of replacing underscores with italicised text
+
+/**
+ * @param targetElement
+ * @param callback
+ * @param options   mutationObserver options{ childList: boolean, subtree: boolean, attributes: boolean, characterData: boolean }
+ * @returns the mutationObserver object
+ */
+function observe(targetElement, callback, options) {
+    if (!targetElement) targetElement = document.body;
+    if (!options) options = {
+        childList: true, subtree: true,
+        attributes: false, characterData: true
+    };
+    const mutationsHandler = function (mutations) {
+        for (const mutation of mutations) {
+            if (mutation.type == 'characterData' && mutation && mutation.length){
+				console.log('characterData mutation:', mutation.target);
+                callback(mutation.target);
+            }
+            callback();
+        }
+    };
+    callback(targetElement);
+    const mutationObserver = new MutationObserver(mutationsHandler);
+    mutationObserver.observe(targetElement, options);
+    return mutationObserver;
+}
+var txtBx = document.querySelector('#main > footer > div > div > div > div.copyable-text.selectable-text');
+observe(txtBx, function(el){
+	var matches = el.innerText.match(/(?<=(\_))(.+?)(?=(\_))/gim);
+	console.log('matches:', matches);
+	var newHTML=""
+	if(matches)
+        [].forEach.call(matches, function(match){try{
+			var repl = `<em class="selectable-text invisible-space copyable-text" data-app-text-template="_\${appText}_">${match}</em>`;
+			if(!!repl) console.log('replacement:', repl);
+            newHTML = el.innerText.replace(match, repl);
+        }catch(e){}});
+	txtBx.innerHTML = newHTML;
+});

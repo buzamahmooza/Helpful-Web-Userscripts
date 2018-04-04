@@ -820,7 +820,7 @@
                         if (l.track(function () {
                             L && (e.__$mobRenderStart = Date.now());
                             try {
-                                n = r.e.allowStateChanges(!1, s)
+                                n = r.mouseWheelEvent.allowStateChanges(!1, s)
                             } catch (e) {
                                 t = e
                             }
@@ -928,10 +928,10 @@
             }]), t
         }(o.Component), J.contextTypes = {mobxStores: A}, J.childContextTypes = {mobxStores: A.isRequired};
         if (!o.Component) throw new Error("mobx-react requires React to be available");
-        if (!r.e) throw new Error("mobx-react requires mobx to be available");
-        "function" === typeof a.unstable_batchedUpdates && r.e.setReactionScheduler(a.unstable_batchedUpdates);
+        if (!r.mouseWheelEvent) throw new Error("mobx-react requires mobx to be available");
+        "function" === typeof a.unstable_batchedUpdates && r.mouseWheelEvent.setReactionScheduler(a.unstable_batchedUpdates);
         if ("object" === ("undefined" === typeof __MOBX_DEVTOOLS_GLOBAL_HOOK__ ? "undefined" : s(__MOBX_DEVTOOLS_GLOBAL_HOOK__))) {
-            var te = {spy: r.l, extras: r.e}, ne = {
+            var te = {spy: r.l, extras: r.mouseWheelEvent}, ne = {
                 renderReporter: z, componentByNodeRegistery: U, trackComponents: function () {
                     if ("undefined" === typeof WeakMap) throw new Error("[mobx-react] tracking components is not supported in this browser.");
                     L || (L = !0)
@@ -3019,7 +3019,7 @@
             return e[1].toUpperCase()
         }
 
-        "accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode x-height xlink:actuate xlink:arcrole xlink:href xlink:role xlink:show xlink:title xlink:type xml:base xmlns:xlink xml:lang xml:space".split(" ").forEach(function (e) {
+        "accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x mainImage-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode x-height xlink:actuate xlink:arcrole xlink:href xlink:role xlink:show xlink:title xlink:type xml:base xmlns:xlink xml:lang xml:space".split(" ").forEach(function (e) {
             var t = e.replace(A, R);
             I.Properties[t] = 0, I.DOMAttributeNames[t] = e
         }), x.injectDOMPropertyConfig(j), x.injectDOMPropertyConfig(I);
@@ -4840,7 +4840,7 @@
                         case 2:
                             return o = Yn(t), r = void 0, null === e ? t.stateNode ? f("153") : (C(t, t.pendingProps), _(t, n), r = !0) : r = E(e, t, n), s(e, t, r, o);
                         case 3:
-                            return l(t), null !== (o = t.updateQueue) ? (r = t.memoizedState) === (o = mr(e, t, o, null, null, n)) ? (x(), t = u(e, t)) : (r = o.element, c = t.stateNode, (null === e || null === e.child) && c.hydrate && y(t) ? (t.effectTag |= 2, t.child = Pr(t, null, r, n)) : (x(), i(e, t, r)), t.memoizedState = o, t = t.child) : (x(), t = u(e, t)), t;
+                            return l(t), null !== (o = t.updateQueue) ? (r = t.memoizedState) === (o = mr(e, t, o, null, null, n)) ? (x(), t = u(e, t)) : (r = o.el, c = t.stateNode, (null === e || null === e.child) && c.hydrate && y(t) ? (t.effectTag |= 2, t.child = Pr(t, null, r, n)) : (x(), i(e, t, r)), t.memoizedState = o, t = t.child) : (x(), t = u(e, t)), t;
                         case 5:
                             b(t), null === e && w(t), o = t.type;
                             var p = t.memoizedProps;
@@ -6384,7 +6384,7 @@
                         left: e.scrollLeft,
                         top: e.scrollTop
                     });
-                    for (d(n), n = 0; n < t.length; n++) (e = t[n]).element.scrollLeft = e.left, e.element.scrollTop = e.top
+                    for (d(n), n = 0; n < t.length; n++) (e = t[n]).el.scrollLeft = e.left, e.el.scrollTop = e.top
                 }
                 $o = null, Yt(Bo), Bo = null
             }, createInstance: function (e, t, n, r, o) {
@@ -8253,7 +8253,7 @@
                     r.addEventListener("load", () => {
                         t(r)
                     }), r.addEventListener("error", () => {
-                        n(new Error("Could not acquire image."))
+                        n(new Error("Could not acquire mainImage."))
                     }), r.src = e
                 }))
             }
@@ -8784,7 +8784,7 @@
             }
 
             get opened() {
-                return !!this.repository.element
+                return !!this.repository.el
             }
 
             get status() {
@@ -9968,7 +9968,7 @@
         var r = n("./node_modules/react/index.js"),
             o = (n.n(r), n("./node_modules/styled-components/dist/styled-components.browser.es.js")),
             i = n("./src/ui/help/SubTitle.tsx");
-        t.a = (({store: e}) => r.createElement("section", null, r.createElement(i.a, null, "Keyboard Shortcut"), r.createElement(a, null, e.keyList.map(e => r.createElement(r.Fragment, {key: e.key}, r.createElement(s, null, e.key), r.createElement("p", null, e.description))))));
+        t.a = (({store: e}) => r.createElement("section", null, r.createElement(i.a, null, "Keyboard Shortcut"), r.createElement(a, null, e.keyList.map(e => r.createElement(r.Fragment, {key: e.key}, r.createElement(s, null, e.key), r.createElement("p", null, e.descriptionText))))));
         const a = o["b"].div`
   display: grid;
   grid-template-columns: 40px 1fr 40px 1fr;
@@ -10203,7 +10203,7 @@
                     data: e,
                     onFetching: () => r.createElement(c.a, null),
                     onRejected: () => r.createElement(l.a, null, "Illust details load error"),
-                    onResolved: () => r.createElement(r.Fragment, null, r.createElement(g, null, r.createElement(d.e, null), r.createElement(b, null, e.date)), r.createElement(g, null, r.createElement(d.f, null), r.createElement(b, null, this.description)), r.createElement(g, null, r.createElement(d.y, null), r.createElement(b, null, e.viewCount)), r.createElement(g, null, r.createElement(d.s, null), r.createElement(b, null, e.rateCount)), r.createElement(y, null), r.createElement(g, null, r.createElement(d.d, null), r.createElement(b, {dangerouslySetInnerHTML: {__html: e.caption}})), r.createElement(y, null), r.createElement(g, null, r.createElement(d.w, null), r.createElement(b, null, e.tags.map(e => r.createElement(v, {
+                    onResolved: () => r.createElement(r.Fragment, null, r.createElement(g, null, r.createElement(d.mouseWheelEvent, null), r.createElement(b, null, e.date)), r.createElement(g, null, r.createElement(d.f, null), r.createElement(b, null, this.description)), r.createElement(g, null, r.createElement(d.y, null), r.createElement(b, null, e.viewCount)), r.createElement(g, null, r.createElement(d.s, null), r.createElement(b, null, e.rateCount)), r.createElement(y, null), r.createElement(g, null, r.createElement(d.d, null), r.createElement(b, {dangerouslySetInnerHTML: {__html: e.caption}})), r.createElement(y, null), r.createElement(g, null, r.createElement(d.w, null), r.createElement(b, null, e.tags.map(e => r.createElement(v, {
                         key: e.name,
                         href: e.url
                     }, e.name)))))
@@ -10854,7 +10854,7 @@
             l = n("./src/ui/toolbar/InfoSwitch.tsx"), c = n("./src/ui/toolbar/BookmarkSwitch.tsx"),
             u = n("./src/ui/toolbar/LikeSwitch.tsx"), d = n("./src/ui/toolbar/TweetSwitch.tsx"),
             p = n("./src/ui/toolbar/DownloadSwitch.tsx"), f = n("./src/ui/toolbar/HelpSwitch.tsx");
-        const h = Object(o.a)(({store: e}) => r.createElement(m, null, r.createElement(a.a, {store: e.view}), r.createElement(s.a, {store: e.view}), r.createElement(g, null), r.createElement(l.a, {store: e.info}), r.createElement(c.a, {store: e.bookmark}), r.createElement(u.a, {illust: e.view.current}), r.createElement(d.a, {illust: e.view.current}), r.createElement(p.a, {illust: e.view.current}), r.createElement(b, null), r.createElement(f.a, {store: e.help})));
+        const h = Object(o.a)(({store: e}) => r.createElement(m, null, r.createElement(a.a, {store: e.view}), r.createElement(s.a, {store: e.view}), r.createElement(g, null), r.createElement(l.a, {store: e.info}), r.createElement(c.a, {store: e.bookmark}), r.createElement(u.a, {illust: e.view.zipCurrent}), r.createElement(d.a, {illust: e.view.zipCurrent}), r.createElement(p.a, {illust: e.view.zipCurrent}), r.createElement(b, null), r.createElement(f.a, {store: e.help})));
         t.a = h;
         const m = i["b"].div`
   user-select: none;

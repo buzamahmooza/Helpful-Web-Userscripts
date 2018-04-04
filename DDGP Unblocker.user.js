@@ -23,29 +23,31 @@ let proxyOn = GM_getValue('proxyOn', DEFAULT_PROXY_STATE);
 
 // noinspection ES6ConvertVarToLetConst
 var debug;
-if (typeof debug === 'undefined') {
-    debug = false;
-}
-if (typeof log === 'undefined') {
-    log = function (msg) {
-        if (debug) console.log('Log:', msg);
-    };
-}
+if (typeof debug === 'undefined') debug = false;
+if (typeof log === 'undefined')
+    log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
+
+const stateStr = () => {
+    return (proxyOn ? 'ON' : 'OFF')
+};
 
 if (typeof reverseDdgProxy === 'undefined')
     reverseDdgProxy = function (url) {
-        let s = url;
-        try {
-            s = isDdgUrl(url) ? decodeURIComponent(url.match(/(?<=https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=)(.*?)(?=&f=1)/i)[0]) : url;
-            console.log("reverseDdgProxy from:", url, "\n\n\nBecame:", s);
-        } catch (exc) {
-            console.error('Caught error trying to reverse DDG proxy for ' + url + '\n', exc);
-        }
-        return s;
+        var s = url.match(/(?<=(https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=))(.+?)(?=(&f=1|$))/i);
+        // https://proxy\.duckduckgo\.com/iu/\?u=
+        // var s = decodeURIComponent(url.match(/(?<=(https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=))(.+?)(?=(&f=1))/i));
+        if (s && s[0])
+            return decodeURIComponent(s[0]);
+        else
+            console.log('Was unable to reverseDDGProxy for URL:', url);
     };
 
-const HOSTNAME = getHostname(reverseDdgProxy(location.href));
-console.log('generated HOSTNAME:', HOSTNAME);
+
+const HOSTNAME = getHostname(reverseDdgProxy(location.href), true);
+
+if (location.hostname == "proxy.duckduckgo.com") {
+    console.debug('Reverse-DDGp generated HOSTNAME:', HOSTNAME);
+}
 
 if (document.cookie.indexOf("ddg_ubl;") === -1) {
     log('This site is new to DDG Unblocker, taking note.');
@@ -63,8 +65,10 @@ window.onkeyup = function (e) {
                 log('Sending a DDGP pulse to the document element.');
                 go();
                 handleElement(document);
+
                 if (!isDdgUrl(location.href))
-                    location.href = ("https://proxy.duckduckgo.com/iu/?u=" + encodeURI(location) + "&f=1");
+                    if (confirm(`Also apply DuckDuckGo proxy to page URL?\nState: ${stateStr()}`))
+                        location.href = ddgProxy(location.href);
                 return false;
             }
 
@@ -72,12 +76,12 @@ window.onkeyup = function (e) {
             if (e.ctrlKey && !e.shiftKey) { // ctrl key
                 console.warn('Ctrl + F7 pressed (no action is assigned yet).');
             } else if (e.shiftKey && !e.ctrlKey) { // shift key
-                if (confirm("Would you like DDGP unblocker to remember this state?" + "\nState: " + (proxyOn ? 'ON' : 'OFF'))) {
+                if (confirm(`Would you like DDGP unblocker to remember this state?\nState: ${stateStr()}`)) {
                     GM_setValue('proxyOn', proxyOn);
                 }
             }
             if (proxyOn && !isDdgUrl(location.href))
-                location.href = ("https://proxy.duckduckgo.com/iu/?u=" + encodeURI(location) + "&f=1");
+                location.href = ddgProxy(location.href);
 
             if (document.cookie.indexOf("ddg_ubl;") === -1) {
                 document.cookie += " ddg_ubl;";
@@ -101,7 +105,7 @@ function go() {
 
     // not gonna happen
     if (false) {
-        document.querySelectorAll('[href]').forEach(function (e) { /*adds an image of the href*/
+        document.querySelectorAll('[href]').forEach(function (e) { /*adds an mainImage of the href*/
             if (e.classList.contains(ddgUrlToken) || isDdgUrl(e.href)) {
                 console.log('Not gonna make this into ddg cuz it is already ddg:', e.href);
                 return false;
@@ -112,13 +116,13 @@ function go() {
                 e.href = ddgProxy(e.href);
                 return false;
             }
-            // const clone = e.cloneNode(false);
-            // clone.href = ddgProxy(e.href);
-            // clone.innerText += '(DDG)';
-            // e.after(clone);
-            // console.log('Adding ddgLink:', e.href);
+            /*const clone = e.cloneNode(false);
+            clone.href = ddgProxy(e.href);
+            clone.innerText += '(DDG)';
+            e.after(clone);
+            console.log('Adding ddgLink:', e.href);*/
         });
-        document.querySelectorAll('[src]').forEach(function (e) { /*adds an image of the href*/
+        document.querySelectorAll('[src]').forEach(function (e) { /*adds an mainImage of the href*/
             if (e.classList.contains(ddgUrlToken) || isDdgUrl(e.href)) {
                 log('Not gonna make this into ddg cuz it is already ddg:', e.src);
                 return false;
@@ -129,22 +133,24 @@ function go() {
                 e.src = ddgProxy(e.src);
                 return false;
             }
-            // const clone = e.cloneNode(false);
-            // clone.src = ddgProxy(e.src);
-            // e.after(clone);
-            // log('Adding ddgLink:', e.src);
+            /*const clone = e.cloneNode(false);
+            clone.src = ddgProxy(e.src);
+            e.after(clone);
+            log('Adding ddgLink:', e.src);*/
         });
     }
 }
 
 function handleElement(node) {
-    if (!node) return false;
+    // if (!node) return false;
+    // Array.from(node).forEach(ddgReplaceElementAttributes);
+    const selectors = '[' + ATTRIBUTES.join('], [') + ']';
     try {
-        node.forEach(ddgReplaceElementAttributes);
+        Array.from(node).forEach(ddgReplaceElementAttributes);
     } catch (exc) {
         try {
             ATTRIBUTES.forEach(function (attrName) {
-                node.querySelectorAll('[' + attrName + ']').forEach(function (el) {
+                document.querySelectorAll('[' + attrName + ']').forEach(function (el) {
                     const attr = el.getAttribute(attrName);
 
                     if (el.classList.contains(ddgUrlToken) || isDdgUrl(attr)) {
@@ -162,22 +168,31 @@ function handleElement(node) {
 }
 
 function ddgReplaceAttribute(el, attrName, attr) {
-    el.setAttribute(attrName, ddgProxy(((attr.charAt(0) === '/' ? getHostname(reverseDdgProxy(location.href)) : '') + attr)));
+    if (!attr) {
+        console.warn(`The element ${el} does not contain the attribute "${attrName}"`);
+        return false;
+    }
+    const preceedingABackslash = ((attr.charAt(0) === '/') ? HOSTNAME : '');
+    const newAttrValue = ddgProxy(preceedingABackslash + attr);
+    console.debug('preceedingABackslash: ' + preceedingABackslash, 'attr: ' + attr, 'new url value: ' + newAttrValue);
+    el.setAttribute(attrName, newAttrValue);
 }
 
 function ddgReplaceElementAttributes(el) {
-    el.attributes.forEach(function (attrName) {
+    if (el.classList.contains('ddgUrlToken')) return;
+    for (const attrName of el.attributes) {
         ddgReplaceAttribute(el, attrName, el.getAttribute(attrName));
-    });
-    // for(let attr of ATTRIBUTES){
-    // 	if(el.hasAttribute(attr)){
-    // 		var x = el.getAttribute(attr);
-    // 		if(isDdgUrl(x)) break;
-    // 		else {
-    // 			el.setAttribute(attr, ddgProxy(x));
-    // 		}
-    // 	}
-    // }
+    }
+    el.classList.add('ddgUrlToken');
+    /*for(let attr of ATTRIBUTES){
+    	if(el.hasAttribute(attr)){
+    		var x = el.getAttribute(attr);
+    		if(isDdgUrl(x)) break;
+    		else {
+    			el.setAttribute(attr, ddgProxy(x));
+    		}
+    	}
+    }*/
 }
 
 function observeAllFrames(callback) {
@@ -202,12 +217,17 @@ function observeAllFrames(callback) {
 }
 
 function printState() {
-    log('DDG Proxy unblocker state:', proxyOn ? 'ON' : 'OFF');
+    console.log('DDG Proxy unblocker state: ' + stateStr());
+    return proxyOn;
+}
+
+function alertState() {
+    alert('DDG Proxy unblocker state: ' + stateStr());
     return proxyOn;
 }
 
 function ddgProxy(url) {
-    return ("https://proxy.duckduckgo.com/iu/?u=" + encodeURIComponent(url) + "&f=1");
+    return (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
 }
 
 function isDdgUrl(url) {
