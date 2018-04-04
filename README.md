@@ -1,11 +1,6 @@
 # Helpful-Web-Userscripts
 A bunch of user scripts that make browsing the web easier.
 
-
-
-
-Userscripts to add functionality to GitHub.
-
 ## Installation
 
 1. Make sure you have user scripts enabled in your browser (these instructions refer to the latest versions of the browser):
