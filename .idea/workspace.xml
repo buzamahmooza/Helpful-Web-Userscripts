@@ -2,27 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9a182d5d-cbaa-4cd8-8d1c-21449f7b9db5" name="Default" comment="">
-      <change beforePath="" afterPath="$PROJECT_DIR$/.idea/IntelliLang.xml" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/Bookmarklets/E-Hentai DL Archive.js" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/Bookmarklets/LightBoxGallery.js" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/Scraps/gfycat url to gif url.js" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/Video Keyboard Shortcuts.user.js" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/DDGP Unblocker.user.js" afterPath="$PROJECT_DIR$/DDGP Unblocker.user.js" />
-      <change beforePath="$PROJECT_DIR$/Display Original Image.user.js" afterPath="$PROJECT_DIR$/Display Original Image.user.js" />
-      <change beforePath="$PROJECT_DIR$/Google Images HTML.html" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/Handy AF functions Faris.user.js" afterPath="$PROJECT_DIR$/Handy AF functions Faris.user.js" />
-      <change beforePath="$PROJECT_DIR$/OCRAD teter.user.js" afterPath="$PROJECT_DIR$/OCRAD teter.user.js" />
-      <change beforePath="$PROJECT_DIR$/Super google.user.js" afterPath="$PROJECT_DIR$/Super google.user.js" />
-      <change beforePath="$PROJECT_DIR$/Whatsapp script.user.js" afterPath="$PROJECT_DIR$/Whatsapp script.user.js" />
-      <change beforePath="$PROJECT_DIR$/ZScalar blocked page modifier.user.js" afterPath="$PROJECT_DIR$/ZScalar blocked page modifier.user.js" />
-      <change beforePath="$PROJECT_DIR$/_Testing links and finding patterns.txt" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/_txt UBL Hostnames Set from SuperGoogle Script.txt" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/cockpit for Pixiv.js" afterPath="$PROJECT_DIR$/cockpit for Pixiv.js" />
-      <change beforePath="$PROJECT_DIR$/download_script.user.js" afterPath="$PROJECT_DIR$/download_script.user.js" />
-      <change beforePath="$PROJECT_DIR$/nHentai_downloader (learn how it works).js" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/ublsites from super google scripts.txt" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/GM_xmlhttpResponse response data.txt" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/JSZip.js" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/KFUPM Register Classes.js" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/OCRAD teter.user.js" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/arrows.svg" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/https---raw.githubusercontent.com-bijij-ViewImage-chrome-manifest.json.url" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/jszip.min.js" afterPath="" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -39,7 +25,7 @@
       <file leaf-file-name="Handy AF functions Faris.user.js" pinned="true" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Handy AF functions Faris.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2805">
+            <state relative-caret-position="483">
               <caret line="565" column="30" lean-forward="false" selection-start-line="565" selection-start-column="30" selection-end-line="565" selection-end-column="30" />
               <folding>
                 <element signature="e#748#752#0" expanded="false" />
@@ -151,9 +137,6 @@
                 <element signature="e#26272#26435#0" expanded="false" />
                 <element signature="e#26632#27188#0" expanded="false" />
                 <element signature="e#27620#28098#0" expanded="false" />
-                <element signature="e#27660#27800#0" expanded="false" />
-                <element signature="e#27817#28008#0" expanded="false" />
-                <element signature="e#28025#28060#0" expanded="false" />
                 <element signature="e#28112#28267#0" expanded="false" />
                 <element signature="e#28427#28443#0" expanded="false" />
                 <element signature="e#28445#28546#0" expanded="false" />
@@ -208,11 +191,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Display Original Image.user.js" pinned="false" current-in-tab="false">
+      <file leaf-file-name="Display Original Image.user.js" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="463">
-              <caret line="78" column="0" lean-forward="false" selection-start-line="78" selection-start-column="0" selection-end-line="78" selection-end-column="0" />
+            <state relative-caret-position="492">
+              <caret line="79" column="21" lean-forward="false" selection-start-line="79" selection-start-column="21" selection-end-line="79" selection-end-column="21" />
               <folding>
                 <element signature="e#1168#1289#0" expanded="false" />
                 <element signature="e#1512#1621#0" expanded="false" />
@@ -223,11 +206,7 @@
                 <element signature="e#5273#6171#0" expanded="false" />
                 <element signature="e#5352#6169#0" expanded="false" />
                 <element signature="e#5362#5510#0" expanded="false" />
-                <element signature="e#5389#5500#0" expanded="false" />
                 <element signature="e#5545#6163#0" expanded="false" />
-                <element signature="e#5576#5707#0" expanded="false" />
-                <element signature="e#5724#5857#0" expanded="false" />
-                <element signature="e#5874#6149#0" expanded="false" />
                 <element signature="e#5966#6122#0" expanded="false" />
                 <element signature="e#6195#8596#0" expanded="false" />
                 <element signature="e#6252#6907#0" expanded="false" />
@@ -342,21 +321,16 @@
                 <marker date="1522850842100" expanded="false" signature="4916:4946" ph="{...}" />
                 <marker date="1522850842100" expanded="false" signature="4973:5006" ph="{...}" />
                 <marker date="1522850842100" expanded="false" signature="5040:5073" ph="{...}" />
-                <marker date="1522850842100" expanded="false" signature="9884:9890" ph=" " />
-                <marker date="1522850842100" expanded="false" signature="9896:9902" ph=" " />
-                <marker date="1522850842100" expanded="false" signature="10458:10464" ph=" " />
-                <marker date="1522850842100" expanded="false" signature="10989:10995" ph=" " />
-                <marker date="1522850842100" expanded="false" signature="11940:11948" ph="..." />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="true">
+      <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/download_script.user.js">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="756">
-              <caret line="393" column="9" lean-forward="true" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
+              <caret line="393" column="9" lean-forward="false" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
               <folding>
                 <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
                 <element signature="n#!!block;n#retry#0" expanded="false" />
@@ -950,12 +924,12 @@
       <workItem from="1522507907547" duration="2168000" />
       <workItem from="1522555308273" duration="20619000" />
       <workItem from="1522760329565" duration="18904000" />
-      <workItem from="1522847263813" duration="3089000" />
+      <workItem from="1522847263813" duration="4001000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="587781000" />
+    <option name="totallyTimeSpent" value="588693000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -1578,9 +1552,20 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/download_script.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="756">
+          <caret line="393" column="9" lean-forward="false" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
+          <folding>
+            <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
+            <element signature="n#!!block;n#retry#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Handy AF functions Faris.user.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2805">
+        <state relative-caret-position="483">
           <caret line="565" column="30" lean-forward="false" selection-start-line="565" selection-start-column="30" selection-end-line="565" selection-end-column="30" />
           <folding>
             <element signature="e#748#752#0" expanded="false" />
@@ -1692,9 +1677,6 @@
             <element signature="e#26272#26435#0" expanded="false" />
             <element signature="e#26632#27188#0" expanded="false" />
             <element signature="e#27620#28098#0" expanded="false" />
-            <element signature="e#27660#27800#0" expanded="false" />
-            <element signature="e#27817#28008#0" expanded="false" />
-            <element signature="e#28025#28060#0" expanded="false" />
             <element signature="e#28112#28267#0" expanded="false" />
             <element signature="e#28427#28443#0" expanded="false" />
             <element signature="e#28445#28546#0" expanded="false" />
@@ -1750,8 +1732,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Display Original Image.user.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="463">
-          <caret line="78" column="0" lean-forward="false" selection-start-line="78" selection-start-column="0" selection-end-line="78" selection-end-column="0" />
+        <state relative-caret-position="492">
+          <caret line="79" column="21" lean-forward="false" selection-start-line="79" selection-start-column="21" selection-end-line="79" selection-end-column="21" />
           <folding>
             <element signature="e#1168#1289#0" expanded="false" />
             <element signature="e#1512#1621#0" expanded="false" />
@@ -1762,11 +1744,7 @@
             <element signature="e#5273#6171#0" expanded="false" />
             <element signature="e#5352#6169#0" expanded="false" />
             <element signature="e#5362#5510#0" expanded="false" />
-            <element signature="e#5389#5500#0" expanded="false" />
             <element signature="e#5545#6163#0" expanded="false" />
-            <element signature="e#5576#5707#0" expanded="false" />
-            <element signature="e#5724#5857#0" expanded="false" />
-            <element signature="e#5874#6149#0" expanded="false" />
             <element signature="e#5966#6122#0" expanded="false" />
             <element signature="e#6195#8596#0" expanded="false" />
             <element signature="e#6252#6907#0" expanded="false" />
@@ -1881,22 +1859,6 @@
             <marker date="1522850842100" expanded="false" signature="4916:4946" ph="{...}" />
             <marker date="1522850842100" expanded="false" signature="4973:5006" ph="{...}" />
             <marker date="1522850842100" expanded="false" signature="5040:5073" ph="{...}" />
-            <marker date="1522850842100" expanded="false" signature="9884:9890" ph=" " />
-            <marker date="1522850842100" expanded="false" signature="9896:9902" ph=" " />
-            <marker date="1522850842100" expanded="false" signature="10458:10464" ph=" " />
-            <marker date="1522850842100" expanded="false" signature="10989:10995" ph=" " />
-            <marker date="1522850842100" expanded="false" signature="11940:11948" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/download_script.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="756">
-          <caret line="393" column="9" lean-forward="true" selection-start-line="393" selection-start-column="9" selection-end-line="393" selection-end-column="9" />
-          <folding>
-            <element signature="n#!!block;n#imageUrl2blob#0" expanded="false" />
-            <element signature="n#!!block;n#retry#0" expanded="false" />
           </folding>
         </state>
       </provider>
