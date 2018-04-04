@@ -12,6 +12,8 @@ A bunch of user scripts that make browsing the web easier.
 	* Dolphin - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=dolphin).
 	* UC Browser - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=ucweb).
 
+2. Choose the script you want to install and press the `Raw` link on the GitHub page.
+
 ## How to use
 
 You should read the scripts `@description` for a brief summray, or check the comments on the script page on GitHub.
