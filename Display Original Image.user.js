@@ -24,6 +24,7 @@
 //@run-at       document-end
 //@require      https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 //@require      http://code.jquery.com/jquery-latest.js
+//@require      https://raw.githubusercontent.com/kimmobrunfeldt/progressbar.js/master/dist/progressbar.min.js
 //@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\download_script.user.js
 //@require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
 //==/UserScript==
@@ -89,7 +90,7 @@ const useDdgProxy = () => document.getElementById('useDdgProxyBox').checked,
     gifsOnly = () => document.getElementById('GIFsOnlyBox').checked,
     showFailedImages = () => document.getElementById('showFailedImagesBox').checked,
     SUCCESSFUL_URLS = new Set();
-
+var progressBar;
 var urls = new Set();
 const onGoogle = /google\.com/.test(location.hostname);
 
@@ -231,7 +232,7 @@ window.ImageManager = {
     },
     imgOnLoad: function () {
         this.setAttribute('loaded', true);
-        console.debug('Image loaded! :D', this.alt, !isBase64ImageData(this.src) ? this.src : "Base64ImageData");
+        // console.debug('Image loaded! :D', this.alt, !isBase64ImageData(this.src) ? this.src : "Base64ImageData");
         SUCCESSFUL_URLS.add(this.src);
     }
 };
@@ -299,14 +300,15 @@ function injectGoogleButtons() {
         var btn_dispOgs = createGBarButton(`dispOgsBtn`, `Display&nbsp;originals`),
             btn_animated = createGBarButton(`AnimatedBtn`, `Animated`),
             btn_download = createGBarButton(`downloadBtn`, `Download&nbsp;⇓`),
-            btn_preload = createGBarButton(`preloadBtn`, `Preload&nbsp;images&nbsp;↻`);
+            btn_preload = createGBarButton(`preloadBtn`, `Preload&nbsp;images&nbsp;↻`)
+        ;
 
         btn_dispOgs.onclick = displayImages;
         btn_animated.onclick = function () {
             document.getElementById('itp_animated').childNodes[0].click();
         };
 
-        const zipInsteadOfDownload = true;
+        const zipInsteadOfDownload = false;
         btn_download.onclick = zipInsteadOfDownload ? zipImages : downloadImages;
 
         btn_preload.onclick = function () {
@@ -325,7 +327,7 @@ function injectGoogleButtons() {
         };
 
         var downloadPanel = createElement(
-            '<div></div>'
+            '<div id="download-panel"></div>'
             /*'<form action="/action_page.php">'+
             	'First name:<br>'+
             	'<input type="text" name="firstname" value="Mickey"><br>'+
@@ -367,81 +369,71 @@ function imageIsBigEnough(image) {
     return false;
 }
 
-function imageUrl2blob(url, callback, opts) {
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: url || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
-        responseType: 'arraybuffer',
-        binary: true,
-        onload: /** @param {XMLHttpRequest} res */ function (res) {
-            try {
-                const ext = getFileExtension(url);
-                var blob = new Blob([res.response], {type: "image/" + ext});
-                if (!!callback) {
-                    console.debug("Callback found:", callback);
-                    callback(blob, url, opts);
-                } else
-                    saveAs(blob, "untitled." + ext);
-
-                console.debug('GM_xmlhttpRequest load', res, 'myblob:', blob);
-                console.debug([
-                    res.status,
-                    res.statusText,
-                    res.readyState,
-                    res.responseHeaders,
-                    res.responseText,
-                    res.finalUrl
-                ].join("\n"));
-            } catch (e) {
-                console.error(e);
-            }
-        },
-
-        onreadystatechange: function (res) {
-            console.log("Request state changed to: " + res.readyState);
-            if (res.readyState === 4) {
-                console.log('ret.readyState === 4');
-            }
-        },
-        onerror: /** @param {XMLHttpRequest} res */ function (res) {
-            var msg = "An error occurred."
-                + "\nresponseText: " + res.responseText
-                + "\nreadyState: " + res.readyState
-                + "\nresponseHeaders: " + res.responseHeaders
-                + "\nstatus: " + res.status
-                + "\nstatusText: " + res.statusText
-                + "\nfinalUrl: " + res.finalUrl;
-            console.error(msg);
-        },
-        onprogress: function (res) {
-            if (res.lengthComputable) {
-                console.log("progress:", res.loaded / res.total);
-            }
-        }
-    });
-}
-
 function zipImages() {
-    const ogs = qa(`.${TOKEN_DISPLAY}:not(${TOKEN_FAILED}), [loaded="true"], [loaded="ddgp"]`);
-    console.debug('Original images to be downloaded:', Array.from(ogs).map(og => og.src || og.href));
+    zipCurrent = 0;
+    const userDownloadLimit = slider_dlLimit.value;
+    zipTotal = userDownloadLimit; //ogs.length;
     zip = zip || new JSZip();
-    if (currentDownloadCount >= slider_dlLimit.value)
-        currentDownloadCount = 0;
+
+    const ogs = qa(`.rg_ic.rg_i`)
+        // qa(`.${TOKEN_DISPLAY}[loaded="true"], .img-big`)
+    ;
+    progressBar = new ProgressBar.Line('#download-panel', {easing: 'easeInOut'});
+
+    progressBar.animate(0);
+
+    console.debug('Original images to be downloaded:', Array.from(ogs).map(og => og.src || og.href));
 
     for (const og of ogs) {
-        if (currentDownloadCount >= slider_dlLimit.value) {
-            console.log('Zipped enough images', currentDownloadCount);
-            return;
-        }
         try {
             let image = og.tagName == 'IMG' ? og :
                 og.querySelector('img[src]');
 
             if (true || imageIsBigEnough(image)) {
-                imageUrl2blob(image.src, function (blob, url) {
-                    currentDownloadCount++;
-                    console.log('Image converted to blob:', url);
-                    zip.file(`${image.alt || image.getAttribute('download-name')}.${(getFileExtension(url) || "gif")}`, blob, {base64: true});
+                const fileUrl = extractImgData(image, 'ou');//image.src;
+                const ext = /com/.test(getFileExtension(fileUrl)) ? getFileExtension(fileUrl) : 'gif';
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
+                    responseType: 'arraybuffer',
+                    binary: true,
+                    onload: function (res) {
+                        var blob = new Blob([res.response], {type: "image/" + ext});
+                        const fileName = image.getAttribute('download-name') || image.alt;
+                        console.log("Filename:", fileName, image);
+                        zip.file(`${fileName}.${ext}`, blob);
+
+                        if (zipCurrent >= zipTotal++) {
+                            console.log("Generating ZIP...");
+                            zip.generateAsync({type: "blob"}).then(function (content) {
+                                    zipName = zipName || document.title;
+                                    saveAs(content, zipName + ".zip");
+                                }
+                            );
+                        }
+                    }, onreadystatechange: function (res) {
+                        console.debug("Request state changed to: " + res.readyState);
+                        if (res.readyState === 4) {
+                            console.debug('ret.readyState === 4');
+                        }
+                    },
+                    onerror: function (res) {
+                        console.error("An error occurred."
+                            + "\nresponseText: " + res.responseText
+                            + "\nreadyState: " + res.readyState
+                            + "\nresponseHeaders: " + res.responseHeaders
+                            + "\nstatus: " + res.status
+                            + "\nstatusText: " + res.statusText
+                            + "\nfinalUrl: " + res.finalUrl);
+                        zipCurrent++;
+                    },
+                    onprogress: function (res) {
+                        if (res.lengthComputable) {
+                            const progress = res.loaded / res.total;
+                            console.log("progress:", progress);
+                            progressBar.animate(progress);
+                        }
+                    }
                 });
             }
         } catch (e) {
@@ -701,7 +693,7 @@ Site            "ru":"",
                 "s":"Photo",
 SecondTitle	    "st":"",
                 "th":182,
-                "tu":"https://encrypted-tbn0.gstatic.com/images?q\u3dtbn:ANd9GcT5UKBXI9vUhDzBA7",
+                "tu":"https://encrypted-tbn0.gstatic.com/images?q\",
                 "tw":278
                 }
 
@@ -710,4 +702,3 @@ SecondTitle	    "st":"",
 	Domainlink:
 	Caption:
  */
-
