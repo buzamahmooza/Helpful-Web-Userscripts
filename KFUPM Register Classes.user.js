@@ -2,7 +2,7 @@
 // @name         KFUPM Register Classes
 // @namespace    http://tampermonkey.net/
 // @author       Faris Hijazi
-// @version      0.1
+// @version      0.3
 // @icon	 	 https://www.google.com/s2/favicons?domain=http://registrar.kfupm.edu.sa
 // @include      http://ssbweb.kfupm.edu.sa/PROD8/bwskfreg.P_AltPin
 // @include      file:///*
