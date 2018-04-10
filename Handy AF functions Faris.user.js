@@ -220,8 +220,11 @@ function reverseDdgProxy(url) {
     }
 }
 
-unsafeWindow.regexBetween = function (preceedingRegEx, betweenRegEx, proceedingRegEx, options) {
-    return new RegExp(`(?<=(${preceedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, options)
+unsafeWindow.regexBetween = function (preceedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
+    return new RegExp(`(?<=(${preceedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions)
+};
+unsafeWindow.extend = function () {
+    return $extend();
 };
 
 function preloader(imgUrls) {
@@ -444,10 +447,11 @@ function targetIsInput(event) {
 
 /** Calls the callback function, passing to it the width and height: "callback(w, h)"
  * @param url
- * @param callback
+ * @param callback  callback(width, height, url, imgNode, opts)
  * @param imgNode
+ * @param opts
  */
-function onLoadDim(url, callback, imgNode) {
+function onLoadDim(url, callback, imgNode, opts) {
     var img = new Image();
     if (!url) {
         console.warn('Url is invalid');
@@ -458,7 +462,7 @@ function onLoadDim(url, callback, imgNode) {
 
     if (typeof callback === 'function') {
         img.addEventListener('load', function () {
-            callback(this.naturalWidth, this.naturalHeight, url, imgNode);
+            callback(this.naturalWidth, this.naturalHeight, url, imgNode, opts);
         });
     } else
         console.error('onLoad() callback passed should be of type "function".');
@@ -563,7 +567,7 @@ function removeEventListeners(eventTarget) {
 
 unsafeWindow.removeDoubleSpaces = removeDoubleSpaces;
 unsafeWindow.clearGibberish = clearGibberish;
-unsafeWindow.isBase64ImageData= isBase64ImageData;
+unsafeWindow.isBase64ImageData = isBase64ImageData;
 
 /**
  * Returns true if the string is an image data string
@@ -719,7 +723,6 @@ function downloadUsingXmlhttpRequest(url, opts) {
         }
         return output;
     }
-
 }
 
 /*global self */
@@ -936,3 +939,105 @@ function fetchUsingProxy(url, callback) {
         .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
 }
 
+unsafeWindow.KeyEvent = {
+    DOM_VK_BACKSPACE: 8,
+    DOM_VK_TAB: 9,
+    DOM_VK_ENTER: 13,
+    DOM_VK_SHIFT: 16,
+    DOM_VK_CTRL: 17,
+    DOM_VK_ALT: 18,
+    DOM_VK_PAUSE_BREAK: 19,
+    DOM_VK_CAPS_LOCK: 20,
+    DOM_VK_ESCAPE: 27,
+    DOM_VK_PGUP: 33, DOM_VK_PAGE_UP: 33,
+    DOM_VK_PGDN: 34, DOM_VK_PAGE_DOWN: 34,
+    DOM_VK_END: 35,
+    DOM_VK_HOME: 36,
+    DOM_VK_LEFT: 37, DOM_VK_LEFT_ARROW: 37,
+    DOM_VK_UP: 38, DOM_VK_UP_ARROW: 38,
+    DOM_VK_RIGHT: 39, DOM_VK_RIGHT_ARROW: 39,
+    DOM_VK_DOWN: 40, DOM_VK_DOWN_ARROW: 40,
+    DOM_VK_INSERT: 45,
+    DOM_VK_DEL: 46, DOM_VK_DELETE: 46,
+    DOM_VK_0: 48,
+    DOM_VK_1: 49,
+    DOM_VK_2: 50,
+    DOM_VK_3: 51,
+    DOM_VK_4: 52,
+    DOM_VK_5: 53,
+    DOM_VK_6: 54,
+    DOM_VK_7: 55,
+    DOM_VK_8: 56,
+    DOM_VK_9: 57,
+    DOM_VK_A: 65,
+    DOM_VK_B: 66,
+    DOM_VK_C: 67,
+    DOM_VK_D: 68,
+    DOM_VK_E: 69,
+    DOM_VK_F: 70,
+    DOM_VK_G: 71,
+    DOM_VK_H: 72,
+    DOM_VK_I: 73,
+    DOM_VK_J: 74,
+    DOM_VK_K: 75,
+    DOM_VK_L: 76,
+    DOM_VK_M: 77,
+    DOM_VK_N: 78,
+    DOM_VK_O: 79,
+    DOM_VK_P: 80,
+    DOM_VK_Q: 81,
+    DOM_VK_R: 82,
+    DOM_VK_S: 83,
+    DOM_VK_T: 84,
+    DOM_VK_U: 85,
+    DOM_VK_V: 86,
+    DOM_VK_W: 87,
+    DOM_VK_X: 88,
+    DOM_VK_Y: 89,
+    DOM_VK_Z: 90,
+    DOM_VK_LWIN: 91, DOM_VK_LEFT_WINDOW: 91,
+    DOM_VK_RWIN: 92, DOM_VK_RIGHT_WINDOW: 92,
+    DOM_VK_SELECT: 93,
+
+    DOM_VK_NUMPAD0: 96,
+    DOM_VK_NUMPAD1: 97,
+    DOM_VK_NUMPAD2: 98,
+    DOM_VK_NUMPAD3: 99,
+    DOM_VK_NUMPAD4: 100,
+    DOM_VK_NUMPAD5: 101,
+    DOM_VK_NUMPAD6: 102,
+    DOM_VK_NUMPAD7: 103,
+    DOM_VK_NUMPAD8: 104,
+    DOM_VK_NUMPAD9: 105,
+    DOM_VK_MULTIPLY: 106,
+
+    DOM_VK_ADD: 107,
+    DOM_VK_SUBTRACT: 109,
+    DOM_VK_DECIMAL_POINT: 110,
+    DOM_VK_DIVIDE: 111,
+    DOM_VK_F1: 112,
+    DOM_VK_F2: 113,
+    DOM_VK_F3: 114,
+    DOM_VK_F4: 115,
+    DOM_VK_F5: 116,
+    DOM_VK_F6: 117,
+    DOM_VK_F7: 118,
+    DOM_VK_F8: 119,
+    DOM_VK_F9: 120,
+    DOM_VK_F10: 121,
+    DOM_VK_F11: 122,
+    DOM_VK_F12: 123,
+    DOM_VK_NUM_LOCK: 144,
+    DOM_VK_SCROLL_LOCK: 145,
+    DOM_VK_SEMICOLON: 186,
+    DOM_VK_EQUALS: 187, DOM_VK_EQUAL_SIGN: 187,
+    DOM_VK_COMMA: 188,
+    DOM_VK_DASH: 189,
+    DOM_VK_PERIOD: 190,
+    DOM_VK_FORWARD_SLASH: 191,
+    DOM_VK_GRAVE_ACCENT: 192,
+    DOM_VK_OPEN_BRACKET: 219,
+    DOM_VK_BACK_SLASH: 220,
+    DOM_VK_CLOSE_BRAKET: 221,
+    DOM_VK_SINGLE_QUOTE: 222
+};
