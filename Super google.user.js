@@ -48,9 +48,9 @@ if (typeof AUTO_SAVE_UBL_SITES === 'undefined')
 googleBaseURL = location.protocol + "google.com";
 gImgSearchURL = googleBaseURL + "/search?&hl=en&tbm=isch&q=";
 
-let storedSuccessfulUrlsSet = GM_getValue('unblocked sites of og images', new Set(['forumophilia.com']));
+let storedSuccessfulURLs = GM_getValue('unblocked sites of og images', new Set(['forumophilia.com']));
 let ublSitesMap = GM_getValue('ublSitesMap', new Map([['forumphilia.com', '']]));
-let successfulUrlsSet = new Set();
+let successfulUrls = new Set();
 
 if (typeof GM === 'undefined') // PRE GM4
 {
@@ -73,9 +73,11 @@ if (typeof unsafeWindow.superGoogleScr === 'undefined') {
 
 // OPTIONS:
 let LOOP_RELATIVE_IMAGES = GM_getValue('LOOP_RELATIVE_IMAGES', false);
-const invertWheelRelativeImageNavigation = false;
-
-const successColor = 'rgb(167, 99, 255)';
+const invertWheelRelativeImageNavigation = false,
+    successColor = 'rgb(167, 99, 255)',
+    DEFAULT_TARGET = "";
+let progressBar,
+    zipTotal = 0;
 
 addCss
 (`.hover-click:hover,
@@ -83,38 +85,44 @@ addCss
     color: #999;
     text-decoration: none;
     cursor: pointer;
+}
+
+.sg { /*sg=SuperGoogle, this is padding for the buttons and controls*/
+    padding: 8px;
+}
+input[type="range"] + label { /*The label elements displaying the slider readings*/
+    padding: 6px;
 }`);
 
 /** change mouse cursor when hovering over elements for scroll navigation
  * cursor found here:   https://www.flaticon.com/free-icon/arrows_95103#
  */
-if (false)
-    addCss(`
-/*
+/*addCss(`
+/!*
 .scroll-nav *:hover:not(.hover-click),
 .scroll-nav *:focus:not(.hover-click)
  {
     cursor:url(data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTcuMS4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDM0Ny4yMjMgMzQ3LjIyMyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzQ3LjIyMyAzNDcuMjIzOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgd2lkdGg9IjUxMnB4IiBoZWlnaHQ9IjUxMnB4Ij4KPGc+Cgk8cGF0aCBkPSJNMzQzLjcyNiwxNjYuODY1bC00NC4wMDktMzAuODMzYy0xLjQxMy0wLjk5LTIuNzI4LTEuNTEzLTQuMjUyLTEuNTEzYy0zLjMwNywwLTYuNDE3LDIuNTEyLTYuNDE3LDcuMzEzdjkuNzhoLTQ0LjA3NiAgIGMtNC45NjIsMC04LjkyNCwzLjc0My04LjkyNCw4LjcwNXYyNS44N2MwLDQuOTYyLDMuOTYyLDkuNDI1LDguOTI0LDkuNDI1aDQ0LjA3NnY5LjA2NGMwLDQuOCwzLjExMSw2LjkzNiw2LjQxOCw2LjkzNmgtMC4xMTggICBjMS41MjQsMCwzLjAxNy0wLjMzNSw0LjQzMS0xLjMyNGw0My45NzctMzAuNzM3YzIuMjEzLTEuNTUxLDMuNDY3LTMuODMzLDMuNDY3LTYuMzQ0ICAgQzM0Ny4yMjMsMTcwLjY5NiwzNDUuOTM4LDE2OC40MTQsMzQzLjcyNiwxNjYuODY1eiIgZmlsbD0iIzAwMDAwMCIvPgoJPHBhdGggZD0iTTEwMi4yMDgsMTUxLjYxMUg1OS4wNDh2LTkuNzhjMC00LjgwMS0zLjU2OS03LjMxMy02Ljg3Ni03LjMxM2MtMS41MjQsMC0zLjE4OCwwLjUyMy00LjYwMSwxLjUxM0wzLjUwOSwxNjYuODYyICAgQzEuMjk3LDE2OC40MTMsMCwxNzAuNzQyLDAsMTczLjI1MmMwLDIuNTEsMS4yNTUsNC44MzksMy40NjgsNi4zOTFsNDQuMDAyLDMwLjY0NWMxLjQxMywwLjk4OSwyLjk2MSwxLjMyNCw0LjQ4NiwxLjMyNGgtMC4wMDEgICBjMi4wODIsMCw0LjIwMy0wLjc3LDUuNDM4LTIuNDQxYzAuOTM5LTEuMjcyLDEuNjU1LTIuNzAzLDEuNjU1LTQuNDk1di05LjA2NGg0My4xNjFjNC45NjIsMCw4LjgzOS00LjQ1OSw4LjgzOS05LjQyMXYtMjUuODcgICBDMTExLjA0OCwxNTUuMzU4LDEwNy4xNzEsMTUxLjYxMSwxMDIuMjA4LDE1MS42MTF6IiBmaWxsPSIjMDAwMDAwIi8+Cgk8cGF0aCBkPSJNMTkyLjA0OCwxNy42MTFoLTM3Yy00Ljk2MiwwLTksNC4wMzgtOSw5djI5NGMwLDQuOTYyLDQuMDM4LDksOSw5aDM3YzQuOTYyLDAsOS00LjAzOCw5LTl2LTI5NCAgIEMyMDEuMDQ4LDIxLjY0OSwxOTcuMDEsMTcuNjExLDE5Mi4wNDgsMTcuNjExeiIgZmlsbD0iIzAwMDAwMCIvPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo=) 16 16, auto;
 }
-*/
+*!/
 
 .grey-scale,
 img[loaded="error"] {
-    -webkit-filter: grayscale(1); /* Webkit */
-    filter: gray; /* IE6-9 */
-    filter: grayscale(1); /* W3C */
+    -webkit-filter: grayscale(1); /!* Webkit *!/
+    filter: gray; /!* IE6-9 *!/
+    filter: grayscale(1); /!* W3C *!/
 }
 
 img[loaded="error"],
 img[loaded="false"] {
     opacity: 0.5;
-    filter: alpha(opacity=50); /* For IE8 and earlier */
+    filter: alpha(opacity=50); /!* For IE8 and earlier *!/
 }
 
 img[loaded="true"] {
     opacity: 1;
-    filter: alpha(opacity=100); /* For IE8 and earlier */
-}`);
+    filter: alpha(opacity=100); /!* For IE8 and earlier *!/
+}`);*/
 
 const belowDivClassName = 'below-st-div';
 
@@ -146,6 +154,38 @@ function getImgMetaById(id) {
         }
     }
     return false;
+}
+
+unsafeWindow.zipImages = zipImages;
+var zip = new JSZip();
+unsafeWindow.zip = zip;
+unsafeWindow.genZip = genZip;
+
+function genZip(zipName) {
+    zip.generateAsync({type: "blob"}).then(function (content) {
+            zipName = zipName || document.title;
+            try {
+                zip.file(zipName + " info" + ".txt", new Blob([getGimgPageInfoText()], {type: 'text/plain'}));
+            } catch (e) {
+            }
+            saveAs(content, `${zipName} [${Object.keys(zip.files).length}].zip`);
+        }
+    );
+}
+
+unsafeWindow.extractRarbgTorrentURL = extractRarbgTorrentURL;
+
+//  https://rarbg.unblocker.win/download.php?id= kmvf126 &f= <TorrentName>-[rarbg.to].torrent
+/**
+ * @param {string} torrentName
+ * @param {string} torrentPageURL
+ * @returns {string}
+ */
+function extractRarbgTorrentURL(torrentName, torrentPageURL) {
+    var torrentURL;
+    torrentURL = torrentPageURL.replace(/torrent\//i, 'download.php?id=') + "&f=" + torrentName.split(/\s+/)[0] + ".torrent";
+    console.debug('extracted rarbg torrent URL:', torrentURL);
+    return torrentURL;
 }
 
 /*Image boxes:
@@ -349,7 +389,7 @@ class IP {  // ImagePanel class
         const candidate1 = (pTitle.length > sTitle.length ? pTitle : sTitle).trim(); // choose the longer one
         if (candidate1.length > 5 && description.length > 5)
             return candidate1 + " " + description;
-        return (candidate1.length > description.length ? candidate1 : description).trim();
+        return (candidate1.length > description.length ? candidate1 : description).trim().slice(0, 50);
     }
 
     get leftPart() {
@@ -426,13 +466,12 @@ class IP {  // ImagePanel class
         /*waitForElement(() => IP.focusedPanel.relatedImage_Container, () => {
             p.inject_DownloadRelatedImages();
         });*/
-        p.inject_download_ris();
+        p.inject_Download_ris();
         p.inject_ImageHost();
 
         const dimensionsEl = p.q('.irc_idim');
         dimensionsEl.addEventListener('click', IP.moreSizes);
         dimensionsEl.classList.add('hover-click');
-
 
         // remove "Images may be subject to copyright"
         p.sTitle_Anchor.style = "padding-right: 5px; text-decoration:none;";
@@ -442,59 +481,68 @@ class IP {  // ImagePanel class
             console.warn(e);
         }
 
-
+        // injecting rarbg torrent link button
+        (function () {
+            const rarbg_tl = createElement(`<a class="_r3 hover-click o5rIVb torrent-link" 
+    style=" float: left; padding: 4px; display: inline-block; font-size: 10px; color: white;">
+    <img src="https://rarbg.unblocker.win/cdn/static/20/img/16x16/download.png" alt="Rarbg torrent link" border="0" style=" width: 25px; height: 25px; ">
+    <label style=" display: list-item; ">Torrent link</label></a>`);
+            rarbg_tl.onclick = () => anchorClick(extractRarbgTorrentURL(p.pTitle_Anchor.innerText, p.pTitle_Anchor.href), '_blank');
+            p.pTitle_Anchor.before(rarbg_tl);
+        })();
         //@info .irc_ris    class of the relatedImgsDivContainer
         //@info div#isr_mc  the main container containing all the image boxes, and the panels (only 2 children)
-        panelEl.addEventListener("wheel",
-            /**
-             * @param {WheelEvent} wheelEvent
-             * @return {boolean}
-             */ function (wheelEvent) {
-                if (!wheelEvent.ctrlKey && !wheelEvent.metaKey && !wheelEvent.shiftKey && !wheelEvent.altKey) {
-                    let elUnderMouse =
-                        // wheelEvent.target
-                        elementUnderMouse(wheelEvent)
-                    ;
-                    if (IP.mainPanelEl.contains(elUnderMouse)) {
-                        try {
-                            // Listen for scroll events
-                            /** @type {DOMRect} */
-                                // var rect = IP.mainPanelEl.getBoundingClientRect();
-                                // console.log(rect.top, rect.right, rect.bottom, rect.left);
+        panelEl.addEventListener("wheel", /**
+         * @param {WheelEvent} wheelEvent
+         * @return {boolean}
+         */
+        function (wheelEvent) {
+            if (!wheelEvent.ctrlKey && !wheelEvent.metaKey && !wheelEvent.shiftKey && !wheelEvent.altKey) {
+                let elUnderMouse =
+                    // wheelEvent.target
+                    elementUnderMouse(wheelEvent)
+                ;
+                if (IP.mainPanelEl.contains(elUnderMouse)) {
+                    try {
+                        // Listen for scroll events
+                        /** @type {DOMRect} */
+                            // var rect = IP.mainPanelEl.getBoundingClientRect();
+                            // console.log(rect.top, rect.right, rect.bottom, rect.left);
 
-                            const leftPart = IP.focP.leftPart;
-                            const rightPart = IP.focP.rightPart; // this is NOT the entire RIGHT part
-                            const irc_ris = IP.focP.q('.irc_ris');
-                            const onLeftSide = isOrContains(leftPart, elUnderMouse); //containsClassName(elUnderMouse, '.irc_t');// on left half of panel
-                            const onRightPart = isOrContains(rightPart, elUnderMouse); // on RIGHT half of panel
-                            const delta = getWheelDelta(wheelEvent);
-                            if (Math.abs(delta) < 0.1) { // Do nothing if didn't scroll
-                                log("Mousewheel didn't move");
-                                return false;
-                            }
-                            /// Wheel definetely moved at this point
-                            let wheelUp = invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
-                            if (!onLeftSide) {   // If the mouse is under the RIGHT side of the image panel
-                                if (isOrContains(elUnderMouse, leftPart)) {
-                                    (wheelUp) ? IP.nextImage() :
-                                        IP.previousImage();
-                                }
-                                if (onRightPart || isOrContains(irc_ris, elUnderMouse) || (elUnderMouse.classList.contains('irc_mut'))) {
-                                    // console.log('elUnderMouse:', elUnderMouse);
-                                    (wheelUp) ? nextRelImg() :
-                                        prevRelImg();
-                                } else {
-                                    console.log('mousewheel did NOT scroll while over a container element.', 'elUnderMouse:', elUnderMouse);
-                                }
-                                wheelEvent.preventDefault();
-                            }
+                        const leftPart = IP.focP.leftPart;
+                        const rightPart = IP.focP.rightPart; // this is NOT the entire RIGHT part
+                        const irc_ris = IP.focP.q('.irc_ris');
+                        const onLeftSide = isOrContains(leftPart, elUnderMouse); //containsClassName(elUnderMouse, '.irc_t');// on left half of panel
+                        const onRightPart = isOrContains(rightPart, elUnderMouse); // on RIGHT half of panel
+                        const delta = getWheelDelta(wheelEvent);
+                        if (Math.abs(delta) < 0.1) { // Do nothing if didn't scroll
+                            log("Mousewheel didn't move");
                             return false;
-                        } catch (e) {
-                            console.warn(e)
                         }
+                        /// Wheel definetely moved at this point
+                        let wheelUp = invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
+                        if (!onLeftSide) {   // If the mouse is under the RIGHT side of the image panel
+                            if (isOrContains(elUnderMouse, leftPart)) {
+                                (wheelUp) ? IP.nextImage() :
+                                    IP.previousImage();
+                            }
+                            if (onRightPart || isOrContains(irc_ris, elUnderMouse) || (elUnderMouse.classList.contains('irc_mut'))) {
+                                // console.log('elUnderMouse:', elUnderMouse);
+                                (wheelUp) ? nextRelImg() :
+                                    prevRelImg();
+                            } else {
+                                console.debug('Mgouse wheel did NOT scroll while over a container element.\nelUnderMouse:', elUnderMouse);
+                            }
+                            wheelEvent.preventDefault();
+                        }
+                        return false;
+                    } catch (e) {
+                        console.warn(e)
                     }
                 }
-            });
+            }
+        });
+        IP.updateP(p);
     }
 
     static updateP(panelEl) {
@@ -514,7 +562,13 @@ class IP {  // ImagePanel class
         p.update_ViewImage();
         p.update_ImageHost();
         p.update_sbi();
-        // p.inject_DownloadRelated2();
+
+
+        // rarbg torrent link
+        let torrentLink = p.q('.torrent-link');
+        const linkIsTorrent = /\/torrent\//gi.test(p.pTitle_Anchor.href);
+        if (!!torrentLink)
+            torrentLink.style.display = linkIsTorrent ? 'inline-block' : 'none';
     }
 
     static moreSizes() {
@@ -601,7 +655,7 @@ class IP {  // ImagePanel class
         }
     }
 
-    inject_download_ris() {
+    inject_Download_ris() {
         // const risContainer = this.relatedImage_Container.parentNode;
         const className = 'download-related hover-click';
         const text = 'Download&nbsp;Related&nbsp;↓';
@@ -620,31 +674,6 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;">
         targetEl.after(button);
         // } else
         //     console.log('this panel already has downlaod-related buttonParent');
-    }
-
-    inject_SiteSearch() {
-        const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
-        const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
-        const hostname = getHostname(this.sTitle_Anchor.href);
-        const spanClass = `site-search`;
-        const html = `<a class="${spanClass} hover-click" target="_blank" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" 
- href="${href}" data-ved="${dataVed}" data-ctbtn="2"
- <span class="irc_ho" dir="ltr" style="text-align: left; font-size: 12px;"
- >Site: ${hostname}</span></a>`;
-        return this.addElementAfterSTitle(html, "", null, 'LEFT', 'div');
-    }
-
-    /** Inject the SearchByImage anchor
-     * @return {*} */
-    inject_sbi() {
-        const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
-        const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
-        const className = `search-by-image`;
-        var html = `<a class="${className}" target="_blank" href="${href}" data-ved="${dataVed}" 
-rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
-<span class="irc_ho" dir="ltr" style="text-align: left;">Search&nbsp;by&nbsp;image</span></a>`;
-
-        return this.addElementAfterSTitle(html, className, null, 'RIGHT');
     }
 
     inject_DownloadImage() {
@@ -677,6 +706,29 @@ rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-c
         }
     }
 
+    /** Inject the SearchByImage anchor
+     * @return {*} */
+    inject_sbi() {
+        const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
+        const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
+        const className = `search-by-image`;
+        var html = `<a class="o5rIVb ${className}" target="${DEFAULT_TARGET}" href="${href}" data-ved="${dataVed}" 
+rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
+<span class="irc_ho" dir="ltr" style="text-align: left;">Search&nbsp;by&nbsp;image</span></a>`;
+
+        return this.addElementAfterSTitle(html, className, null, 'RIGHT');
+    }
+
+    update_sbi() {
+        // updating ImageHost
+        const sbi = this.q('a.search-by-image');
+        if (sbi) {
+            sbi.href = this.sbiUrl;
+        } else
+            console.warn('SearchByImage element not found:', sbi);
+    }
+
+
     inject_ViewImage() {
         const text = 'View&nbsp;image';
         if (this.sTitle_Anchor) {
@@ -684,7 +736,7 @@ rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-c
             const className = 'view-image';
 
             // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
-            const buttonHtml = `<td><a href="#" target="_blank" class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}">
+            const buttonHtml = `<td><a href="#" target="${"_blank"}" class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}">
 <span>${text}</span></a></td>`;
 //             const html = `<span class="${className}" target="_blank" data-ved="${dataVed}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
 // <span class="irc_ho" dir="ltr" style="text-align: left;">${text}</span></span>`;
@@ -715,38 +767,6 @@ rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-c
         }
     }
 
-    inject_ImageHost() {
-        console.log('this.qa(".irc_msc"):', this.qa('.irc_msc'));
-        let container = this.q('.irc_msc');
-
-        if (this.sTitle_Anchor) {
-            // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
-            var className = 'image-host hover-click';
-            const element = createElement(`<a class="${className}" href="" target="_blank" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0"  data-ved="" data-ctbtn="2" 
-style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
-<span class="irc_ho" dir="ltr" style="text-align: center;">Image&nbsp;Host</span></a>`);
-            // const button = this.addElementAfterSTitle(html, "image-host hover-click", null, 'NONE');
-            container.after(element);
-            return element;
-        }
-    }
-
-    update_SiteSearch() {
-        const ss = this.q('.site-search');
-        const hostname = getHostname(this.sTitle_Anchor.href);
-        if (ss) {
-            ss.innerText = hostname;
-            ss.href = (siteSearchUrl(getHostname(IP.focP.q('span a.irc_lth.irc_hol').href)));
-        }
-        else
-            console.warn('Site Search element not found:', ss);
-
-        if (successfulUrlsSet.has(hostname)) {
-            // console.log('changing title color cuz found in ublSites:', '' + this.sTitle_Anchor);
-            this.sTitle_Anchor.style.color = successColor;
-        }
-    }
-
     update_ViewImage() {
         const viewImage = this.q('.view-image');
         if (viewImage) {
@@ -754,6 +774,23 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         }
         else
             console.warn('viewImage element not found:', viewImage);
+    }
+
+
+    inject_ImageHost() {
+        console.log('this.qa(".irc_msc"):', this.qa('.irc_msc'));
+        let container = this.q('.irc_msc');
+
+        if (this.sTitle_Anchor) {
+            // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
+            var className = 'image-host hover-click';
+            const element = createElement(`<a class="${className}" href="" target="${DEFAULT_TARGET}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0"  data-ved="" data-ctbtn="2" 
+style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
+<span class="irc_ho" dir="ltr" style="text-align: center;">Image&nbsp;Host</span></a>`);
+            // const button = this.addElementAfterSTitle(html, "image-host hover-click", null, 'NONE');
+            container.after(element);
+            return element;
+        }
     }
 
     update_ImageHost() {
@@ -766,7 +803,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
             if (ih) {
                 ih.innerText = hostname;
                 ih.href = gImgSearchURL + 'site:' + hostname;
-                if (successfulUrlsSet.has(hostname)) {
+                if (successfulUrls.has(hostname)) {
                     ih.style.color = successColor;
                 }
             } else
@@ -774,13 +811,52 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         }
     }
 
-    update_sbi() {
-        // updating ImageHost
-        const sbi = this.q('a.search-by-image');
-        if (sbi) {
-            sbi.href = this.sbiUrl;
+
+    siteSearch() {
+        try {
+            const hostname = getHostname(this.sTitle_Anchor.href);
+            console.log('Site search:', hostname);
+            openInTab(siteSearchUrl(getHostname(this.sTitle_Anchor.href)));
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+    inject_SiteSearch() {
+        const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
+        const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
+        const hostname = getHostname(this.sTitle_Anchor.href);
+        const spanClass = `site-search`;
+        const html = `<a class="${spanClass} _r3 hover-click o5rIVb" target="${DEFAULT_TARGET}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" 
+ href="${href}" data-ved="${dataVed}" data-ctbtn="2"
+ <span class="irc_ho" dir="ltr" style="text-align: left;font-size: 12px;margin-right: 10px;"
+ >Site: ${hostname}</span></a>`;
+        var siteSearch = createElement(html);
+        let ddgSearch = siteSearch.cloneNode(false);
+        ddgSearch.innerText = "[DDG]";
+        ddgSearch.id = "ddgSearch";
+
+        siteSearch = this.addElementAfterSTitle(siteSearch, "", null, 'LEFT', 'div');
+        siteSearch.appendChild(ddgSearch);
+        return siteSearch;
+    }
+
+    update_SiteSearch() {
+        const ss = this.q('.site-search');
+        const hostname = getHostname(this.sTitle_Anchor.href);
+        if (ss) {
+            ss.innerText = hostname;
+            ss.href = (siteSearchUrl(getHostname(IP.focP.q('span a.irc_lth.irc_hol').href)));
         } else
-            console.warn('SearchByImage element not found:', sbi);
+            console.warn('Site Search element not found:', ss);
+
+        const ddgAnchor = this.q('#ddgSearch');
+        if (ddgAnchor)
+            ddgAnchor.href = ddgProxy(this.pTitle_Anchor.href);
+        if (successfulUrls.has(hostname)) {
+            // console.log('changing title color cuz found in ublSites:', '' + this.sTitle_Anchor);
+            this.sTitle_Anchor.style.color = successColor;
+        }
     }
 
 
@@ -804,17 +880,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
 
     lookupTitle() {
         console.log('lookup title:', this.bestNameFromTitle);
-        openInTab(gImgSearchURL + encodeURIComponent(this.bestNameFromTitle));
-    }
-
-    siteSearch() {
-        try {
-            const hostname = getHostname(this.sTitle_Anchor.href);
-            console.log('Site search:', hostname);
-            openInTab(siteSearchUrl(getHostname(this.sTitle_Anchor.href)));
-        } catch (e) {
-            console.warn(e);
-        }
+        openInTab(gImgSearchURL + encodeURIComponent(cleanSymbols(this.bestNameFromTitle)));
     }
 
     /**
@@ -833,6 +899,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         parentTagName = parentTagName ? parentTagName : 'span';
         const containerEl = createElement(`<${parentTagName} class="_r3 ${containerClassName}" style="padding-right: 5px; text-decoration:none;"/>`);
         containerEl.appendChild(element);
+        element.classList.add('o5rIVb');
 
         const sTitle = this.sTitle_Anchor;
         switch (position) {
@@ -866,10 +933,10 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
 }
 
 unsafeWindow.IP = IP;
-
-unsafeWindow.successfulUrlsSet = successfulUrlsSet;
+unsafeWindow.successfulUrlsSet = successfulUrls;
 
 go();
+
 window.addEventListener("keydown", onkeydown, true);
 window.addEventListener("load", function () {
     for (let a of Array.from(getImgAnchors())) {
@@ -879,28 +946,40 @@ window.addEventListener("load", function () {
     }
 }, true);
 
+let
+    GIUtOST_MutOb = (window.MutationObserver) ? window.MutationObserver : window.WebKitMutationObserver;
 
-let GIUtOST_MutOb = (window.MutationObserver) ? window.MutationObserver : window.WebKitMutationObserver;
 if (GIUtOST_MutOb) {
     const GIUtOST_chgMon = new GIUtOST_MutOb(function (mutationSet) {
         mutationSet.forEach(function (mutation) {
             for (let i = 0; i < mutation.addedNodes.length; i++) { // noinspection EqualityComparisonWithCoercionJS
-                if (mutation.addedNodes[i].nodeType == 1)
+                if (mutation.addedNodes[i].nodeType == 1) {
                     GIUtOST_checkNode(mutation.addedNodes[i]);
+
+                    const dlLimitSlider = q('#dlLimitSlider');
+                    if (!!dlLimitSlider) {
+                        var tmpValue = dlLimitSlider.getAttribute('value');
+                        const numImages = qa('.rg_bx').length;
+                        dlLimitSlider.setAttribute('max', numImages);
+                        const newValue = tmpValue > numImages ? numImages : tmpValue;
+                        dlLimitSlider.setAttribute('value', newValue);
+                        q('#dlLimitSliderValue').setAttribute('value', newValue);
+                    }
+                }
             }
         });
     }); // attach chgMon to document.body
     const opts = {childList: true, subtree: true};
     GIUtOST_chgMon.observe(document.body, opts);
 }
-GIUtOST_checkNode(document.elements);
 
+GIUtOST_checkNode(document.elements);
 
 function go() {
     try {
-        storedSuccessfulUrlsSet.forEach(url => successfulUrlsSet.add(url));
-        const conditionSelector = '#irc_cc > div';
+        storedSuccessfulURLs.forEach(url => successfulUrls.add(url));
 
+        const conditionSelector = '#irc_cc > div';
         waitForElement(() => {
             if (IP.mainPanelEl && IP.focP && IP.focP.mainImage && IP.focP.buttons)
                 return qa(conditionSelector);
@@ -911,7 +990,7 @@ function go() {
                     if (!mutation.addedNodes.length)
                         return;
                     try {
-                        q('#dlNumSlider').setAttribute('max', qa('.rg_bx').length);
+                        q('#dlLimitSlider').setAttribute('max', qa('.rg_bx').length);
                         if (!!IP.focP) {
                             // console.log('Mutation causing the update:', mutation);
                             IP.updateP(IP.focP);
@@ -933,9 +1012,9 @@ function go() {
         // const onUpdateCallback = mutations => Array.from(mutations.querySelectorAll(panelSelector)).forEach(IP.updatePanel);
         // observeDocument(onUpdateCallback);
 
-        // addToSet(storedSuccessfulUrlsSet, successfulUrlsSet);
-        // log('Stored successfulUrlsSet:', storedSuccessfulUrlsSet);
-        // log('successfulUrlsSet:', successfulUrlsSet);
+        // addToSet(storedSuccessfulURLs, successfulUrls);
+        // log('Stored successfulUrls:', storedSuccessfulURLs);
+        // log('successfulUrls:', successfulUrls);
 
         if (AUTO_SAVE_UBL_SITES) setInterval(storeSuccessfulUrlsSet, 5000);
 
@@ -949,26 +1028,26 @@ function updateSuccessfulUrlsSet() {
         let siteUrl = "" + getHostname(getGimgRUrl(img));
         if (/google\.com/.test(siteUrl)) siteUrl = getHostname(img.getAttribute('rg_meta_ru'));
         if (/tumblr\.com/.test(siteUrl)) siteUrl = siteUrl.replace(/^\d+?\./, "");
-        successfulUrlsSet.add(siteUrl);
+        successfulUrls.add(siteUrl);
         console.log('adding ubl site:', siteUrl);
     });
-    console.log('in updateSuccessfulUrlsSet:', Array.from(successfulUrlsSet));
-    return successfulUrlsSet; // returning just cuz it could be handy
+    console.log('in updateSuccessfulUrlsSet:', Array.from(successfulUrls));
+    return successfulUrls; // returning just cuz it could be handy
 }
 
 function storeSuccessfulUrlsSet() {
     updateSuccessfulUrlsSet();
     const merged = new Set();
     const stored = GM_getValue('unblocked sites of og images');
-    addToSet(merged, successfulUrlsSet);
+    addToSet(merged, successfulUrls);
     addToSet(merged, stored);
 
-    const diff = Array.from(successfulUrlsSet).filter(x => Array.from(stored).indexOf(x) < 0);
+    const diff = Array.from(successfulUrls).filter(x => Array.from(stored).indexOf(x) < 0);
     GM_setValue('unblocked sites of og images', Array.from(merged));
 
     console.log("Found new unblocked sites:", diff);
     // console.log('stored set:', GM_getValue('unblocked sites of og images'));
-    return successfulUrlsSet;
+    return successfulUrls;
 }
 
 /**abbreviation for querySelectorAll()*/
@@ -977,13 +1056,17 @@ function qa(selector) {
     return x ? x : null;
 }
 
-function q(selector) {
+function
+
+q(selector) {
     let x = document.querySelector(selector);
     return x ? x : null;
 }
 
 // Google images
-function GIUtOST_checkNode(els) {
+function
+
+GIUtOST_checkNode(els) {
     // click "Load more images"
     let el = q("#smb");
     if (el)
@@ -994,13 +1077,17 @@ function GIUtOST_checkNode(els) {
 
 
 //[Google.com images]
-function getMetaEl(thumbnail) {
+function
+
+getMetaEl(thumbnail) {
     // return thumbnail.parentNode.closest('.rg_meta');
     return thumbnail.parentNode.parentNode.querySelector('.rg_meta');
     // return thumbnail.closest('.rg_bx').querySelector('.rg_meta');
 }
 
-function getDataText(imgN) {
+function
+
+getDataText(imgN) {
     let data = "Not a main mainImage, No data text available";
     try {
         data = getMetaEl(imgN).innerText;
@@ -1011,7 +1098,9 @@ function getDataText(imgN) {
     return data;
 }
 
-function getGimgDescription(imgN) {
+function
+
+getGimgDescription(imgN) {
     let txt = getDataText(imgN);
     let title = extractFromText(txt, "pt");
     let desc = extractFromText(txt, "s");
@@ -1019,18 +1108,24 @@ function getGimgDescription(imgN) {
     // desc.length > 1 ? desc : title; // choosing one of them (prioratizing the description over the title)
 }
 
-function getGimgTitle(imgN) {
+function
+
+getGimgTitle(imgN) {
     return extractImgData(imgN, 'pt');
 }
 
-function getGimgRUrl(imgN) {
+function
+
+getGimgRUrl(imgN) {
     const imgUrl = extractImgData(imgN, 'ru');
     const anchor = imgN.parentNode;
     return imgUrl ? imgUrl :
         anchor ? anchor.href : imgN.src;
 }
 
-function getGimgDimensions(imgN) {
+function
+
+getImgMetaDimensions(imgN) {
     return extractImgData(imgN, 'ow') + 'x' + extractImgData(imgN, 'oh');
 }
 
@@ -1039,7 +1134,9 @@ function getGimgDimensions(imgN) {
  * @param {string} key [ "clt", "id", "isu", "itg", "ity", "oh", "ou", "ow", "pt", "rid", "rmt", "rt", "ru", "s", "st", "th", "tu", "tw" ]
  * @return {string}
  */
-function extractImgData(imgN, key) {
+function
+
+extractImgData(imgN, key) {
     if (!key) {
         console.error(`Key ${key} is null`);
         return;
@@ -1058,7 +1155,9 @@ function extractImgData(imgN, key) {
  * @param key {string}: [ "clt", "id", "isu", "itg", "ity", "oh", "ou", "ow", "pt", "rid", "rmt", "rt", "ru", "s", "st", "th", "tu", "tw" ]
  * @return {string}
  * */
-function extractFromText(txt, key) {
+function
+
+extractFromText(txt, key) {
     if (!key) {
         console.error(`Key ${key}is null`);
         return;
@@ -1135,12 +1234,16 @@ unsafeWindow.downloadImageData = downloadImageData;
 //[Google.com images]
 unsafeWindow.saveUblSites = saveUblSites;
 
-function saveUblSites() {
+function
+
+saveUblSites() {
     storeSuccessfulUrlsSet();
-    console.log('Site links of unblocked images:', Array.from(successfulUrlsSet));
+    console.log('Site links of unblocked images:', Array.from(successfulUrls));
 }
 
-function addToSet(mainSet, otherSet) {
+function
+
+addToSet(mainSet, otherSet) {
     if (typeof mainSet === 'undefined' || typeof otherSet === 'undefined') return;
     try {
         // if(isIterable(otherSet) && isIterable(mainSet))
@@ -1157,7 +1260,7 @@ function addToSet(mainSet, otherSet) {
 }
 
 /* Understanding Google Images
- ###Image Boxes:
+ ### Image Boxes:
  Image boxes are contained in one parent element with the selector: `div#rg_s`.
  Every mainImage box contains an `img`, and a `div` containing the data.
 
@@ -1167,7 +1270,7 @@ function addToSet(mainSet, otherSet) {
  **img** |
  *ClassName =*| **nicely**
 
- ###The Image Panel:
+ ### The Image Panel:
  There is one big panel containing 3 sub-panels, you only get to see one sub-panel at a time.
  Moving to the next mainImage will rotate the 3 sub-panels, and you will visit each one as they rotate.
  * Main panel selector: `#irc_cc`
@@ -1183,29 +1286,67 @@ function addToSet(mainSet, otherSet) {
  * @param {MouseWheelEvent} wheelEvent
  * @return {number} -1 or 1
  */
-function getWheelDelta(wheelEvent) {
+function
+
+getWheelDelta(wheelEvent) {
     // cross-browser wheel delta
     wheelEvent = window.event || wheelEvent; // old IE support
     return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
 }
 
 
-// hot-keys
+/* hot-keys*/
 let KeyEvent;
-if (typeof KeyEvent === "undefined") {
+if (typeof KeyEvent === "undefined") { /* var str="KeyEvent = {\n"; for(var i=0; i<500; i++){ str+= "DOM_VK_" + String.fromCharCode(i) + ": " + i +",\n"; } str=str.substr(0, str.length-2)+"\n}" */
     KeyEvent = {
+        DOM_VK_BACKSPACE: 8,
+        DOM_VK_TAB: 9,
         DOM_VK_ENTER: 13,
-        DOM_VK_SPACE: 32,
+        DOM_VK_SHIFT: 16,
+        DOM_VK_CTRL: 17,
+        DOM_VK_ALT: 18,
+        DOM_VK_PAUSE_BREAK: 19,
+        DOM_VK_CAPS_LOCK: 20,
+        DOM_VK_ESCAPE: 27,
+        DOM_VK_PGUP: 33,
+        DOM_VK_PAGE_UP: 33,
+        DOM_VK_PGDN: 34,
+        DOM_VK_PAGE_DOWN: 34,
+        DOM_VK_END: 35,
+        DOM_VK_HOME: 36,
         DOM_VK_LEFT: 37,
+        DOM_VK_LEFT_ARROW: 37,
         DOM_VK_UP: 38,
+        DOM_VK_UP_ARROW: 38,
         DOM_VK_RIGHT: 39,
+        DOM_VK_RIGHT_ARROW: 39,
         DOM_VK_DOWN: 40,
-        DOM_VK_ALPHA1: 49,
-        DOM_VK_ALPHA2: 50,
-        DOM_VK_ALPHA3: 51,
-        DOM_VK_ALPHA4: 52,
+        DOM_VK_DOWN_ARROW: 40,
+        DOM_VK_INSERT: 45,
+        DOM_VK_DEL: 46,
+        DOM_VK_DELETE: 46,
+        DOM_VK_0: 48,
+        DOM_VK_1: 49,
+        DOM_VK_2: 50,
+        DOM_VK_3: 51,
+        DOM_VK_4: 52,
+        DOM_VK_5: 53,
+        DOM_VK_6: 54,
+        DOM_VK_7: 55,
+        DOM_VK_8: 56,
+        DOM_VK_9: 57,
         DOM_VK_A: 65,
-        DOM_VK_D: 68,//ABCDEFGHIJKLMNOPQRSTUVWXYZ
+        DOM_VK_B: 66,
+        DOM_VK_C: 67,
+        DOM_VK_D: 68,
+        DOM_VK_E: 69,
+        DOM_VK_F: 70,
+        DOM_VK_G: 71,
+        DOM_VK_H: 72,
+        DOM_VK_I: 73,
+        DOM_VK_J: 74,
+        DOM_VK_K: 75,
+        DOM_VK_L: 76,
         DOM_VK_M: 77,
         DOM_VK_N: 78,
         DOM_VK_O: 79,
@@ -1213,27 +1354,59 @@ if (typeof KeyEvent === "undefined") {
         DOM_VK_Q: 81,
         DOM_VK_R: 82,
         DOM_VK_S: 83,
+        DOM_VK_T: 84,
+        DOM_VK_U: 85,
         DOM_VK_V: 86,
         DOM_VK_W: 87,
-        DOM_VK_COMMA: 188,
-        DOM_VK_DOT: 190,
+        DOM_VK_X: 88,
+        DOM_VK_Y: 89,
+        DOM_VK_Z: 90,
+        DOM_VK_LWIN: 91,
+        DOM_VK_LEFT_WINDOW: 91,
+        DOM_VK_RWIN: 92,
+        DOM_VK_RIGHT_WINDOW: 92,
+        DOM_VK_SELECT: 93,
+        DOM_VK_NUMPAD0: 96,
         DOM_VK_NUMPAD1: 97,
         DOM_VK_NUMPAD2: 98,
         DOM_VK_NUMPAD3: 99,
         DOM_VK_NUMPAD4: 100,
-        DOM_VK_NUMPAD_LEFT: 100,
         DOM_VK_NUMPAD5: 101,
         DOM_VK_NUMPAD6: 102,
-        DOM_VK_NUMPAD_RIGHT: 102,
         DOM_VK_NUMPAD7: 103,
         DOM_VK_NUMPAD8: 104,
         DOM_VK_NUMPAD9: 105,
-        DOM_VK_NUMPAD_DIVIDE: 106,
-        DOM_VK_NUMPAD_MULTIPLY: 111,
-        DOM_VK_NUMPAD_ENTER: 113,
+        DOM_VK_MULTIPLY: 106,
+        DOM_VK_ADD: 107,
+        DOM_VK_SUBTRACT: 109,
+        DOM_VK_DECIMAL_POINT: 110,
+        DOM_VK_DIVIDE: 111,
+        DOM_VK_F1: 112,
+        DOM_VK_F2: 113,
+        DOM_VK_F3: 114,
+        DOM_VK_F4: 115,
         DOM_VK_F5: 116,
         DOM_VK_F6: 117,
-        DOM_VK_SEMICOLON: 186
+        DOM_VK_F7: 118,
+        DOM_VK_F8: 119,
+        DOM_VK_F9: 120,
+        DOM_VK_F10: 121,
+        DOM_VK_F11: 122,
+        DOM_VK_F12: 123,
+        DOM_VK_NUM_LOCK: 144,
+        DOM_VK_SCROLL_LOCK: 145,
+        DOM_VK_SEMICOLON: 186,
+        DOM_VK_EQUALS: 187,
+        DOM_VK_EQUAL_SIGN: 187,
+        DOM_VK_COMMA: 188,
+        DOM_VK_DASH: 189,
+        DOM_VK_PERIOD: 190,
+        DOM_VK_FORWARD_SLASH: 191,
+        DOM_VK_GRAVE_ACCENT: 192,
+        DOM_VK_OPEN_BRACKET: 219,
+        DOM_VK_BACK_SLASH: 220,
+        DOM_VK_CLOSE_BRAKET: 221,
+        DOM_VK_SINGLE_QUOTE: 222
     };
 }
 
@@ -1266,6 +1439,7 @@ function prevRelImg() {
         const panel = IP.focP;
         if (!panel.ris_fc_Div) return false;
         let previousElementSibling = panel.ris_fc_Div.previousElementSibling;
+
         if (previousElementSibling) {
             previousElementSibling.click();
         } else {
@@ -1310,14 +1484,12 @@ function nextRelImg() {
 }
 
 function toggleEncryptedGoogle() {
-    const onEncrGoogle = new RegExp("encrypted.google.com").test(location.hostname);
+    const onEncrGoogle = new RegExp("encrypted\.google\.com").test(location.hostname);
 
-    var targetURL = safeSearchOffUrl();
-    if (false) if (targetURL && targetURL.length)
-        location.href = targetURL;
+    var targetURL;
+    // targetURL=safeSearchOffUrl(); if (targetURL) location.href = targetURL;
 
     targetURL = location.href;
-    console.log('Page already has SAFE SEARCH off');
     targetURL = !onEncrGoogle ?
         targetURL.replace(/www\.google\.[\w.]+/i, "encrypted.google.com") :
         targetURL.replace(/encrypted\.google\.[\w.]+/i, "www.google.com");
@@ -1326,20 +1498,31 @@ function toggleEncryptedGoogle() {
     return targetURL;
 }
 
-function onkeydown(e) {
-    const targetElIsIniput = targetIsInput(e);
-    if (targetElIsIniput) return false;
+/**
+ * @param keyEvent
+ * @returns {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, META_ONLY: boolean, NONE: boolean}}
+ */
+function getKeyEventModifiers(keyEvent) {
+    /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
+    return {
+        CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
+        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey
+    };
+}
 
+function onkeydown(e) { // there will be no event if the target element is of type input (example: typing in the search bar, no hotkey will activate)
+    const targetElIsInput = targetIsInput(e);
+
+    if (targetElIsInput) {
+        console.debug('TargetElIsInput', e.target);
+        return false;
+    }
     const k = (window.event) ? e.keyCode : e.which;
 
-    /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
-    const ModifierKeys = {
-        CTRL_ONLY: e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey,
-        SHIFT_ONLY: !e.ctrlKey && !e.altKey && e.shiftKey && !e.metaKey,
-        ALT_ONLY: !e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey,
-        META_ONLY: !e.ctrlKey && !e.altKey && !e.shiftKey && e.metaKey,
-        NONE: !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
-    };
+    const ModifierKeys = getKeyEventModifiers(e);
     /*if(e.ctrlKey && a == KeyEvent.DOM_VK_S)
     {
         if(i)
@@ -1357,7 +1540,7 @@ function onkeydown(e) {
         return;
     }*/
     if (!IP.mainPanelEl || typeof IP.mainPanelEl === 'undefined') {
-        // console.warn("Main mainImage panel not found!!");
+        console.debug("Main mainImage panel not found!!");
         return;
     }
     const focusedPanel = IP.focP; //getFocusedPanel(); //ImagePanel.focusedPanel; // the active panel
@@ -1392,12 +1575,11 @@ function onkeydown(e) {
             }
         // Search by mainImage/ site search
         case KeyEvent.DOM_VK_V: // Reverse Image search
-            if (targetElIsIniput) break;
         case KeyEvent.DOM_VK_NUMPAD1:
             if (ModifierKeys.NONE) {
                 const focusedRelatedImageUrl = focusedPanel.ris_fc_Url;
                 if (typeof focusedPanel.mainImage !== "undefined") {
-                    reverseImgSearch(focusedRelatedImageUrl);
+                    focusedPanel.q('a.search-by-image').click();
                     log("focusedRelatedImageUrl:", focusedRelatedImageUrl);
                 } else
                     console.error('Image not found', focusedRelatedImageUrl);
@@ -1442,7 +1624,7 @@ function onkeydown(e) {
                 break;
             }
         // Next related mainImage
-        case KeyEvent.DOM_VK_DOT:
+        case KeyEvent.DOM_VK_PERIOD:
         case KeyEvent.DOM_VK_DOWN:
         case KeyEvent.DOM_VK_NUMPAD2:// Next/Right relImage
             if (ModifierKeys.NONE) {
@@ -1478,18 +1660,17 @@ function onkeydown(e) {
             if (ModifierKeys.NONE) {
                 focusedPanel.lookupTitle();
             } else if (ModifierKeys.ALT_ONLY) { // TODO:
-                openInTab(gImgSearchURL + encodeURIComponent(focusedPanel.descriptionText.replace(/rarbg|\.com|#|x264|DVDRip|720p|1080p|2160p|MP4|IMAGESET|FuGLi|SD|KLEENEX|BRRip|XviD|MP3|XVID|BluRay|HAAC|WEBRip|DHD|rartv|KTR|YAPG|[^0-9a-zA-z]/gi, "").trim()));
+                openInTab(gImgSearchURL + encodeURIComponent(cleanSymbols(descriptionText).trim()));
                 e.preventDefault();
             }
             break;
+        case KeyEvent.DOM_VK_H:
+            break;
         case KeyEvent.DOM_VK_S:
-            if (targetElIsIniput) break;
         case KeyEvent.DOM_VK_ENTER:
-            if (targetIsInput(e))
-                IP.downloadCurrentImage();
+            IP.downloadCurrentImage();
             break;
         case KeyEvent.DOM_VK_SEMICOLON:
-            if (targetElIsIniput) break;
             if (ModifierKeys.SHIFT_ONLY) {
                 focusedPanel.siteSearch();
             }
@@ -1503,9 +1684,8 @@ function openInTab(url) {
 }
 
 function cleanSymbols(str) {
-    return str ? str.replace(/[-!$%^&*()_+|~=`{}\[\]";'<>?,.\/]|(\s\s+)/gim, ' ').trim() : str;
+    return str ? removeDoubleSpaces(str.replace(/[-!$%^&*()_+|~=`{}\[\]";'<>?,.\/]|(\s\s+)/gim, ' ').replace(/rarbg|\.com|#|x264|DVDRip|720p|1080p|2160p|MP4|IMAGESET|FuGLi|SD|KLEENEX|BRRip|XviD|MP3|XVID|BluRay|HAAC|WEBRip|DHD|rartv|KTR|YAPG|[^0-9a-zA-z]/gi, " ")).trim() : str;
 }
-
 
 function getImgAnchors() {
     return qa('#rg_s > div > a[href]');
@@ -1537,11 +1717,13 @@ function getResultsData() {
 }
 
 function stringifyIterable(iterable) {
-    let str = '{\n';
-    for (let e of iterable.values()) {
-        str += "\t" + e.toString() + ',\n';
+    let str = '{';
+    let i = 0;
+    for (let e of iterable.keys()) {
+        str += (i == 0 ? '' : ', ') + '\n\t' + e.toString();
+        i++;
     }
-    return str + '}';
+    return str + '\n}';
 }
 
 function downloadImageData() {
@@ -1588,3 +1770,202 @@ function safeSearchOffUrl() {
     var safeSearchButton = document.getElementById("ss-bimodal-default");
     return !safeSearchButton ? false : safeSearchButton.href;
 }
+
+const responseBlobs = new Set();
+
+/**
+ * @returns {string}
+ */
+function getGimgPageInfoText() {
+    return `${document.title}:\t${location.href}
+    
+${stringifyIterable(getResultsData())}
+`;
+}
+
+function zipImages() {
+    var zipCurrent = 0;
+    zipTotal = q('#dlLimitSlider').value; //ogs.length;
+    zip = zip || new JSZip();
+    var zipName = (zipName || document.title).replace(/\//g, " ");
+
+    const selector =
+        // `.rg_ic.rg_i`
+        // `.${TOKEN_DISPLAY}[loaded^="true"], .img-big`
+        '.rg_ic.rg_i.display-original-mainImage:not(.display-original-mainImage-failed)'
+    ;
+    const ogs = qa(selector);
+    progressBar = progressBar || new ProgressBar.Line('#download-panel', {
+        easing: 'easeInOut',
+        color: '#FCB03C',
+        strokeWidth: 1,
+        trailWidth: 1,
+        text: {
+            value: '0'
+        }
+    });
+    progressBar.set(0);
+
+    console.debug('Original images to be downloaded:', Array.from(ogs).map(og => og.src || og.href));
+    let totalSize = 0,
+        totalLoaded = 0;
+
+    function requestAndZipImage(fileUrl, ext, fileName, image) {
+        let fileSize = 0,
+            loadedLast = 0
+        ;
+        if (zip.files.hasOwnProperty(fileName)) {
+            console.log('ZIP already contains the file: ', fileName);
+            return;
+        }
+
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
+            responseType: 'arraybuffer',
+            binary: true,
+            onload: function (res) {
+                var blob = new Blob([res.response], {type: "image/" + ext});
+                responseBlobs.add(blob);
+                zip.file(`${fileName}.${ext}`, blob);
+                console.log("Added file:", fileName, fileUrl);
+                zipCurrent++;
+
+                if (zip.files.hasOwnProperty(fileName) || zipCurrent < zipTotal || zipTotal <= 0)
+                    return;
+
+                if (zipCurrent >= zipTotal) {
+                    console.log("Generating ZIP...", "\nFile count:", Object.keys(zip.files).length);
+                    zipTotal = 0;
+                    genZip();
+                }
+            },
+            onreadystatechange: function (res) {
+                console.debug("Request state changed to: " + res.readyState);
+                if (res.readyState === 4) {
+                    console.debug('ret.readyState === 4');
+                }
+            },
+            onerror: function (res) {
+                console.error("An error occurred."
+                    + "\nresponseText: " + res.responseText
+                    + "\nreadyState: " + res.readyState
+                    + "\nresponseHeaders: " + res.responseHeaders
+                    + "\nstatus: " + res.status
+                    + "\nstatusText: " + res.statusText
+                    + "\nfinalUrl: " + res.finalUrl);
+
+                if (!isDdgUrl(res.finalUrl)) {
+                    requestAndZipImage(ddgProxy(fileUrl), ext, fileName.replace(/\//g, " "), image);
+                    return;
+                } else {
+                    //zipCurrent++;
+                }
+            },
+            onprogress: function (res) {
+                if (zip.files.hasOwnProperty(fileName) || zipCurrent < zipTotal || zipTotal <= 0){
+                    // if(res.abort)
+                    //     res.abort();
+                    // else
+                    //     console.error('res.abort not defined');
+                    // if(this.abort)
+                    //     this.abort();
+                    // else
+                    //     console.error('this.abort not defined');
+                    return;
+                }
+
+                if (res.lengthComputable) {
+                    if (fileSize == 0) { // happens once
+                        fileSize = res.total;
+                        totalSize += fileSize;
+                    }
+                    const loadedSoFar = res.loaded;
+                    const justLoaded = loadedSoFar - loadedLast;    // What has been added since the last progress call
+                    const fileprogress = loadedSoFar / res.total;   // 
+
+                    totalLoaded += justLoaded;
+                    const totalProgress = totalLoaded / totalSize;
+
+                    progressBar.animate(totalProgress);
+                    progressBar.setText(totalLoaded + '/' + totalSize);
+
+                    loadedLast = loadedSoFar;
+                }
+            }
+        });
+    }
+
+    for (const og of ogs) {
+        try {
+            let image = og.tagName == 'IMG' ? og :
+                og.querySelector('img[src]');
+            const fileName = image.getAttribute('download-name') || image.alt;
+            if (zip.files.hasOwnProperty(fileName)) continue;
+
+            if (true || imageIsBigEnough(image)) {
+                const fileUrl = extractImgData(image, 'ou');//image.src;
+                const ext = /com/.test(getFileExtension(fileUrl)) ? getFileExtension(fileUrl) : 'gif';
+                requestAndZipImage(fileUrl, ext, fileName, image);
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+    return zip;
+}
+
+/*
+    function addToZip(og) {
+        try {
+            let image = og.tagName == 'IMG' ? og :
+                og.querySelector('img[src]');
+
+            if (true || imageIsBigEnough(image)) {
+                let fileUrl = isDdgUrl(image.src) ? image.src : extractImgData(image, 'ou');
+                const ext = /com/.test(getFileExtension(fileUrl)) ? getFileExtension(fileUrl) : 'gif';
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
+                    responseType: 'arraybuffer',
+                    binary: true,
+                    onload: function (res) {
+                        var blob = new Blob([res.response], {type: "image/" + ext});
+                        const fileName = image.getAttribute('download-name') || image.alt;
+                        console.log("Filename:", fileName, image);
+                        zip.file(`${fileName}.${ext}`, blob);
+
+
+                        (++zipCurrent >= zipTotal) ? genZip() : addToZip(ogs[zipCurrent]);
+                    }, onreadystatechange: function (res) {
+                        console.debug("Request state changed to: " + res.readyState);
+                        if (res.readyState === 4) {
+                            console.debug('ret.readyState === 4');
+                        }
+                    },
+                    onerror: function (res) {
+                        console.error("An error occurred."
+                            + "\nresponseText: " + res.responseText
+                            + "\nreadyState: " + res.readyState
+                            + "\nresponseHeaders: " + res.responseHeaders
+                            + "\nstatus: " + res.status
+                            + "\nstatusText: " + res.statusText
+                            + "\nfinalUrl: " + res.finalUrl);
+                        zipCurrent++;
+                    },
+                    onprogress: function (res) {
+                        if (res.lengthComputable) {
+                            const progress = res.loaded / res.total;
+                            console.log("progress:", progress);
+                            progressBar.animate(progress);
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+*/
+
