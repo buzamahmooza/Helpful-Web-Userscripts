@@ -27,9 +27,7 @@
 // noinspection ES6ConvertVarToLetConst
 var debug;
 if (typeof debug === 'undefined') debug = false;
-if (typeof log === 'undefined')
-    log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
-// words in all languages
+if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;// words in all languages
 const invalidNameCharacters = '\\*:/"|<>\n\r';
 
 try {
@@ -59,6 +57,7 @@ if (typeof downloadSet === 'undefined') {
     downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
     unsafeWindow.downloadSet = downloadSet;
 }
+var tempDirectory;
 if (typeof tempDirectory === 'undefined')
     tempDirectory = "";
 
@@ -76,7 +75,6 @@ var zipDl = new JSZip(),
  onprogress callback to be executed if the download made some progress
  ontimeout callback to be executed if the download failed due to a timeout
  */
-// GM_download = function () {};
 // console.log("IMG_MIN_WIDTH: " + IMG_MIN_WIDTH + "\nIMG_MIN_HEIGHT: " + IMG_MIN_HEIGHT);
 // console.log('NAME_FILES_BY_NUMBER=', NAME_FILES_BY_NUMBER);
 function setNameFilesByNumber(newValue) {
@@ -85,7 +83,7 @@ function setNameFilesByNumber(newValue) {
 }
 
 let downloadCount = 0;
-// console.log('NAME_FILES_BY_NUMBER=', NAME_FILES_BY_NUMBER);
+unsafeWindow.MAIN_DIRECTORY = MAIN_DIRECTORY;
 unsafeWindow.getDownloadCount = () => downloadCount;
 unsafeWindow.setNameFilesByNumber = setNameFilesByNumber;
 unsafeWindow.download = download;
@@ -94,9 +92,9 @@ unsafeWindow.downloadBatch = downloadBatch;
 unsafeWindow.downloadImageBatch = downloadImageBatch;
 unsafeWindow.downloadImageWithCondition = downloadImageWithCondition;
 unsafeWindow.getFileExtension = getFileExtension;
-
 unsafeWindow.nameFile = nameFile;
-let condition = function (param, minWidth, minHeight) {
+
+let dimensionsCondition = function (param, minWidth, minHeight) {
     minWidth = (typeof minWidth === 'undefined') ? IMG_MIN_WIDTH : minWidth;
     minHeight = (typeof minHeight === 'undefined') ? IMG_MIN_HEIGHT : minHeight;
     let dim = param.split('x');
@@ -106,13 +104,12 @@ let condition = function (param, minWidth, minHeight) {
     return h >= minHeight && w >= minWidth;
 };
 
-
 /**@Parameter element the element containing the file url attribute.
  * Having the element could be helpful getting it's ATTRIBUTES (such as: "download-name") */
 function download(fileUrl, fileName, directory, element) {
-    const elementPassed = typeof element !== 'undefined';
-    const directoryPassed = typeof directory !== 'undefined' && directory.length > 1;
-    const namePassed = typeof fileName !== 'undefined' && fileName.length > 1;
+    const elementPassed = element === 'object';
+    const directoryPassed = directory && directory.length > 1;
+    const namePassed = fileName && fileName.length > 1;
 
     console.log('URL Added to downloads:', fileUrl);
     if (!fileUrl) {
@@ -255,9 +252,8 @@ function download(fileUrl, fileName, directory, element) {
     }
 }
 
-unsafeWindow.imageUrl2blob = imageUrl2blob;
-
-function imageUrl2blob(url, callback, opts) {
+// unsafeWindow.imageUrl2blob = imageUrl2blob;
+function imageUrl2blob(url, callback, callbackParams) {
     GM_xmlhttpRequest({
         method: "GET",
         url: url || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
@@ -268,7 +264,7 @@ function imageUrl2blob(url, callback, opts) {
                 const ext = getFileExtension(url);
                 var blob = new Blob([res.response], {type: "image/" + ext});
                 if (!!callback) {
-                    callback(blob, url, opts);
+                    callback(blob, url, callbackParams);
                 } else
                     saveAs(blob, "untitled." + ext);
 
@@ -349,7 +345,7 @@ function retry(fileUrl, finalName, count) {
     }
 }
 
-unsafeWindow.genZip = genZip;
+// unsafeWindow.genZip = genZip;
 
 // unsafeWindow.zip = zip;
 
@@ -361,7 +357,7 @@ function genZip(zipName) {
     );
 }
 
-function downloadBatch(inputUrls, maxDlLimit) { // download batch but with a max count limit
+function downloadBatch(inputUrls, directory, maxDlLimit) { // download batch but with a max count limit
     if (typeof maxDlLimit === 'undefined')
         maxDlLimit = MAX_DOWNLOADS;
     else
@@ -370,22 +366,22 @@ function downloadBatch(inputUrls, maxDlLimit) { // download batch but with a max
         console.error("input URLs null!");
         return;
     }
-    zipTotal = inputUrls.size || inputUrls.length;
-    console.debug("zipTotal", zipTotal);
-    tempDirectory = nameBatchDirectory(inputUrls);
+    directory = directory || nameBatchDirectory(inputUrls) || document.title;
     console.log('MAIN_DIRECTORY:', MAIN_DIRECTORY);
     console.log('sub-tempDirectory:', tempDirectory);
 
+    /*zipTotal = inputUrls.size || inputUrls.length;
+    console.debug("zipTotal", zipTotal);
     if (!!zipDl) {
         console.warn("There is already a ZIP object");
         // return;
-    }
+    }*/
     // zip = zip || new JSZip();
 
     let dlCount = 0;
     for (let url of inputUrls) {
         if (Array.isArray(url)) {
-            downloadBatch(url, maxDlLimit);
+            downloadBatch(url, directory, maxDlLimit);
             break;
         }
         if (++dlCount >= maxDlLimit) { // recursive call in case this element is an array
@@ -396,7 +392,7 @@ function downloadBatch(inputUrls, maxDlLimit) { // download batch but with a max
         if (zipInsteadOfDownload)
             imageUrl2blob(url, zipImage);
         else
-            download(url); // we used to use download, now we use ZIP
+            download(url, null, directory); // we used to use download, now we use ZIP
 
     }
 
@@ -406,12 +402,10 @@ function downloadBatch(inputUrls, maxDlLimit) { // download batch but with a max
             genZip();
         }
     }
-
-    // console.log(dlCount + ' downloads.');
-    tempDirectory = "";
 }
 
-function downloadImageBatch(inputUrls) {
+/**@deprecated*/
+function downloadImageBatch(inputUrls, directory) {
     if (!inputUrls) {
         console.error("mainImage input URLs null!");
         return;
@@ -429,17 +423,18 @@ function downloadImageBatch(inputUrls) {
             break;
         }
         if (/\.gif/.test(url))
-            download(url);
+            download(url, null, directory);
         else
             downloadImageWithCondition(url);
     }
 }
 
-function downloadImageWithCondition(url, width, height, fileName) {
+function downloadImageWithCondition(url, width, height, fileName, downloadDirectory, imgEl) {
     if (url instanceof Set || Array.isArray(url)) {
         downloadImageBatch(url);
         return;
     }
+
     downloadSet.add(url);
     // first, attempt to use the dimension ATTRIBUTES if already available
 
@@ -447,9 +442,11 @@ function downloadImageWithCondition(url, width, height, fileName) {
     let dim = 'dimension not yet set';
     img.addEventListener("load", function () {
         dim = (this.naturalWidth + 'x' + this.naturalHeight);
-        if (condition(dim)) {
-            download(url, fileName);
-        }
+        onLoadDim(url, function () {
+            if (dimensionsCondition(dim, width, height)) {
+                download(url, fileName, downloadDirectory, imgEl);
+            }
+        }, imgEl);
     });
     img.src = url;
     return dim;
@@ -462,7 +459,7 @@ function nameBatchDirectory(inputUrls) {
         name = nameFile(inputUrls[i]);
         if(name){ directoryName += name+')'; return; }
     });*/
-    tempDirectory = cleanDirectoryName(directoryName) + '/';
+    tempDirectory = cleanDirectoryName(clearGibberish(directoryName)) + '/';
     console.log('Directory name:', tempDirectory);
     return directoryName;
 }
@@ -483,7 +480,7 @@ function nameFile(fileUrl) {
 
 function getFileExtension(fileUrl) {
     const ext = clearUrlGibberish(('' + fileUrl).split('.').pop()) //the string after the last '.'
-        .replace(/[^a-zA-Z0-9].*$/gi, "") // replace everything that is non-alpha, numeric nor a '.'
+        .replace(/[^a-zA-Z0-9].+($|\?)/gi, "") // replace everything that is non-alpha, numeric nor a '.'
         .replace(/[^\w]/gi, '');
     return ext ? ext : 'oops';
 }
@@ -500,7 +497,7 @@ function getGibberishCount(str) {
 function cleanFileName(fileName) {
     const fileCleanerRegex =
         // new RegExp('[^' + allLanguagesCharSetRegex + '\.]|\r|(\s\s+)', 'gi')
-        new RegExp('[' + invalidNameCharacters + ']|(\s\s+)', 'gi')
+        new RegExp('[' + invalidNameCharacters + ']|(\\s\\s+)', 'gi')
     ;
     return clearUrlGibberish(decodeURIComponent(fileName)).replace(fileCleanerRegex, ' ').trim();
 }
@@ -513,7 +510,7 @@ function cleanDirectoryName(directoryName) {
     /*testing*/
     return cleanFileName(directoryName);
 
-    /*const directoryCleanerRegex = new RegExp('[^' + allLanguagesCharSetRegex + '\.]|\r|(\s\s+)', 'gi');
+    /*const directoryCleanerRegex = new RegExp('[^' + allLanguagesCharSetRegex + '\\.]|\\r|(\\s\\s+)', 'gi');
     return clearUrlGibberish(decodeURIComponent("" + directoryName)).replace(directoryCleanerRegex, ' ').trim();*/
 }
 
@@ -531,11 +528,12 @@ unsafeWindow.saveByAnchor = saveByAnchor;
  * this is done because some actions cannot be done except in this way
  * @param downloadValue
  * @param href */
-function anchorClick(href, downloadValue) {
+function anchorClick(href, downloadValue, target) {
     downloadValue = downloadValue || '_untitled';
     var a = document.createElement('a');
     a.setAttribute('href', href);
     a.download = downloadValue;
+    a.target = target;
     a.click();
     a.remove();
 }

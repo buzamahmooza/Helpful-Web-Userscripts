@@ -11,7 +11,7 @@ function makeTextFile(text) {
 	textFile = window.URL.createObjectURL(data);
 
 	return textFile;
-};
+}
 
 
 var link = document.createElement('a');

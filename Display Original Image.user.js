@@ -73,26 +73,15 @@ let slider_dlLimit,
     cbox_GIFsOnly,
     cbox_UseDdgProxy;
 unsafeWindow.displayImages = displayImages;
-unsafeWindow.zipImages = zipImages;
-var zip = new JSZip();
-unsafeWindow.zip = zip;
 unsafeWindow.replaceImgSrc = replaceImgSrc;
-unsafeWindow.genZip = function (zipName) {
-    zip.generateAsync({type: "blob"}).then(function (content) {
-            zipName = zipName || document.title;
-            saveAs(content, zipName + ".zip");
-        }
-    );
-};
 
 // use ddg proxy upon failure to show original?
 const useDdgProxy = () => document.getElementById('useDdgProxyBox').checked,
-    gifsOnly = () => document.getElementById('GIFsOnlyBox').checked,
-    showFailedImages = () => document.getElementById('showFailedImagesBox').checked,
+    checked_GIFsOnly = () => document.getElementById('GIFsOnlyBox').checked,
+    checked_ShowFailedImages = () => document.getElementById('showFailedImagesBox').checked,
     SUCCESSFUL_URLS = new Set();
-var progressBar;
 var urls = new Set();
-const onGoogle = /google\.com/.test(location.hostname);
+const onGoogle = /google/.test(location.hostname);
 
 // language=CSS
 addCss(`
@@ -206,7 +195,7 @@ window.ImageManager = {
         if (!imgEl.hasAttribute('loaded')) {
             createAndAddAttribute(imgEl, 'loaded');
         } else {
-            imgEl.setAttribute("loaded", "");
+            imgEl.setAttribute("loaded", "false");
         }
         var imgObj = new Image();
         imgObj.onerror = onError || ImageManager.imgOnError;
@@ -259,75 +248,104 @@ function injectGoogleButtons() {
         googleButtonsContainer.appendChild(controlsContainer);
 
         // var linkAnimated = createElement('<a style="display:" class="hdtb-tl" href="#" onclick="alert("finally"); document.getElementById("itp_animated").childNodes[0].click();">Animated</a>');
-        const checkedByDefault = (HIDE_FAILED_IMAGES_ON_LOAD ? ' checked ="checked" ' : '');
-        cbox_ShowFailedImages = createElement(`<strong><input id="showFailedImagesBox" type="checkbox" ${checkedByDefault}>Show&nbsp;failed&nbsp;images</strong>`);
-        cbox_ShowFailedImages.addEventListener("click", () => {
-            document.getElementById("showFailedImagesBox").click();
-        });
-        cbox_ShowFailedImages.addEventListener('change', function () {
-            const checked = document.getElementById("showFailedImagesBox").checked;
+
+        /**
+         * @param id    the checkbox element id
+         * @param labelText
+         * @param changeListener    what happens when the text box changes?
+         * @param checked
+         * @returns {HTMLDivElement} this label element contains a checkbox input element
+         */
+        function createGCheckBox(id, labelText, changeListener, checked) {
+            var checkBoxContainerEl;
+
+            checkBoxContainerEl = createElement(
+                `<div class="sg" style="display:inline;">
+<input id="${id}" type="checkbox" ${(checked !== null ? checked : GM_getValue(id)) ? 'checked="checked"' : ""}>
+<label for="${id}">${labelText}</label>
+</div>`);
+            if (!!changeListener)
+                checkBoxContainerEl.addEventListener('change', () => {
+                    changeListener();
+                });
+            return checkBoxContainerEl;
+        }
+
+        cbox_ShowFailedImages = createGCheckBox("showFailedImagesBox", "Show&nbsp;failed&nbsp;images", f_sfi, HIDE_FAILED_IMAGES_ON_LOAD);
+        cbox_GIFsOnly = createGCheckBox("GIFsOnlyBox", "GIFs&nbsp;only", f_gifsOnly);
+        cbox_UseDdgProxy = createGCheckBox("useDdgProxyBox", "Try&nbsp;DDG_P", null, true);
+
+        /**
+         * Show failed images
+         */
+        function f_sfi() {
+            const checked = q("#showFailedImagesBox").checked;
             setVisibilityForFailedImages(checked);
-            GM_setValue("HIDE_FAILED_IMAGES_ON_LOAD", showFailedImages(checked));
-        });
+            GM_setValue("HIDE_FAILED_IMAGES_ON_LOAD", checked_ShowFailedImages());
+        }
 
-        cbox_GIFsOnly = createElement('<strong><input id="GIFsOnlyBox" type="checkbox" >GIFs&nbsp;only</strong>');
-        cbox_GIFsOnly.addEventListener("click", () => document.getElementById("GIFsOnlyBox").click());
-        cbox_GIFsOnly.addEventListener('change', function () {
-            const checked = document.getElementById("GIFsOnlyBox").checked;
-            let nongifs = qa(`.${TOKEN_DISPLAY}:not(.${TOKEN_GIF})`);
+        function f_gifsOnly() {
+            const checked = q("#GIFsOnlyBox").checked;
+            Array.from(qa(`.${TOKEN_DISPLAY}:not(.${TOKEN_GIF})`)).forEach(nongif => {
+                setVisible(nongif, checked);
+            });
+            f_sfi();
+        }
 
-            nongifs.forEach(nongif => setVisible(nongif, checked));
-        });
-
-        cbox_UseDdgProxy = createElement('<strong><input type="checkbox" id="useDdgProxyBox" checked="checked">Try&nbsp;DDG_P</strong>');
-        cbox_UseDdgProxy.addEventListener("click", () => document.getElementById("useDdgProxyBox").click());
-
-        slider_minImgSize = createElement('<input id="minImgSizeSlider" type="range" min="0" max="3000" value="200">');
-        var minImgSliderValue = createElement(`<strong id="minImgSizeSliderValue">${slider_minImgSize.value}</strong>`);
+        slider_minImgSize = createElement(`<input id="minImgSizeSlider" type="range" min="0" max="3000" value="200" step="10">`);
+        var sliderReading_minImgSize = createElement(`<label for="minImgSizeSlider" id="minImgSizeSliderValue">${slider_minImgSize.value}</label>`);
         slider_minImgSize.oninput = function () {
-            minImgSliderValue.innerHTML = this.value
+            sliderReading_minImgSize.innerHTML = this.value
         };
 
-        slider_dlLimit = createElement(`<input id="dlNumSlider" type="range" min="1" max="${1000}" value="20">`);
-        var dlNumSliderValue = createElement(`<strong id="dlNumSliderValue">${slider_dlLimit.value}</strong>`);
+        slider_dlLimit = createElement(`<input id="dlLimitSlider" type="range" min="1" max="${1000}" value="20">`);
+        var sliderReading_dlLimit = createElement(`<label id="dlLimitSliderValue">${slider_dlLimit.value}</strong>`);
         slider_dlLimit.oninput = function () {
-            dlNumSliderValue.innerHTML = this.value
+            sliderReading_dlLimit.innerHTML = this.value
         };
 
-        // buttons
-        const createGBarButton = (id, innerText) =>
-            createElement(`<button id="${id}" style="display:" class="${BUTTONS_CLASS} sbtn hdtb-tl">${innerText}</button>`);
-        var btn_dispOgs = createGBarButton(`dispOgsBtn`, `Display&nbsp;originals`),
-            btn_animated = createGBarButton(`AnimatedBtn`, `Animated`),
-            btn_download = createGBarButton(`downloadBtn`, `Download&nbsp;⇓`),
-            btn_preload = createGBarButton(`preloadBtn`, `Preload&nbsp;images&nbsp;↻`)
-        ;
-
-        btn_dispOgs.onclick = displayImages;
-        btn_animated.onclick = function () {
-            document.getElementById('itp_animated').childNodes[0].click();
-        };
 
         const zipInsteadOfDownload = false;
-        btn_download.onclick = zipInsteadOfDownload ? zipImages : downloadImages;
 
-        btn_preload.onclick = function () {
-            const imgLinks = Array.from(qa('a.rg_l[href]'));
-            console.log('imgLinks:', imgLinks);
+        // buttons
+        function createGButton(id, innerText, onClick) {
+            const button = createElement(`<button class="${BUTTONS_CLASS} sg sbtn hdtb-tl" id="${id}">${innerText}</button>`);
+            if (onClick) button.onclick = function () {
+                onClick()
+            };
+            return button;
+        }
 
-            imgLinks.forEach(a => {
-                let img = a.querySelector('img'),
-                    dlName = clearGibberish(getGimgDescription(img));
+        var btn_dispOgs = createGButton(`dispOgsBtn`, `Display&nbsp;originals`, displayImages),
+            btn_animated = createGButton(`AnimatedBtn`, `Animated`, function () {
+                document.getElementById('itp_animated').childNodes[0].click();
+            }),
+            btn_download = createGButton(`downloadBtn`, `Download&nbsp;⇓`, function () {
+                zipbox = q('#zipInsteadOfDownload');
+                zipbox && zipbox.checked ? zipImages() : downloadImages()
+            }),
+            btn_preload = createGButton(`preloadBtn`, `Preload&nbsp;images&nbsp;↻`, function () {
+                const imgLinks = Array.from(qa('a.rg_l[href]'));
+                console.log('imgLinks:', imgLinks);
 
-                createAndAddAttribute(img, 'download-name', dlName);
-                img.alt = dlName;
-                ImageManager.markImageOnLoad(img, a.href);
-                console.log('Preloading image:', `"${dlName}"`, !isBase64ImageData(img.src) ? img.src : "Base64ImageData");
-            });
-        };
+                imgLinks.forEach(a => {
+                    let img = a.querySelector('img'),
+                        dlName = clearGibberish(getGimgDescription(img));
+
+                    createAndAddAttribute(img, 'download-name', dlName);
+                    img.alt = dlName;
+                    ImageManager.markImageOnLoad(img, a.href);
+                    console.log('Preloading image:', `"${dlName}"`, !isBase64ImageData(img.src) ? img.src : "Base64ImageData");
+                });
+            })
+        ;
+        var cbox_ZIP = createGCheckBox('zipInsteadOfDownload', 'ZIP', function () {
+            q('#downloadBtn').innerText = q('#zipInsteadOfDownload').checked ? 'ZIP' : 'Download ⇓';
+        }, false);
+        cbox_ZIP.style.padding = "0px";
 
         var downloadPanel = createElement(
-            '<div id="download-panel"></div>'
+            '<div id="download-panel" style="display: block;"></div>'
             /*'<form action="/action_page.php">'+
             	'First name:<br>'+
             	'<input type="text" name="firstname" value="Mickey"><br>'+
@@ -338,7 +356,7 @@ function injectGoogleButtons() {
             '</form>'*/
         );
         // Appending the buttons
-        for (const el of [btn_download, btn_preload, slider_minImgSize, minImgSliderValue, slider_dlLimit, dlNumSliderValue]) {
+        for (const el of [cbox_ZIP, btn_download, btn_preload, slider_minImgSize, sliderReading_minImgSize, slider_dlLimit, sliderReading_dlLimit]) {
             downloadPanel.appendChild(el);
         }
 
@@ -367,79 +385,6 @@ function imageIsBigEnough(image) {
         console.debug("Image doesn't have the img-dim attribute", image);
     }
     return false;
-}
-
-function zipImages() {
-    zipCurrent = 0;
-    const userDownloadLimit = slider_dlLimit.value;
-    zipTotal = userDownloadLimit; //ogs.length;
-    zip = zip || new JSZip();
-
-    const ogs = qa(`.rg_ic.rg_i`)
-        // qa(`.${TOKEN_DISPLAY}[loaded="true"], .img-big`)
-    ;
-    progressBar = new ProgressBar.Line('#download-panel', {easing: 'easeInOut'});
-
-    progressBar.animate(0);
-
-    console.debug('Original images to be downloaded:', Array.from(ogs).map(og => og.src || og.href));
-
-    for (const og of ogs) {
-        try {
-            let image = og.tagName == 'IMG' ? og :
-                og.querySelector('img[src]');
-
-            if (true || imageIsBigEnough(image)) {
-                const fileUrl = extractImgData(image, 'ou');//image.src;
-                const ext = /com/.test(getFileExtension(fileUrl)) ? getFileExtension(fileUrl) : 'gif';
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
-                    responseType: 'arraybuffer',
-                    binary: true,
-                    onload: function (res) {
-                        var blob = new Blob([res.response], {type: "image/" + ext});
-                        const fileName = image.getAttribute('download-name') || image.alt;
-                        console.log("Filename:", fileName, image);
-                        zip.file(`${fileName}.${ext}`, blob);
-
-                        if (zipCurrent >= zipTotal++) {
-                            console.log("Generating ZIP...");
-                            zip.generateAsync({type: "blob"}).then(function (content) {
-                                    zipName = zipName || document.title;
-                                    saveAs(content, zipName + ".zip");
-                                }
-                            );
-                        }
-                    }, onreadystatechange: function (res) {
-                        console.debug("Request state changed to: " + res.readyState);
-                        if (res.readyState === 4) {
-                            console.debug('ret.readyState === 4');
-                        }
-                    },
-                    onerror: function (res) {
-                        console.error("An error occurred."
-                            + "\nresponseText: " + res.responseText
-                            + "\nreadyState: " + res.readyState
-                            + "\nresponseHeaders: " + res.responseHeaders
-                            + "\nstatus: " + res.status
-                            + "\nstatusText: " + res.statusText
-                            + "\nfinalUrl: " + res.finalUrl);
-                        zipCurrent++;
-                    },
-                    onprogress: function (res) {
-                        if (res.lengthComputable) {
-                            const progress = res.loaded / res.total;
-                            console.log("progress:", progress);
-                            progressBar.animate(progress);
-                        }
-                    }
-                });
-            }
-        } catch (e) {
-            console.warn(e);
-        }
-    }
 }
 
 function downloadImages() {
@@ -492,7 +437,7 @@ function downloadImages() {
         }
         if (confirm(`Download ${urls.size} images?`)) {
             console.log('Passing urls to downloadBatch', urls);
-            downloadBatch(urls, q('#dlNumSliderValue').innerText);
+            downloadBatch(urls, document.title, q('#dlNumSliderValue').innerText);
         }
     }
 }
@@ -591,8 +536,7 @@ function ddgHandleError() {
 function tryDdgProxy(imgEl) {
     // If it already failed ddgProxy, don't even try
     if (imgEl.classList.contains(TOKEN_DDG_FAILED)) return;
-    if (imgEl.hasAttribute('loaded'))
-        imgEl.setAttribute('loaded', '');
+    // if (imgEl.hasAttribute('loaded')) imgEl.setAttribute('loaded', '');
 
     imgEl.addEventListener("error", ddgHandleError);
 
@@ -611,7 +555,7 @@ function tryDdgProxy(imgEl) {
     ImageManager.markImageOnLoad(imgEl, imgEl.src, function () {
         this.setAttribute('loaded', 'error');
     }, function () {
-        this.setAttribute('loaded', 'ddgp')
+        this.setAttribute('loaded', 'true-ddgp')
     });
 }
 
@@ -641,7 +585,7 @@ function replaceImgSrc(img, anchor) {
  */
 function markNotFound(node) {
     node.classList.add(TOKEN_FAILED);
-    if (!showFailedImages()) {
+    if (!onGoogle || !checked_ShowFailedImages()) {
         setVisible(node, false);
     }
     SUCCESSFUL_URLS.delete(node.src);

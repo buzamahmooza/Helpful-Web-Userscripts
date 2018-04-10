@@ -18,13 +18,19 @@
 // ==/UserScript==
 
 // Settings
-if (typeof HIDE_REPLIES === 'undefined')
+if (typeof HIDE_REPLIES === 'undefined') {
     HIDE_REPLIES = true; // hide reply/comment containers that are not the main post
-window.addEventListener('load', function () {
+}
+
+window.addEventListener('load', function() {
     // 'use strict';
     if (HIDE_REPLIES) {
         observeDocument(mutation => mutation.querySelectorAll('img').forEach(removeDimensionsFromStyle()));
-        document.querySelectorAll('.replyContainer').forEach(x => x.style.display = 'none');
+        document.querySelectorAll('.replyContainer').forEach(container => {
+            if (!container.querySelector('img') && !container.querySelector('video')) {
+                container.style.display = 'none'
+            }
+        });
     }
     // if not a thread page, exit
     // https://archive.4plebs.org/pol/thread/123367112/
@@ -40,8 +46,7 @@ window.addEventListener('load', function () {
             Array.from(document.images).forEach(removeDimensionsFromStyle);
         }
         Array.from(document.images).forEach(image => zoomImage(image, 2));
-    } catch (exception) {
-    }
+    } catch (exception) {}
 }, true);
 
 
@@ -52,7 +57,7 @@ function removeDimensionsFromStyle() {
 
 function observeDocument(callback) {
     callback(document);
-    new MutationObserver(function (mutations) {
+    new MutationObserver(function(mutations) {
         for (let mutation of mutations) {
             if (!mutation.addedNodes.length) continue;
             callback(mutation.target);
@@ -70,7 +75,7 @@ function injectDownloadButton() {
     downloadButton.onclick = downloadMedia;
     downloadButton.addEventListener("click", downloadMedia);
 
-    const dlButtonContainerEl = document.querySelector('.letters' + ',body > div.desktop');
+    const dlButtonContainerEl = document.querySelector('.letters' + ', ' + 'body > div.desktop');
     var div = document.createElement('div');
     div.classList.add('letters');
     div.appendChild(downloadButton);
@@ -93,19 +98,23 @@ function downloadMedia() {
     console.log('downloadMedia');
     var dlBtns = document.querySelectorAll(
         'a > .icon-download-alt' + ',' // for desuarchive.org
-        + '.post_file_controls a[download][href].btnr.parent' //
+        +
+        '.post_file_controls a[download][href].btnr.parent' //
     );
     const imageLinks = document.querySelectorAll(
         'div.fileText a[href]' + ',' // for yuki.la
-        + '.thread_image_link');
+        +
+        '.thread_image_link');
+
     const b = confirm('Would you like to download all media on this page?\n' + imageLinks.length + ' elements found.');
     if (b)
         if (typeof download !== 'undefined') {
-            imageLinks.forEach(function (link) {
+            imageLinks.forEach(function(link) {
                 download(link.href, link.getAttribute("download") ? link.getAttribute("download") : link.href, document.title.replace(/\//, ""), link);
             });
-        } else if (dlBtns && dlBtns.length > 0)
-            dlBtns.forEach(elt => elt.click());
+        } else if (dlBtns && dlBtns.length > 0) {
+        dlBtns.forEach(elt => elt.click());
+    }
 }
 
 
@@ -116,5 +125,5 @@ function downloadMedia() {
 /*Things you could use to get the source:
     selector: document.querySelector('a.fileThumb').href;
 
- */
+    */
 // Array.from(document.querySelectorAll('div.fileText a[href]')).map(x => x.href);
