@@ -1,2 +1,23 @@
 # Helpful-Web-Userscripts
 A bunch of user scripts that make browsing the web easier.
+
+## Installation
+
+1. Make sure you have user scripts enabled in your browser (these instructions refer to the latest versions of the browser):
+
+	* Firefox - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=firefox) or [Greasemonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/) (GM v4+ is **not supported**!).
+	* Chrome - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=chrome).
+	* Opera - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=opera) or [Violent Monkey](https://addons.opera.com/en/extensions/details/violent-monkey/).
+	* Safari - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=safari).
+	* Dolphin - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=dolphin).
+	* UC Browser - install [Tampermonkey](https://tampermonkey.net/?ext=dhdg&browser=ucweb).
+
+2. Choose the script you want to install and press the `Raw` link on the GitHub page.
+
+## How to use
+
+You should read the scripts `@description` for a brief summray, or check the comments on the script page on GitHub.
+
+## Updating
+
+Userscripts are set up to automatically update. You can check for updates from within the Greasemonkey or Tampermonkey menu, or click on the install link again to get the update.
