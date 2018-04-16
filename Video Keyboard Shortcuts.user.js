@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add video keyboard shortcuts
 // @namespace    https://github.com/buzamahmooza
-// @version      0.6
+// @version      0.7
 // @description  Adds keyboard shortcuts to HTML5 videos.
 //               Left Click:  Toggle Pause/Play
 //               F or dblClk: Toggle Fullscreen
@@ -13,186 +13,187 @@
 // @match        *
 // @include      *
 // @exclude      *youtube.com*
-// @updateURL    https://github.com/buzamahmooza/Helpful-Web-Userscripts/edit/master/Video%20Keyboard%20Shortcuts.user.js
+// @updateURL
 // @grant        none
 // ==/UserScript==
 
 if (typeof unsafeWindow === "undefined") unsafeWindow = window;
-const alwaysFastPlayBack = true,
-	  timeIncr = 10,
-	  volIncr = 0.1
+const alwaysFastPlayBack = false,
+    timeIncr = 10,
+    volIncr = 0.1
 ;
-if (typeof unsafeWindow.vidkeysScrLoaded !== 'undefined') {
-	console.log('detected another script instance running, terminating instance.');
-	void(0);
-	// return false;
+if (typeof unsafeWindow.vidkeysScriptLoaded !== 'undefined') {
+    console.debug('detected another script instance running, terminating instance.');
+    void(0);
 } else {
-	unsafeWindow.vidkeysScrLoaded = true;
-	console.log('This is the first script instance');
+    unsafeWindow.vidkeysScriptLoaded = true;
+    console.debug('This is the first script instance');
 }
 
 let vids = document.getElementsByTagName('video');
-var lastFoc; // last focused video
-if(vids.length) lastFoc = vids[0];
+var lastFoc, // last focused video
+    isFullScreen;
+if (vids.length) lastFoc = vids[0];
 
-function go(){
-	if(!vids.length) return;
-	window.onkeydown = function(e){
-		keydown(e, lastFoc);
-	};
-	window.onmousewheel = function(e){
-		onMouseWheel(e);
-	};
+observeDocument(function (node) {
+    go();
+});
 
-	for(const vid of vids){
-		if(alwaysFastPlayBack)
-			vid.playbackRate = 1.5;
 
-		console.log('Found video: '+vid.src+'\nAdding video shortcuts.');
+function go() {
+    if (!vids.length) return;
+    window.onkeydown = function (e) {
+        keydown(e, lastFoc);
+    };
+    window.onmousewheel = function (e) {
+        onMouseWheel(e);
+    };
 
-		vid.onclick = function(){
-			console.log('clicked on video');
-			var vid = document.querySelector('video');
-			if(this.paused)
-				this.play();
-			else
-				this.pause();
-			lastFoc = this;
-		};
-		vid.onmousewheel = onMouseWheel;
-		// vid.onfocus = function(e){
-		// 	lastFoc = this;
-		// 	console.debug('video focused:', this, e);
-		// };
+    for (const vid of vids) {
+        if (alwaysFastPlayBack)
+            vid.playbackRate = 1.5;
 
-		vid.onkeydown = keydown;
+        console.debug('Found video: ' + vid.src + '\nAdding video shortcuts.');
 
-		var isFullScreen;
-		vid.ondblclick = function () {
-			lastFoc = this;
-			console.log('double click');
-			toggleFullScreen(this);
-		};
-
-		var toggleFullScreen = function(element){
-			lastFoc = this;
-			if(!isFullScreen) {
-				element.webkitRequestFullScreen();
-				isFullScreen = true;
-			} else {
-				document.webkitExitFullscreen();
-				isFullScreen = false;
-			}
-		};
-	}
+        vid.onclick = function () {
+            console.log('clicked on video');
+            var vid = document.querySelector('video');
+            if (this.paused)
+                this.play();
+            else
+                this.pause();
+            lastFoc = this;
+        };
+        vid.onmousewheel = onMouseWheel;
+        vid.onkeydown = keydown;
+        vid.ondblclick = function () {
+            toggleFullScreen(this);
+            lastFoc = this;
+            console.debug('double click');
+        };
+    }
 }
+
+function toggleFullScreen(element) {
+    lastFoc = this;
+    if (!isFullScreen) {
+        element.webkitRequestFullScreen();
+        isFullScreen = true;
+    } else {
+        document.webkitExitFullscreen();
+        isFullScreen = false;
+    }
+};
 
 function keydown(e, vid) {
-	vid = vid || getVisibleVideo || this;
-	console.debug('keydown for video:', vid, e);
-	var calcTimeIncr = () => (vid.duration < timeIncr/3 ? vid.duration * 0.07 : timeIncr),
-		calcVolIncr = () => ((vid.volume-volIncr <0) ? 0 : (vid.volume+volIncr >1) ? 1 :volIncr)
-	;
-	if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-		switch(e.keyCode){
-			case 75: // K
-			case 32: //Space bar
-				if(vid.paused)
-					vid.play();
-				else
-					vid.pause();
-				e.preventDefault();
-				break;
-			case 76: // L
-			case 39: // RightArrow
-				console.debug('>');
-				vid.currentTime += calcTimeIncr();
-				e.preventDefault();
-				break;
-			case 74: // J
-			case 37: // LeftArrow
-				vid.currentTime -= calcTimeIncr();
-				console.debug('<');
-				e.preventDefault();
-				break;
-			case 38: // UpArrow
-				safelyIncrementVolume(vid, volIncr);
-				e.preventDefault();
-				break;
-			case 40: // DownArrow
-				safelyIncrementVolume(vid, -volIncr);
-				e.preventDefault();
-				break;
-			case 221: // (])
-			case 187: // (=)
-				vid.playbackRate += 0.1;
-				e.preventDefault();
-				break;
-			case 219: // ([)
-			case 189: // (-)
-				vid.playbackRate -= 0.1;
-				e.preventDefault();
-				break;
-			case 48: // Alpha 0 (zero)
-				vid.playbackRate = 1;
-				console.log('reset playback speed');
-				break;
-			case 70: // F
-				//Full screen
-				toggleFullScreen(vid);
-				// vid.webkitEnterFullScreen();
-				console.log('Full screen');
-				break;
-		}
-	}
+    vid = vid || getVisibleVideo || this;
+    console.debug('keydown for video:', vid, e);
+    var calcTimeIncr = () => (vid.duration < timeIncr / 3 ? vid.duration * 0.07 : timeIncr),
+        calcVolIncr = () => ((vid.volume - volIncr < 0) ? 0 : (vid.volume + volIncr > 1) ? 1 : volIncr)
+    ;
+    if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        switch (e.keyCode) {
+            case 75: // K
+            case 32: //Space bar
+                if (vid.paused)
+                    vid.play();
+                else
+                    vid.pause();
+                e.preventDefault();
+                break;
+            case 76: // L
+            case 39: // RightArrow
+                console.debug('>');
+                vid.currentTime += calcTimeIncr();
+                e.preventDefault();
+                break;
+            case 74: // J
+            case 37: // LeftArrow
+                vid.currentTime -= calcTimeIncr();
+                console.debug('<');
+                e.preventDefault();
+                break;
+            case 38: // UpArrow
+                safelyIncrementVolume(vid, volIncr);
+                e.preventDefault();
+                break;
+            case 40: // DownArrow
+                safelyIncrementVolume(vid, -volIncr);
+                e.preventDefault();
+                break;
+            case 221: // (])
+            case 187: // (=)
+                vid.playbackRate += 0.1;
+                e.preventDefault();
+                break;
+            case 219: // ([)
+            case 189: // (-)
+                vid.playbackRate -= 0.1;
+                e.preventDefault();
+                break;
+            case 48: // Alpha 0 (zero)
+                vid.playbackRate = 1;
+                console.log('reset playback speed');
+                break;
+            case 70: // F
+                //Full screen
+                toggleFullScreen(vid);
+                // vid.webkitEnterFullScreen();
+                console.log('Full screen');
+                break;
+        }
+    }
 }
 
-function getVisibleVideo(){
-	for(const vid of document.querySelectorAll('video')){
-		if(elementInViewPortPartial(vid)){
-			return vid;
-		}
-	}
+function getVisibleVideo() {
+    for (const vid of document.querySelectorAll('video')) {
+        if (elementInViewPortPartial(vid)) {
+            return vid;
+        }
+    }
 }
 
 function partOfElementInViewport(el) {
-	var top = el.offsetTop;
-	var left = el.offsetLeft;
-	var width = el.offsetWidth;
-	var height = el.offsetHeight;
+    var top = el.offsetTop;
+    var left = el.offsetLeft;
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
 
-	while(el.offsetParent) {
-		el = el.offsetParent;
-		top += el.offsetTop;
-		left += el.offsetLeft;
-	}
+    while (el.offsetParent) {
+        el = el.offsetParent;
+        top += el.offsetTop;
+        left += el.offsetLeft;
+    }
 
-	return (
-		top < (window.pageYOffset + window.innerHeight) &&
-		left < (window.pageXOffset + window.innerWidth) &&
-		(top + height) > window.pageYOffset &&
-		(left + width) > window.pageXOffset
-	);
+    return (
+        top < (window.pageYOffset + window.innerHeight) &&
+        left < (window.pageXOffset + window.innerWidth) &&
+        (top + height) > window.pageYOffset &&
+        (left + width) > window.pageXOffset
+    );
 }
 
 // mousewheel listener
-function onMouseWheel(wheelEvent){
-	var elUnderMouse = elementUnderMouse(wheelEvent),
-		vid = (elUnderMouse.tagName == "VIDEO")? wheelEvent.target:
-	elUnderMouse.querySelector('video');
+function onMouseWheel(wheelEvent) {
+    var elUnderMouse = elementUnderMouse(wheelEvent),
+        vid = (elUnderMouse.tagName == "VIDEO") ? wheelEvent.target :
+            elUnderMouse.querySelector('video');
 
-	if(!!vid) {
-		var x = getWheelDelta(wheelEvent);
-		safelyIncrementVolume(vid, x*volIncr);
-		wheelEvent.preventDefault();
-	}
+    if (!!vid) {
+        var x = getWheelDelta(wheelEvent);
+        safelyIncrementVolume(vid, x * volIncr);
+        if (isFullScreen || !vid.paused)
+            wheelEvent.preventDefault();
+    }
 }
-function safelyIncrementVolume(vid, incr){
-    try{
+
+function safelyIncrementVolume(vid, incr) {
+    try {
         vid.volume += incr;
-    }catch(e){}
-	// incr = incr || volIncr;
-	// vid.volume = (incr<0 && (vid.volume - incr <0) ? 0 : incr>0 && (vid.volume+incr >1) ? 1 : vid.volume);
+    } catch (e) {
+    }
+    // incr = incr || volIncr;
+    // vid.volume = (incr<0 && (vid.volume - incr <0) ? 0 : incr>0 && (vid.volume+incr >1) ? 1 : vid.volume);
 }
 
 /**
@@ -202,28 +203,35 @@ function safelyIncrementVolume(vid, incr){
  * @return {number} -1 or 1
  */
 function getWheelDelta(wheelEvent) {
-	// cross-browser wheel delta
-	wheelEvent = window.event || wheelEvent; // old IE support
-	return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
+    // cross-browser wheel delta
+    wheelEvent = window.event || wheelEvent; // old IE support
+    return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
 }
 
 function elementUnderMouse(wheelEvent) {
-	return document.elementFromPoint(wheelEvent.clientX, wheelEvent.clientY);
+    return document.elementFromPoint(wheelEvent.clientX, wheelEvent.clientY);
 }
 
 function observeDocument(callback) {
-	callback(document.body);
-	new MutationObserver(function(mutations){
-		for (const mutation of mutations) {
-			if (!mutation.addedNodes.length) continue;
-			callback(mutation.target);
-		}
-	}).observe(document.body, {
-		childList: true, subtree: true,
-		attributes: true, characterData: true
-	});
+    callback(document.body);
+    new MutationObserver(function (mutations) {
+        for (const mutation of mutations) {
+            if (!mutation.addedNodes.length) continue;
+            callback(mutation.target);
+        }
+    }).observe(document.body, {
+        childList: true, subtree: true,
+        attributes: true, characterData: true
+    });
 }
 
-observeDocument(function(node){
-	go();
-});
+/** Create an element by typing it's inner HTML.
+ For example:   var myAnchor = createElement('<a href="https://example.com">Go to example.com</a>');
+ * @param html
+ * @return {Node}
+ */
+function createElement(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.childNodes[0];
+}
