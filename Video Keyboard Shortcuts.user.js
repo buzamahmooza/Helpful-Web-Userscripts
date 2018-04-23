@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video keyboard shortcuts
+// @name         Add video keyboard shortcuts
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5
+// @version      0.7
 // @description  Adds keyboard shortcuts to HTML5 videos.
 //               Left Click:  Toggle Pause/Play
 //               F or dblClk: Toggle Fullscreen
@@ -12,224 +12,226 @@
 // @author       Faris Hijazi
 // @match        *
 // @include      *
-// @updateURL    https://gist.github.com/buzamahmooza/b940c84b16f0b5719fa994d54c785cab/raw/
-// @grant        GM_setValue
-// @grant        GM_getValue
-// // @noframes
+// @exclude      *youtube.com*
+// @updateURL
+// @grant        none
 // ==/UserScript==
 
-
-/**/
-
-if (typeof unsafeWindow === 'undefined') unsafeWindow = window;
-if (typeof debug === 'undefined') debug = true;
-if (typeof log === 'undefined') {
-    log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
-}
-if (typeof unsafeWindow.vidkeysScrLoaded !== 'undefined') {
-    console.log('detected another script instance running, terminating instance.');
+if (typeof unsafeWindow === "undefined") unsafeWindow = window;
+const alwaysFastPlayBack = false,
+    timeIncr = 10,
+    volIncr = 0.1
+;
+if (typeof unsafeWindow.vidkeysScriptLoaded !== 'undefined') {
+    console.debug('detected another script instance running, terminating instance.');
     void(0);
-    // return false;
 } else {
-    unsafeWindow.vidkeysScrLoaded = true;
-    console.log('This is the first script instance');
+    unsafeWindow.vidkeysScriptLoaded = true;
+    console.debug('This is the first script instance');
 }
-const onYoutube = /youtube.com/.test(document.location.href);
-if (onYoutube)
-    console.warn('We are on youtube.com! Not gonna run keyboard shortcuts, goodbye');
-let isFullScreen = false;
-const alwaysStartWithFastPlayBack = false;
-const CLASS_TOKEN = `video-keyboard-shortcuts`;
 
-var vids = document.getElementsByTagName('video');
-/** {HTMLVideoElement} */
-var lastFocusedVid;
+let vids = document.getElementsByTagName('video');
+var lastFoc, // last focused video
+    isFullScreen;
+if (vids.length) lastFoc = vids[0];
 
-const ytpHTML = `<div
- class="ytp-cued-thumbnail-overlay" data-layer="4" style="">
-    <div class="ytp-cued-thumbnail-overlay-image"
-         style="background-image: url(&quot;https://i.ytimg.com/vi_webp/JDSfqFFbNYQ/maxresdefault.webp&quot;);"></div>
-    <button class="ytp-large-play-button ytp-button" aria-label="Play">
-        <svg height="100%" version="1.1" viewBox="0 0 68 48" width="100%">
-            <path class="ytp-large-play-button-bg" d="" fill="#212121" fill-opacity="0.8"/>
-            <path d="M 45,24 27,14 27,34" fill="#fff"/>
-        </svg>
-    </button>
-</div>`;
-
-window.addEventListener('load', function () {
-    vids = document.getElementsByTagName('video');
-    lastFocusedVid = vids[0];
-    observeDocument(/** @param {mutation} mutation */ function (mutation) {
-        if (mutation.type == 'childList' && mutation.tagName('video')) {
-            handleVideo(mutation);
-        }
-        const vidNodes = mutation.querySelectorAll('video');
-        if (vidNodes.length) {
-            console.log('vidNodes:', vidNodes);
-            Array.from(vidNodes).forEach(handleVideo);
-        }
-    });
+observeDocument(function (node) {
+    go();
 });
-if (vids && vids.length) {
-    window.addEventListener('keyup', function (e) {
-        // skip this listener for youtube
-        if (!onYoutube) switch (e.keyCode) {
+
+
+function go() {
+    if (!vids.length) return;
+    window.onkeydown = function (e) {
+        keydown(e, lastFoc);
+    };
+    window.onmousewheel = function (e) {
+        onMouseWheel(e);
+    };
+
+    for (const vid of vids) {
+        if (alwaysFastPlayBack)
+            vid.playbackRate = 1.5;
+
+        console.debug('Found video: ' + vid.src + '\nAdding video shortcuts.');
+
+        vid.onclick = function () {
+            console.log('clicked on video');
+            var vid = document.querySelector('video');
+            if (this.paused)
+                this.play();
+            else
+                this.pause();
+            lastFoc = this;
+        };
+        vid.onmousewheel = onMouseWheel;
+        vid.onkeydown = keydown;
+        vid.ondblclick = function () {
+            toggleFullScreen(this);
+            lastFoc = this;
+            console.debug('double click');
+        };
+    }
+}
+
+function toggleFullScreen(element) {
+    lastFoc = this;
+    if (!isFullScreen) {
+        element.webkitRequestFullScreen();
+        isFullScreen = true;
+    } else {
+        document.webkitExitFullscreen();
+        isFullScreen = false;
+    }
+};
+
+function keydown(e, vid) {
+    vid = vid || getVisibleVideo || this;
+    console.debug('keydown for video:', vid, e);
+    var calcTimeIncr = () => (vid.duration < timeIncr / 3 ? vid.duration * 0.07 : timeIncr),
+        calcVolIncr = () => ((vid.volume - volIncr < 0) ? 0 : (vid.volume + volIncr > 1) ? 1 : volIncr)
+    ;
+    if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        switch (e.keyCode) {
             case 75: // K
             case 32: //Space bar
-                if (lastFocusedVid.paused)
-                    lastFocusedVid.play();
+                if (vid.paused)
+                    vid.play();
                 else
-                    lastFocusedVid.pause();
+                    vid.pause();
                 e.preventDefault();
                 break;
-        }
-        const volumeIncr = 0.1;
-        const timeIncr = 10;
-        switch (e.keyCode) {
             case 76: // L
-                if (onYoutube) break;
             case 39: // RightArrow
-                lastFocusedVid.currentTime += (lastFocusedVid.duration < timeIncr ? lastFocusedVid.duration * 0.07 : timeIncr);
+                console.debug('>');
+                vid.currentTime += calcTimeIncr();
                 e.preventDefault();
                 break;
             case 74: // J
-                if (onYoutube) break;
             case 37: // LeftArrow
-                lastFocusedVid.currentTime -= (lastFocusedVid.duration < timeIncr ? lastFocusedVid.duration * 0.07 : timeIncr);
+                vid.currentTime -= calcTimeIncr();
+                console.debug('<');
                 e.preventDefault();
                 break;
             case 38: // UpArrow
-                lastFocusedVid.volume += volumeIncr;
+                safelyIncrementVolume(vid, volIncr);
                 e.preventDefault();
                 break;
             case 40: // DownArrow
-                lastFocusedVid.volume -= volumeIncr;
+                safelyIncrementVolume(vid, -volIncr);
                 e.preventDefault();
                 break;
-        }
-    });
-
-}
-
-
-function getVideo() {
-    return lastFocusedVid ? lastFocusedVid : vids[0];
-}
-
-function keyUp(e) {
-    let thisVideo = this;
-    console.log(`Pressed "${e.key}" to video:\n${thisVideo}`);
-
-    if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        switch (e.keyCode) {
             case 221: // (])
             case 187: // (=)
-                thisVideo.playbackRate += 0.1;
+                vid.playbackRate += 0.1;
                 e.preventDefault();
-                savePlaybackRate(thisVideo.playbackRate);
                 break;
             case 219: // ([)
             case 189: // (-)
-                thisVideo.playbackRate -= 0.1;
+                vid.playbackRate -= 0.1;
                 e.preventDefault();
-                savePlaybackRate(thisVideo.playbackRate);
                 break;
             case 48: // Alpha 0 (zero)
-                thisVideo.playbackRate = 1;
-                log('reset playback speed');
-                savePlaybackRate(thisVideo.playbackRate);
+                vid.playbackRate = 1;
+                console.log('reset playback speed');
                 break;
             case 70: // F
                 //Full screen
-                toggleFullScreen(getVideo());
-                // getVideo().webkitEnterFullScreen();
+                toggleFullScreen(vid);
+                // vid.webkitEnterFullScreen();
                 console.log('Full screen');
                 break;
         }
     }
 }
 
-/*function observeDocument(callback, opts) {
-    callback(document.body);
-    const mutationsHandler =
-        mutations => mutations.forEach(mutation => mutation.addedNodes.length ? callback(mutation.target) : null);
-    const defaultOptions = {
-        childList: true, subtree: true,
-        attributes: false, characterData: false
-    };
-    opts.extend(defaultOptions);
-    const mutationObserver = new MutationObserver(mutationsHandler);
-    mutationObserver.observe(document.body, opts);
+function getVisibleVideo() {
+    for (const vid of document.querySelectorAll('video')) {
+        if (elementInViewPortPartial(vid)) {
+            return vid;
+        }
+    }
+}
 
-    return mutationObserver;
-}*/
+function partOfElementInViewport(el) {
+    var top = el.offsetTop;
+    var left = el.offsetLeft;
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
+
+    while (el.offsetParent) {
+        el = el.offsetParent;
+        top += el.offsetTop;
+        left += el.offsetLeft;
+    }
+
+    return (
+        top < (window.pageYOffset + window.innerHeight) &&
+        left < (window.pageXOffset + window.innerWidth) &&
+        (top + height) > window.pageYOffset &&
+        (left + width) > window.pageXOffset
+    );
+}
+
+// mousewheel listener
+function onMouseWheel(wheelEvent) {
+    var elUnderMouse = elementUnderMouse(wheelEvent),
+        vid = (elUnderMouse.tagName == "VIDEO") ? wheelEvent.target :
+            elUnderMouse.querySelector('video');
+
+    if (!!vid) {
+        var x = getWheelDelta(wheelEvent);
+        safelyIncrementVolume(vid, x * volIncr);
+        if (isFullScreen || !vid.paused)
+            wheelEvent.preventDefault();
+    }
+}
+
+function safelyIncrementVolume(vid, incr) {
+    try {
+        vid.volume += incr;
+    } catch (e) {
+    }
+    // incr = incr || volIncr;
+    // vid.volume = (incr<0 && (vid.volume - incr <0) ? 0 : incr>0 && (vid.volume+incr >1) ? 1 : vid.volume);
+}
+
+/**
+ * cross-browser wheel delta
+ * Returns the mousewheel scroll delta as -1 (wheelUp) or 1 (wheelDown) (cross-browser support)
+ * @param {MouseWheelEvent} wheelEvent
+ * @return {number} -1 or 1
+ */
+function getWheelDelta(wheelEvent) {
+    // cross-browser wheel delta
+    wheelEvent = window.event || wheelEvent; // old IE support
+    return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
+}
+
+function elementUnderMouse(wheelEvent) {
+    return document.elementFromPoint(wheelEvent.clientX, wheelEvent.clientY);
+}
 
 function observeDocument(callback) {
     callback(document.body);
-    const mutationCallback =
-        /**@param {mutation} mutationsList */
-        function (mutationsList) {
-            for (var mutation of mutationsList) {
-                if (!mutation.addedNodes.length) continue;
-                callback(mutation.target);
-            }
-        };
-    new MutationObserver(mutationCallback).observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: false,
-        characterData: false
+    new MutationObserver(function (mutations) {
+        for (const mutation of mutations) {
+            if (!mutation.addedNodes.length) continue;
+            callback(mutation.target);
+        }
+    }).observe(document.body, {
+        childList: true, subtree: true,
+        attributes: true, characterData: true
     });
 }
 
-function handleVideo(vid) {
-    if (vid.classList.contains(CLASS_TOKEN)) {
-        // console.log('Nope! Not gonna duplicate listeners on video, sorry.');
-        return;
-    }
-    console.log(`Found video:`, vid, `\n${vid.src}\nAdding video shortcuts.`);
-
-    if (alwaysStartWithFastPlayBack) {
-        vid.playbackRate = GM_getValue('startingPlaybackRate', 1.7);
-    }
-    // keyboard listener
-    /** @param {KeyboardEvent}e */
-    vid.addEventListener('keyup', keyUp, true);
-    console.log('adding eventListener to video:', vid);
-
-    // mouse click listener
-    /** @param e {Event} */
-    const onClick = function (e) {
-        console.log('clicked on video');
-        const vid = e.target;
-        lastFocusedVid = vid;
-
-        (vid.paused) ? vid.play() : vid.pause();
-        e.preventDefault();
-    };
-    if (!onYoutube) {
-        vid.addEventListener("click", onClick, false);
-        vid.addEventListener("dblclick", () => toggleFullScreen(vid), false);
-    } else {
-        console.log("Skipping mouse listener in video cuz it's youtube");
-        // don't run on youtube (ruins the click functions)
-    }
-    vid.classList.add(CLASS_TOKEN);
-}
-
-function toggleFullScreen(video) {
-    console.log('toggleFullScreen()');
-    if (!isFullScreen) {
-        video.webkitEnterFullScreen();
-        isFullScreen = true;
-    } else {
-        video.webkitExitFullScreen();
-        isFullScreen = false;
-    }
-}
-
-function savePlaybackRate(newPlaybackRate) {
-    if (newPlaybackRate)
-        GM_setValue('startingPlaybackRate', newPlaybackRate);
+/** Create an element by typing it's inner HTML.
+ For example:   var myAnchor = createElement('<a href="https://example.com">Go to example.com</a>');
+ * @param html
+ * @return {Node}
+ */
+function createElement(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.childNodes[0];
 }

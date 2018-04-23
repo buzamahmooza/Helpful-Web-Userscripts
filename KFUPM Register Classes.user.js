@@ -1,33 +1,40 @@
 // ==UserScript==
 // @name         KFUPM Register Classes
 // @namespace    http://tampermonkey.net/
+// @description  This script will autofill the CRNs on http://ssbweb.kfupm.edu.sa/PROD8/bwskfreg.P_AltPin
+// @description  The script will keep refreshing the page until the registration is open
 // @author       Faris Hijazi
-// @version      0.1
+// @version      0.4
 // @icon	 	 https://www.google.com/s2/favicons?domain=http://registrar.kfupm.edu.sa
 // @include      http://ssbweb.kfupm.edu.sa/PROD8/bwskfreg.P_AltPin
 // @include      file:///*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_download
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_setClipboard
 // @grant        unsafeWindow
-// @grant        window.close
-// @grant        window.focus
 // @run-at       document-body
-// @connect      *
+// @updateURL    https://github.com/buzamahmooza/Helpful-Web-Userscripts/edit/master/KFUPM%20Register%20Classes.user.js
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // ==/UserScript==
+
+/*
+HOW TO USE:
+1- Fill CRNs in the variable below
+2- Go to http://ssbweb.kfupm.edu.sa/PROD8/bwskfreg.P_AltPin
+3- The script will keep refreshing the page until the registration opens, and will autofill the CRNs and click "Submit"
+4- Turn off the script after submission to make sure it doesn't mess up anything
+
+Warning:    Repeatedly refreshing or submitting in the course registration page could lead to a an academic hold.
+            By using this script, you agree that you are fully responsible for the outcomes.
+*/
+
 
 
 // The CRNs to input
 // (sperate by anything that isn't a number, ie. spaces, commas, tabs, new lines, etc.. anything works)
 var allCRNs = `
-17516
-10860
-10993
-16641
-15122`; // these are just example CRNs, make sure to put real ones.
+12345
+12345
+12345`; // these are just example CRNs, make sure to put real ones.
 
 
 /*
