@@ -20,7 +20,7 @@ const ddgUrlToken = 'is-ddg-url';
 
 const ATTRIBUTES = ['src', 'href'];
 let proxyOn = GM_getValue('proxyOn', DEFAULT_PROXY_STATE);
-let whiteListedSites = new Set(GM_getValue('whiteListedSites', ['www.pornhugo.com']));
+let whiteListedSites = new Set(GM_getValue('whiteListedSites', []));
 // noinspection ES6ConvertVarToLetConst
 var debug;
 if (typeof debug === 'undefined') debug = false;
@@ -46,7 +46,7 @@ if (typeof reverseDdgProxy === 'undefined') {
 const HOSTNAME = getHostname(reverseDdgProxy(location.href), true);
 
 function whiteListSite(url) {
-    const stored = new Set(GM_getValue('whiteListedSites', ['www.pornhugo.com']));
+    const stored = new Set(GM_getValue('whiteListedSites', []));
     stored.add(url);
     GM_setValue('whiteListedSites', Array.from(stored));
     console.log("DDGP unblockable site added:", url);
