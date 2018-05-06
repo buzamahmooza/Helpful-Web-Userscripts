@@ -72,7 +72,8 @@ let slider_dlLimit,
     slider_minImgSize,
     cbox_ShowFailedImages,
     cbox_GIFsOnly,
-    cbox_UseDdgProxy
+    cbox_UseDdgProxy,
+    cbox_GIFsException
 ;
 unsafeWindow.displayImages = displayImages;
 unsafeWindow.replaceImgSrc = replaceImgSrc;
@@ -102,7 +103,7 @@ window.onkeyup = function (e) {
     if(!targetIsInput(e)) {
         switch (key) {
             case 79: // 'O' key
-                if(e.shiftKey) {
+                if(e.altKey) {
                     displayImages();
                 }
                 break;
@@ -111,7 +112,7 @@ window.onkeyup = function (e) {
             switch (key) {
                 case 65: // 'A' key
                     if(e.altKey) {
-                        q('#AnimatedBtn').click();
+                        (!q('#itp_animated').childNodes[0]?q('#itp_').childNodes[0]:q('#itp_animated').childNodes[0]).click();
                     }
                     break;
                 case 68: // 'D' key
@@ -232,9 +233,8 @@ function getThumbnails(visibleThumbnailsOnly) {
 
 function injectGoogleButtons() {
     function updateQualifiedImagesLabel(value) {
-        const satCondLabel = q('#satCondLabel');
-        value = value || Math.min(qa('.qualified-dimensions').length, q('#dlLimitSlider').value);
-        satCondLabel.innerHTML = Array.from(getQualifiedGImgs()).length + ' images satisfying conditions';
+        value = value || Array.from(getQualifiedGImgs()).length;
+        satCondLabel.innerHTML =  value + ' images satisfying conditions';
     }
 
     try {
@@ -303,8 +303,15 @@ function injectGoogleButtons() {
 
         // Check boxes
         cbox_ShowFailedImages = createGCheckBox("showFailedImagesBox", "Show&nbsp;failed&nbsp;images", f_sfi, HIDE_FAILED_IMAGES_ON_LOAD);
-        cbox_GIFsOnly = createGCheckBox("GIFsOnlyBox", "GIFs&nbsp;only", f_gifsOnly);
-        cbox_UseDdgProxy = createGCheckBox("useDdgProxyBox", "Try&nbsp;DDG_P", null, true);
+        cbox_GIFsOnly =         createGCheckBox("GIFsOnlyBox", "GIFs&nbsp;only", f_gifsOnly, false);
+        cbox_UseDdgProxy =      createGCheckBox("useDdgProxyBox", "Try&nbsp;DDG_P", 
+            () => GM_setValue("useDdgProxy", this.checked),
+            GM_getValue("useDdgProxy", true)
+        );
+        cbox_GIFsException =    createGCheckBox("GIFsException", "Always&nbsp;download&nbsp;GIFs", 
+            () => GM_setValue("GIFsException", this.checked),
+            GM_getValue("GIFsException", true)
+        );
 
         /**
          * Show failed images
@@ -319,7 +326,7 @@ function injectGoogleButtons() {
             f_sfi();
             const checked = q("#GIFsOnlyBox").checked;
             Array.from(qa(`.rg_bx a.rg_l img`)).forEach(nonGifImg => {
-                if(!/\.gif($|\?)/.test(getMetaEl(nonGifImg))) {
+                if(!/\.gif($|\?)/.test(getMeta(nonGifImg).ou)) {
                     console.debug('nonGifImg href doesn\'t end with .gif, settings visibility to:', checked, nonGifImg);
                     setVisible(nonGifImg, checked);
                 }
@@ -332,8 +339,9 @@ function injectGoogleButtons() {
         }
 
         // Sliders
-        slider_minImgSize = createElement(`<input id="minImgSizeSlider" type="range" min="0" max="3000" value="200" step="25">`);
-        var sliderReading_minImgSize = createElement(`<label for="minImgSizeSlider" id="minImgSizeSliderValue">${slider_minImgSize.value}</label>`);
+        const default_slider_minImgSize_value = 250;
+        slider_minImgSize = createElement(`<input id="minImgSizeSlider" type="range" min="0" max="3000" value="${default_slider_minImgSize_value}" step="25">`);
+        var sliderReading_minImgSize = createElement(`<label for="minImgSizeSlider" id="minImgSizeSliderValue">${slider_minImgSize.value}x${slider_minImgSize.value}</label>`);
         slider_minImgSize.oninput = function () {
             sliderReading_minImgSize.innerHTML = /*'Min Dimensions<br>' +*/ (this.value + 'x' + this.value);
 
@@ -352,13 +360,14 @@ function injectGoogleButtons() {
                     img.classList.remove('qualified-dimensions');
                 }
             }
-            updateQualifiedImagesLabel(Math.min(qa('.qualified-dimensions').length, q('#dlLimitSlider').value));
+            updateQualifiedImagesLabel(getQualifiedGImgs(null, null, true).size);
         };
         slider_minImgSize.onchange = function () {
             for (const img of qa('.sg-too-small-hide')) {
                 setVisible(img, false);
             }
             clearEffectsDelayed();
+            updateQualifiedImagesLabel();
         };
 
         slider_dlLimit = createElement(`<input id="dlLimitSlider" type="range" min="1" max="${1000}" value="20">`);
@@ -366,18 +375,50 @@ function injectGoogleButtons() {
         slider_dlLimit.oninput = function () {
             sliderReading_dlLimit.innerHTML = this.value;
 
-            // Highlighting images that will be downloaded
-            var i = 0;
             // clearAllEffects();
-            for (const img of getThumbnails()) {
+            // Highlighting images that will be downloaded
+
+            // blur all
+          
+            
+
+            var i = 0;
+            // for (const qualifiedImgObj of getQualifiedGImgs(null, null, true)) {
+            //     const img = qualifiedImgObj.img;
+            //     console.debug('i:', i, 'this.value:', this.value);
+            //     if(++i <= this.value) {
+            //         img.classList.add('drop-shadow', 'out');
+            //         img.classList.remove('in');
+            //     }
+            //     // else {
+            //     //     console.debug('img should be hidden:', img);
+            //     //     img.classList.remove('out');
+            //     //     img.classList.add('blur', 'in');
+            //     // }
+            // }
+
+            for (const img of qa('.rg_bx img.qualified-dimensions')) {
                 if(++i <= this.value) {
                     img.classList.add('drop-shadow', 'out');
                     img.classList.remove('in');
                 } else {
-                    img.classList.add('blur', 'in');
+                    console.debug('img should be hidden:', img);
                     img.classList.remove('out');
+                    img.classList.add('blur', 'in');
                 }
             }
+            // unblur the remaining images (even though they may not satisfy img dimensions)
+            for (const img of qa('.rg_bx img:not(.qualified-dimensions)')) {
+                if(++i <= this.value) {
+                    img.classList.add('drop-shadow', 'out');
+                    img.classList.remove('in');
+                } else {
+                    console.debug('img should be hidden:', img);
+                    img.classList.remove('out');
+                    img.classList.add('blur', 'in');
+                }
+            }
+
             updateQualifiedImagesLabel();
         };
         slider_dlLimit.onchange = function () {
@@ -391,6 +432,7 @@ function injectGoogleButtons() {
             clearTimeout(timeOut);
             timeOut = setTimeout(function () {
                 clearAllEffects();
+                // updateQualifiedImagesLabel();
             }, 800);
         }
 
@@ -405,6 +447,8 @@ function injectGoogleButtons() {
             return button;
         }
 
+
+        // Display originals
         var btn_dispOgs = createGButton(`dispOgsBtn`, `Display&nbsp;<u>o</u>riginals`, displayImages),
             btn_animated = createGButton(`AnimatedBtn`, `<u>A</u>nimated`, function () {
                 document.getElementById('itp_animated').childNodes[0].click();
@@ -434,24 +478,9 @@ function injectGoogleButtons() {
                     ImageManager.markImageOnLoad(img, a.href);
                     console.log('Preloading image:', `"${dlName}"`, !isBase64ImageData(img.src) ? img.src : "Base64ImageData");
                 });
-            }),
-            btn_toggleEncryptedGoogle = createGButton(`toggleEngrypted`, `Toggle&nbsp;engrypted&nbsp;⇌`,
-                function toggleEncryptedGoogle() {
-                    console.log("Toggle encrypted google");
-                    const onEncrGoogle = new RegExp("encrypted\.google\.com").test(location.hostname);
+            });
+              
 
-                    var targetURL;
-                    // targetURL=safeSearchOffUrl(); if (targetURL) location.href = targetURL;
-
-                    targetURL = location.href;
-                    targetURL = !onEncrGoogle ?
-                        targetURL.replace(/www\.google\.[\w.]+/i, "encrypted.google.com") :
-                        targetURL.replace(/encrypted\.google\.[\w.]+/i, "www.google.com");
-                    console.log('Target URL:', targetURL);
-                    location.href = targetURL;
-                    return targetURL;
-                }
-            );
         btn_download.style.margin = "20px";
         btn_download.style.border = "20px";
 
@@ -459,7 +488,8 @@ function injectGoogleButtons() {
             const checked = q('#zipInsteadOfDownload').checked;
             const downloadBtn = q('#downloadBtn');
             downloadBtn.innerHTML = checked ? (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP' : 'Download&nbsp;ZIP&nbsp;⇓') : 'Download&nbsp;⇓';
-        }, false);
+            GM_setValue("zipInsteadOfDownload", checked);
+        }, GM_getValue("zipInsteadOfDownload", true));
         cbox_ZIP.style.padding = "0px";
 
         var downloadPanel = createElement(
@@ -492,9 +522,13 @@ function injectGoogleButtons() {
 
         // don't use this function, BAD // var dlCondition = function (element) {return (element.hasAttribute('img-w') && element.getAttribute('img-w') > minImgSizeSlider.value);};
 
+        if(/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
+            displayImages();
+        }
+        
         const divider = document.createElement('div');
         controlsContainer.appendChild(divider);
-        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, btn_animated, btn_toggleEncryptedGoogle, downloadPanel);
+        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, btn_animated, downloadPanel);
         sliderConstraintsContainer.after(satCondLabel);
         q('#download-panel').appendChild(createElement(`<div id="progressbar-container"></div>`));
     } catch (r) {
@@ -521,7 +555,7 @@ function imageIsBigEnough(image) {
 
 function clearAllEffects() { // remove highlighting of elements
     console.warn('clearAllEffects()');
-    for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', 'qualified-dimensions', 'sg-too-small-hide', 'in']) {
+    for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', /*'qualified-dimensions',*/ 'sg-too-small-hide', 'in']) {
         for (const el of qa('.' + effectClassName)) {
             el.classList.remove(effectClassName);
             el.classList.add('out');
@@ -530,7 +564,7 @@ function clearAllEffects() { // remove highlighting of elements
 }
 function clearAllEffectsFromEl(el) { // remove highlighting of elements
     console.warn('clearAllEffectsFromEl()');
-    for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', 'qualified-dimensions', 'sg-too-small-hide', 'in']) {
+    for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', /*'qualified-dimensions', */'sg-too-small-hide', 'in']) {
         el.classList.remove(effectClassName);
     }
     el.classList.add('out');
@@ -694,6 +728,7 @@ function markNotFound(node) {
     if(!onGoogle || !checked_ShowFailedImages()) {
         setVisible(node, false);
     }
+    node.setAttribute('loaded', 'error');
     SUCCESSFUL_URLS.delete(node.src);
 }
 function setVisibilityForFailedImages(visibility) {
@@ -715,11 +750,18 @@ function setVisible(node, visible) {
     if(onGoogle) {
         node = node.parentNode.parentNode;
     }
-    if(hideByVisibility) {
-        node.style.visibility = visible ? 'visible' : 'hidden';
+
+    if(visible) {
+        node.classList.remove('hide-img');
     } else {
-        node.style.display = visible ? 'inline-block' : 'none';
+        node.classList.add('hide-img');
     }
+
+    // if(hideByVisibility) {
+    //     node.style.visibility = visible ? 'visible' : 'hidden';
+    // } else {
+    //     node.style.display = visible ? 'inline-block' : 'none';
+    // }
 }
 
 function createAndAddCSS() {
@@ -789,10 +831,15 @@ margin: 10px;
         }
 
         .sg-too-small {
+
         }
 
         .sg-too-small-hide {
-            display: none;
+            display: none !important;
+        }
+
+        .hide-img {
+            display: none !important;
         }
     `, 'filters-style');
     /* "border-bottom: 1px dotted black;" is for if you want dots under the hover-able text */

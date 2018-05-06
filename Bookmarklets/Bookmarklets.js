@@ -2,7 +2,6 @@
 
 // download all original images on pinterest page:
 
-
 var pinwrappers = document.querySelectorAll('div.pinWrapper div a div div div div img');
 var directoryName = document.title.trim();
 var dlLimit = -1;
@@ -84,4 +83,13 @@ document.querySelectorAll('.iconbody').forEach(function(elt, index, array){
     }catch(j){}
 });
 
+
+
+
+/* Clear all styles */
+(function(){
+    for(const style of document.querySelectorAll('style')){
+        style.innerHTML = "";
+    }
+})();
 

@@ -23,8 +23,7 @@ var debug;
 /**/
 if (typeof unsafeWindow === "undefined") unsafeWindow = window;
 if (typeof debug === 'undefined') debug = true;
-if (typeof log === 'undefined')
-    log = (...arguments) => (debug) ? console.log('Log:', ...arguments) : false;
+if (typeof log === 'undefined') log = (...arguments) => (debug) ? console.log('Log:', ...arguments) : false;
 
 URL_REGEX_STR = `(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?`;
 IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?\\.(jpg|png|jpeg|gif|tiff|&f=1)`, 'gim');
@@ -36,7 +35,11 @@ var googleBaseURL = "https://" + (useEncryptedGoogle ? "encrypted" : "www") + ".
 gImgSearchURL = googleBaseURL + "/search?&hl=en&tbm=isch&q=";
 gImgReverseSearchURL = googleBaseURL + "/searchbyimage?&image_url=";
 
-if (typeof GM_xmlhttpRequest !== 'undefined')
+if (typeof GM_setClipboard !== 'undefined') {
+    unsafeWindow.setClipboard = GM_setClipboard;
+    unsafeWindow.GM_setClipboard = GM_setClipboard;
+}
+if (typeof GM_xmlhttpRequest !== 'undefined') {
     unsafeWindow.GM_xmlhttpRequest =
         /**
          * Description
@@ -95,6 +98,7 @@ if (typeof GM_xmlhttpRequest !== 'undefined')
          Returns
          */
         GM_xmlhttpRequest;
+}
 
 unsafeWindow.URL_REGEX_STR = URL_REGEX_STR;
 unsafeWindow.VID_URL_REGEX = VID_URL_REGEX;
@@ -116,6 +120,8 @@ unsafeWindow.getGImgReverseSearchURL = getGImgReverseSearchURL;
 
 unsafeWindow.toDdgProxy = () => location.href = ddgProxy(location.href);
 unsafeWindow.isIterable = obj => obj != null && typeof obj[Symbol.iterator] == 'function';
+unsafeWindow.GM_setValue = GM_setValue;
+unsafeWindow.GM_getValue = GM_getValue;
 
 unsafeWindow.q = q;
 unsafeWindow.qa = qa;
@@ -127,45 +133,43 @@ unsafeWindow.getHostname = getHostname;
 /***/
 unsafeWindow.openAllLinks = function () {
     Array.from(document.links).forEach(function (link) {
-        if (link.hasAttribute("href"))
+        if (link.hasAttribute("href")) {
             window.open(link.href);
+        }
     });
 };
 
 /**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
 function ddgProxy(url) {
-    return isDdgUrl(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
+    return isDdgUrl(url) || /^(javascript)/i.test(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
 }
 
 /**Opens the url via fetch(), then performs a callback giving it the document element*/
 unsafeWindow.fetchElement = fetchElement;
 /**Opens the url via xmlhttpRequest, then performs a callback giving it the document element*/
 unsafeWindow.xmlRequestElement = xmlRequestElement;
-
 unsafeWindow.onLoadDim = onLoadDim;
-
 unsafeWindow.addCss = addCss;
-
 unsafeWindow.observe = observe;
-
 unsafeWindow.gfycatPage2GifUrl = function (gfycatPageUrl) {
-    if (!/https:\/\/gfycat\.com\/gifs\/detail\/.+/.test(gfycatPageUrl))
+    if (!/https:\/\/gfycat\.com\/gifs\/detail\/.+/.test(gfycatPageUrl)) {
         throw error("Not a gfycat home url:" + gfycatPageUrl);
+    }
     return `https://thumbs.gfycat.com/${gfycatPageUrl.split('/').pop()}-size_restricted.gif`;
 };
-
 unsafeWindow.preloader = preloader;
-
 unsafeWindow.waitForElement = waitForElement;
-
 unsafeWindow.includeJS = includeJS;
 
-function addCss(css) {
+function addCss(css, id) {
     const style = document.createElement('style');
-    if (style.styleSheet)
+    if (style.styleSheet) {
         style.styleSheet.cssText = css;
-    else
+    } else {
         style.appendChild(document.createTextNode(css));
+    }
+    if (!!id) style.id = id;
+    style.classList.add('addCss');
     return document.getElementsByTagName('head')[0].appendChild(style);
 }
 
@@ -178,14 +182,17 @@ function addCss(css) {
  */
 function observe(targetElement, callback, options) {
     if (!targetElement) targetElement = document.body;
-    if (!options) options = {
-        childList: true, subtree: true,
-        attributes: false, characterData: false
-    };
+    if (!options) {
+        options = {
+            childList: true, subtree: true,
+            attributes: false, characterData: false
+        };
+    }
     const mutationsHandler = function (mutations) {
         for (const mutation of mutations) {
-            if (mutation.addedNodes.length)
+            if (mutation.addedNodes.length) {
                 callback(mutation.target);
+            }
             callback();
         }
     };
@@ -208,9 +215,9 @@ function reverseDdgProxy(url) {
         s = s.trim().match(/(?<=(https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=))(.+?)(?=(&f=1|$))/i);
     }
     // https://proxy\.duckduckgo\.com/iu/\?u=
-    if (s && s[0])
+    if (s && s[0]) {
         return decodeURIComponent(s[0]);
-    else {
+    } else {
         console.log('Was unable to reverseDDGProxy for URL:', url);
         return s;
     }
@@ -219,9 +226,7 @@ function reverseDdgProxy(url) {
 unsafeWindow.regexBetween = function (preceedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
     return new RegExp(`(?<=(${preceedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions)
 };
-unsafeWindow.extend = function () {
-    return $extend();
-};
+unsafeWindow.extend = typeof($) == 'undefined' ? null : $.extend;
 
 function preloader(imgUrls) {
     console.log('imgs passed:', imgUrls);
@@ -268,11 +273,12 @@ function waitForElement(elementGetter, callback) {
         var node = (typeof(elementGetter) === 'function') ? elementGetter() : q(elementGetter);
         try {
             if (node) {
-                if (node.length !== undefined && node.length !== 0)
+                if (node.length !== undefined && node.length !== 0) {
                     for (const n of node)
                         handleSuccess(n);
-                else if (node.length === undefined)
+                } else if (node.length === undefined) {
                     handleSuccess(node);
+                }
             }
         } catch (e) {
             console.warn(e);
@@ -288,7 +294,7 @@ function waitForElement(elementGetter, callback) {
         , characterData: false
     });
     return observer;
-// stop watching using: observer.disconnect();
+    // stop watching using: observer.disconnect();
 }
 
 /**
@@ -302,7 +308,6 @@ function getWheelDelta(wheelEvent) {
     wheelEvent = window.event || wheelEvent; // old IE support
     return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
 }
-
 function elementUnderMouse(wheelEvent) {
     return document.elementFromPoint(wheelEvent.clientX, wheelEvent.clientY);
 }
@@ -314,41 +319,66 @@ function elementUnderMouse(wheelEvent) {
  */
 function createElement(html) {
     const div = document.createElement('div');
-    div.innerHTML = html;
+    div.innerHTML = (html).trim();
     return div.childNodes[0];
 }
-
+/* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
     let result = location.href.match(siteRegex);
-    if (result) log("Site matched regex: " + siteRegex);
+    if (!!result) log("Site matched regex: " + siteRegex);
     return result;
 }
-
 function siteSearchUrl(query) {
-    if (query)
+    if (query) {
         return gImgSearchURL + "site:" + encodeURIComponent(query.trim());
+    }
 }
 
 /**abbreviation for querySelectorAll()*/
 function qa(selector) {
-    let x = document.querySelectorAll(selector);
-    return x ? x : null;
+    return document.querySelectorAll(selector);
 }
-
 /**abbreviation for querySelector()*/
 function q(selector) {
-    let x = document.querySelector(selector);
-    return x ? x : null;
+    return document.querySelector(selector);
 }
 
+unsafeWindow.incrementURL = incrementURL;
+function incrementURL(up) {
+    (function () {
+        var e, s;
+        IB = !!up ? 1 : -1;
+
+        function isDigit(c) {
+            return ("0" <= c && c <= "9")
+        }
+        var match = location.href.match(/&f=1$/);
+        var tip = !!match ? match[0] : "";
+        L = location.href.replace(tip, "");
+        LL = L.length;
+        for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
+            for (s = e - 1; s >= 0; --s) if (!isDigit(L.charAt(s))) break;
+            break;
+        }
+        ++s;
+        if (e < 0) return;
+        oldNum = L.substring(s, e + 1);
+        newNum = "" + (parseInt(oldNum, 10) + IB);
+        while (newNum.length < oldNum.length) newNum = "0" + newNum;
+        location.href = L.substring(0, s) + newNum + L.slice(e + 1) + tip;
+    })();
+}
 function isZscalarUrl(zscalarUrl) {
     return /https:\/\/zscaler\.kfupm\.edu\.sa\/Default\.aspx\?url=/.test(zscalarUrl);
 }
-
-/**Returns the original link that ZScalar is blocking*/
+/**
+ * @param zscalarUrl {string}
+ * @returns {string} the original link that ZScalar is blocking
+ */
 function getOGZscalarUrl(zscalarUrl) {
-    if (!isZscalarUrl(zscalarUrl))
-        return zscalarUrl; // not a zscalar url
+    if (!isZscalarUrl(zscalarUrl)) {
+        return zscalarUrl;
+    } // not a zscalar url
     zscalarUrl = zscalarUrl.trim();
     let x = decodeURIComponent(('' + zscalarUrl).substring(46, zscalarUrl.indexOf('&referer')));
     // let x = decodeURIComponent(('' + zscalarUrl).substring(46, zscalarUrl.indexOf('&referer')));
@@ -411,10 +441,10 @@ function createAndAddAttribute(node, attributeName, attributeValue) {
         attr.value = attributeValue;
         node.setAttributeNode(attr);
     }
-    if (!!attributeValue)
+    if (!!attributeValue) {
         node.setAttribute(attributeName, attributeValue);
+    }
 }
-
 
 /** Deal with relative URIs (URIs starting with "/" or "//") */
 function getAbsoluteURI(inputUrl) {
@@ -443,25 +473,27 @@ function targetIsInput(event) {
 
 /** Calls the callback function, passing to it the width and height: "callback(w, h)"
  * @param url
- * @param callback  callback(width, height, url, imgNode, opts)
+ * @param callback  callback(width, height, url, imgNode, args)
  * @param imgNode
- * @param opts
+ * @param args  gets passed to the callback
  */
-function onLoadDim(url, callback, imgNode, opts) {
+function onLoadDim(url, callback, imgNode, args) {
     var img = new Image();
     if (!url) {
         console.warn('Url is invalid');
         return;
     }
-    if (typeof url !== "string")
+    if (typeof url !== "string") {
         url = !!url.src ? url.src : url.href;
+    }
 
     if (typeof callback === 'function') {
         img.addEventListener('load', function () {
-            callback(this.naturalWidth, this.naturalHeight, url, imgNode, opts);
+            callback(this.naturalWidth, this.naturalHeight, url, imgNode, args);
         });
-    } else
+    } else {
         console.error('onLoad() callback passed should be of type "function".');
+    }
     img.src = url;
 }
 
@@ -486,11 +518,12 @@ function xmlRequestElement(url, callback) {
 
 /**Opens the url, then performs a callback giving it the document element
  * @param {string} url
- * @param {function} callback   passes: (doc, url, opts) to the callback function when the response is complete
- * @param {o} opts  Options object.
+ * @param {function} callback   passes: (doc, url, args) to the callback function when the response is complete
+ * @param {o} args  Options object.
  *                  "args":   Arguments to pass to the callback (Array or Object type)
+ * @returns returns the callback result
  */
-function fetchElement(url, callback, opts) {
+function fetchElement(url, callback, args) {
     if (typeof callback !== 'function') console.error('Callback is not a function.!');
     fetch(url).then(
         response => response.text() // .json(), etc.
@@ -502,7 +535,7 @@ function fetchElement(url, callback, opts) {
             doc.close();
             // doc.location = new window.location(url); //TODO: fix
             try {
-                callback(doc, url, opts);
+                return callback(doc, url, args);
             } catch (e) {
                 console.error(e);
             }
@@ -528,12 +561,11 @@ function getHostname(href, keepPrefix) {
         // (keepPrefixAndProtocol ? (l.protocol.length ? l.protocol : "https://") : "") +
         href;
     if (keepPrefix) console.debug("getHostname href =", href);
-    const hostname = l.hostname;
-    return !keepPrefix ? hostname.replace('www.', '') : hostname;
+    return l.hostname;
 }
 
 function getIframeDoc(iframe) {
-    return iframe.contentDocument || iframe.contentWindow.document;
+    return iframe.contentDocument || iframe.contentWindow ? iframe.contentWindow.document : null;
 }
 
 /**
@@ -562,8 +594,9 @@ function removeEventListeners(eventTarget) {
 }
 
 unsafeWindow.removeDoubleSpaces = removeDoubleSpaces;
-unsafeWindow.clearGibberish = clearGibberish;
+unsafeWindow.cleanGibberish = cleanGibberish;
 unsafeWindow.isBase64ImageData = isBase64ImageData;
+unsafeWindow.cleanDates = cleanDates;
 
 /**
  * Returns true if the string is an image data string
@@ -573,18 +606,19 @@ unsafeWindow.isBase64ImageData = isBase64ImageData;
 function isBase64ImageData(str) {
     return /^data:image\/.{1,5};base64/.test(str);
 }
-
 function removeDoubleSpaces(str) {
-    return str ? str.replace(/(\s\s+)/g, " ") : str;
+    return !!str ? str.replace(/(\s\s+)/g, " ") : str;
 }
 
-function clearGibberish(str, gibberishRatioThreshold) {
+function cleanDates(str) {
+    return !!str ? removeDoubleSpaces(str.replace(/\d*\.([^.]+)\.\d*/g, ' ')) : str;
+}
+function cleanGibberish(str, gibberishRatioThreshold) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
         let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " "));
         if (noGibberish.length < 3) return str;
         gibberishRatioThreshold = 0.4 | gibberishRatioThreshold;
-        // const reducedGibberish = Array.from(gibberish).reduce((total, num) => total + num);
         /**
          * WGR: Word to Gibberish Ratio (between 0 and 1)
          * 0:   No gibberish    (Good)
@@ -592,18 +626,46 @@ function clearGibberish(str, gibberishRatioThreshold) {
          * @type {number}
          */
         let wGratio = (str.length - noGibberish.length) / str.length;
-        if (0 == 1)
-            console.log('Original:', str,
-                '\nNoGibberish:', noGibberish,
-                '\nRatio:', wGratio
-            );
+        log(
+            'cleanGibberish(' + str + ')' +
+            '\nOriginal:', str,
+            '\nNoGibberish:', noGibberish,
+            '\nRatio:', wGratio
+        );
 
-        if (wGratio > gibberishRatioThreshold) {
-            return clearGibberish(noGibberish, gibberishRatioThreshold);
-        } else {
-            return str.length > 3 ? str : "";
+        return wGratio > gibberishRatioThreshold ?
+            cleanGibberish(noGibberish, gibberishRatioThreshold) :
+            (str.length > 3 ? str : "");
+    }
+    return "";
+}
+
+unsafeWindow.observeIframe = observeIframe;
+function observeIframe(iframe, observerInit, observerOptions, args) {
+    // older browsers don't get responsive iframe height, for now
+    if (!window.MutationObserver) return;
+    console.debug('Attaching an iframe observer...', iframe, '\n\n');
+    var iframeObserver = new MutationObserver(function (mutations, observer) {
+        console.debug(
+            'Observed mutation in iframe:', iframe,
+            '\nmutations:', mutations
+        );
+        observerInit(mutations, observer, args);
+    });
+
+    var interval = setInterval(function () {
+        if (iframe.contentWindow && iframe.contentWindow.document) {
+            iframeObserver.observe(iframe.contentWindow.document, observerOptions || {
+                attributes: true,
+                subtree: true,
+                childList: true,
+                characterData: true
+            });
+            console.log('Successfully added observer to iframe!', iframe);
+
+            clearInterval(interval);
         }
-    } else return "";
+    }, 100);
 }
 
 /**
@@ -632,7 +694,7 @@ function waitFor(condition, action, interval) {
 }
 
 function downloadUsingXmlhttpRequest(url, opts) {
-    var imgUrl = "http://static.jsbin.com/images/dave.min.svg?4.1.4";
+    var imgUrl = url || "http://static.jsbin.com/images/dave.min.svg?4.1.4";
     GM_xmlhttpRequest({
         method: 'GET',
         url: imgUrl,
@@ -674,10 +736,11 @@ function downloadUsingXmlhttpRequest(url, opts) {
                 /*--- Throw away high-order byte, as documented at:
                   https://developer.mozilla.org/En/Using_XMLHttpRequest#Handling_binary_data
                 */
-                if (inx < inpLen)
+                if (inx < inpLen) {
                     bytebuffer[jnx] = inputStr.charCodeAt(inx++) & 0xff;
-                else
+                } else {
                     bytebuffer[jnx] = 0;
+                }
             }
 
             /*--- Get each encoded character, 6 bits at a time.
@@ -720,6 +783,19 @@ function downloadUsingXmlhttpRequest(url, opts) {
         return output;
     }
 }
+
+
+/*
+    CSS for top navbars:
+
+.fixed-position {
+    position: fixed;
+    top: 0px;
+    z-index: 16777271;
+}
+
+*/
+
 
 /*global self */
 
@@ -935,6 +1011,7 @@ function fetchUsingProxy(url, callback) {
         .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
 }
 
+unsafeWindow.getModifierKeys = getModifierKeys;
 unsafeWindow.KeyEvent = {
     DOM_VK_BACKSPACE: 8,
     DOM_VK_TAB: 9,
@@ -955,16 +1032,16 @@ unsafeWindow.KeyEvent = {
     DOM_VK_DOWN: 40, DOM_VK_DOWN_ARROW: 40,
     DOM_VK_INSERT: 45,
     DOM_VK_DEL: 46, DOM_VK_DELETE: 46,
-    DOM_VK_0: 48,
-    DOM_VK_1: 49,
-    DOM_VK_2: 50,
-    DOM_VK_3: 51,
-    DOM_VK_4: 52,
-    DOM_VK_5: 53,
-    DOM_VK_6: 54,
-    DOM_VK_7: 55,
-    DOM_VK_8: 56,
-    DOM_VK_9: 57,
+    DOM_VK_0: 48, DOM_VK_ALPHA0: 48,
+    DOM_VK_1: 49, DOM_VK_ALPHA1: 49,
+    DOM_VK_2: 50, DOM_VK_ALPHA2: 50,
+    DOM_VK_3: 51, DOM_VK_ALPHA3: 51,
+    DOM_VK_4: 52, DOM_VK_ALPHA4: 52,
+    DOM_VK_5: 53, DOM_VK_ALPHA5: 53,
+    DOM_VK_6: 54, DOM_VK_ALPHA6: 54,
+    DOM_VK_7: 55, DOM_VK_ALPHA7: 55,
+    DOM_VK_8: 56, DOM_VK_ALPHA8: 56,
+    DOM_VK_9: 57, DOM_VK_ALPHA9: 57,
     DOM_VK_A: 65,
     DOM_VK_B: 66,
     DOM_VK_C: 67,
@@ -1037,3 +1114,24 @@ unsafeWindow.KeyEvent = {
     DOM_VK_CLOSE_BRAKET: 221,
     DOM_VK_SINGLE_QUOTE: 222
 };
+/**
+ * Order of key strokes in naming convention:   Ctrl > Shift > Alt >  Meta
+ * @param keyEvent
+ * @returns {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, META_ONLY: boolean, NONE: boolean}}
+ */
+function getModifierKeys(keyEvent) {
+    /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
+    return {
+        CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        SHIFT_ALT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_SHIFT_ALT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+
+        SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
+
+        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey
+    };
+}

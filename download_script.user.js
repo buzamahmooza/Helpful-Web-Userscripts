@@ -26,15 +26,15 @@
 
 // noinspection ES6ConvertVarToLetConst
 var debug;
-if (typeof debug === 'undefined') debug = false;
-if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;// words in all languages
-const invalidNameCharacters = '\\*:/"|<>\n\r';
+if(typeof debug === 'undefined') debug = false;
+if(typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;// words in all languages
+const invalidNameCharacters = '@\\*:/"|<>\n\r';
 
 try {
     const DELAY_BETWEEN_DOWNLOADS = 300;
     BLACK_LIST = new Set(["https://raw.githubusercontent.com/RaitaroH/DuckDuckGo-DeepDark/master/Images/BigLogo.png"]);
     MAX_DOWNLOADS = GM_getValue("MAX_DOWNLOADS", 200); // maximum number of downloads per batch
-    DOWNLOAD_ATTEMPTS = 5; // Default number of download attempts until giving up
+    downloadAttemptsRemaining = 2; // Default number of download attempts until giving up
     MAIN_DIRECTORY = 'GM_Downloads'; // [ ↓ ⇓ ]
     IndividualDirectoryName = "_Misc";
     NEST_DIRECTORIES = GM_getValue("NEST_DIRECTORIES", true); // if set to true: batch directories will be stored under the main tempDirectory.
@@ -53,17 +53,32 @@ try {
     console.warn("Caught exception in declaration:", declarationException);
 }
 
-if (typeof downloadSet === 'undefined') {
+if(typeof downloadSet === 'undefined') {
     downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
     unsafeWindow.downloadSet = downloadSet;
 }
 var tempDirectory;
-if (typeof tempDirectory === 'undefined')
+if(typeof tempDirectory === 'undefined') {
     tempDirectory = "";
+}
 
 var zipDl = new JSZip(),
     zipTotal = 0,
     zipCurrent = 0;
+
+window.addEventListener('beforeunload', function (event) {
+    // merge and store the download history
+    storeDownloadHistory();
+    return true;
+});
+unsafeWindow.storeDownloadHistory = storeDownloadHistory;
+
+function storeDownloadHistory() {
+    const storedDlH = GM_getValue('downloadHistory', []),
+        mergedDlH = Array.from(downloadSet).concat(storedDlH);
+    console.debug('storedDlH:', storedDlH, 'downloadSet: ', downloadSet, '\nmergedDownloadHistory:', mergedDlH);
+    return GM_setValue('downloadHistory', Array.from(new Set(mergedDlH)));
+}
 
 /**
  url - the URL from where the data should be downloaded
@@ -106,17 +121,17 @@ let dimensionsCondition = function (param, minWidth, minHeight) {
 
 /**@Parameter element the element containing the file url attribute.
  * Having the element could be helpful getting it's ATTRIBUTES (such as: "download-name") */
-function download(fileUrl, fileName, directory, element) {
+function download(fileUrl, fileName, directory, element, paramOnLoad) {
     const elementPassed = element === 'object';
     const directoryPassed = directory && directory.length > 1;
     const namePassed = fileName && fileName.length > 1;
 
     console.log('URL Added to downloads:', fileUrl);
-    if (!fileUrl) {
+    if(!fileUrl) {
         console.error("input URL is null!");
         return;
     }
-    if (typeof fileUrl === 'object') {
+    if(typeof fileUrl === 'object') {
         downloadBatch(fileUrl);
         console.warn('The file url passed to be downloaded is an object, trying to download it as multiple urls:', fileUrl);
         return;
@@ -124,29 +139,29 @@ function download(fileUrl, fileName, directory, element) {
 
     fileUrl = getAbsoluteURI(('' + fileUrl).replace(/['"]/gi, ''));
 
-    if (/^data:image\/.{1,5};base64/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
+    if(/^data:image\/.{1,5};base64/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
         console.error("The source is a base64-type, download was prevented:", fileUrl);
         return;
     }
-    if (BLACK_LIST.has(fileUrl)) {
+    if(BLACK_LIST.has(fileUrl)) {
         console.warn("Blacklisted URL:", fileUrl);
         return;
     }
-    if (downloadSet.has(fileUrl) && !ALLOW_DUPES) {
+    if(downloadSet.has(fileUrl) && !ALLOW_DUPES) {
         console.warn("Request to download duplicate file.", fileUrl);
         return;
     }
 
     fileUrl = "" + getAbsoluteURI(fileUrl); // cast to string
 
-    if (namePassed) { // if fileName passed
+    if(namePassed) { // if fileName passed
         console.log('Filename passed:', fileName);
         fileName = cleanFileName(fileName);
         console.log('Filename passed (after cleaning):', fileName);
     } else {
-        if (elementPassed) { // element passed
+        if(elementPassed) { // element passed
             const nameAttribute = NAME_ATTRIBUTES[0];
-            if (element.hasAttribute(nameAttribute)) {
+            if(element.hasAttribute(nameAttribute)) {
                 fileName = element.getAttribute(nameAttribute);
                 console.log('Got fileName from element:', fileName, fileUrl);
             }
@@ -154,15 +169,16 @@ function download(fileUrl, fileName, directory, element) {
             fileName = nameFile(fileUrl);
         }
     }
-    if (!fileName || fileName.length < 1)
-        fileName = 'a_' + (clearGibberish(nameFile(document.title)) || clearGibberish(nameFile(fileName))) + (fileNumber++);
-    if (directoryPassed) {// if downloadDirectory passed
+    if(!fileName || fileName.length < 1) {
+        fileName = 'a_' + (cleanGibberish(nameFile(document.title)) || cleanGibberish(nameFile(fileName))) + (fileNumber++);
+    }
+    if(directoryPassed) {// if downloadDirectory passed
         console.log('DownloadDirectory passed:', directory);
         directory = cleanDirectoryName(directory);
         console.log('DownloadDirectory passed (clean):', directory);
     } else { // dirctory NOT passed
         const split = fileName.split(/\//);
-        if (split.length > 1) {
+        if(split.length > 1) {
             fileName = split.pop();
             directoryName = split.pop();
         } else {
@@ -187,7 +203,7 @@ function download(fileUrl, fileName, directory, element) {
     let finalName = removeDoubleSpaces(
         (NEST_DIRECTORIES ? `${MAIN_DIRECTORY}/` : '') +
         (directory ? `${directory}/` : `${IndividualDirectoryName}/`) +
-        (fileName.slice(0, 70) + '.' + fileExtension)
+        (fileName + '.' + fileExtension)
     );
 
     // if (debug)
@@ -205,7 +221,8 @@ function download(fileUrl, fileName, directory, element) {
         onload: onload,
         onerror: function (r) {
             downloadSet.delete(fileUrl); // upon failure, remove the url from the list to give it another chance.
-            console.warn('Download failed for link:', fileUrl,
+            console.warn(
+                'Download failed for link:', fileUrl,
                 "\nError:", r,
                 "\nDetails:", r.details);
             /*
@@ -221,12 +238,20 @@ function download(fileUrl, fileName, directory, element) {
             switch (error) {
                 case 'not_succeeded':
                     const errorCurrent = r.details.current;
-                    switch (errorCurrent) {
-                        case "SERVER_FAILED":
-                        case "NETWORK_FAILED":
-                            retry(fileUrl, finalName, DOWNLOAD_ATTEMPTS);
+                    switch (errorCurrent.toLowerCase()) {
+                        case "server_failed": // fall-through
+                        case "network_failed":
+                            retry(fileUrl, finalName, downloadAttemptsRemaining);
                             break;
-                        case "USER_CANCELED":
+                        case "not_whitelisted":
+                            retry(
+                                fileUrl.replace(/\?.*/, ''),
+                                finalName.substring(0,
+                                    (finalName.lastIndexOf('?') > -1) ? finalName.lastIndexOf('?') : (finalName.length + '.oops.jpg')
+                                ),
+                                downloadAttemptsRemaining);
+                            break;
+                        case "user_canceled":
                             console.log('Download canceled by user.');
                             break;
                     }
@@ -235,8 +260,8 @@ function download(fileUrl, fileName, directory, element) {
                 case 'not_permitted':
                 case 'not_supported':
                     break;
-//                 case 'not_whitelisted':
-//                     break;
+                //                 case 'not_whitelisted':
+                //                     break;
                 default:
                     retry(fileUrl, finalName, 1);
             }
@@ -249,6 +274,8 @@ function download(fileUrl, fileName, directory, element) {
     function onload() {
         console.log('Download finished', finalName, "\n" + fileUrl);
         downloadSet.add(fileUrl);
+
+        if(paramOnLoad && paramOnLoad.call) paramOnLoad.call();
     }
 }
 
@@ -263,10 +290,11 @@ function imageUrl2blob(url, callback, callbackParams) {
             try {
                 const ext = getFileExtension(url);
                 var blob = new Blob([res.response], {type: "image/" + ext});
-                if (!!callback) {
+                if(!!callback) {
                     callback(blob, url, callbackParams);
-                } else
+                } else {
                     saveAs(blob, "untitled." + ext);
+                }
 
                 console.debug('GM_xmlhttpRequest load', res, 'myblob:', blob);
                 console.debug([
@@ -284,7 +312,7 @@ function imageUrl2blob(url, callback, callbackParams) {
 
         onreadystatechange: function (res) {
             console.log("Request state changed to: " + res.readyState);
-            if (res.readyState === 4) {
+            if(res.readyState === 4) {
                 console.log('ret.readyState === 4');
             }
         },
@@ -299,7 +327,7 @@ function imageUrl2blob(url, callback, callbackParams) {
             console.error(msg);
         },
         onprogress: function (res) {
-            if (res.lengthComputable) {
+            if(res.lengthComputable) {
                 console.log("progress:", res.loaded / res.total);
             }
         }
@@ -314,9 +342,9 @@ function retry(fileUrl, finalName, count) {
         url: fileUrl,
         onload: onload,
         onerror: function () {
-            if (count > 0)
+            if(count > 0) {
                 retry(fileUrl, finalName, --count);
-            else {
+            } else {
                 // noinspection JSUnresolvedFunction
                 GM_download({
                     name: `${MAIN_DIRECTORY}/${nameFile(fileUrl)}.${getFileExtension(fileUrl)}`,
@@ -330,7 +358,7 @@ function retry(fileUrl, finalName, count) {
     });
 
     function onerrorFinal(rr) {
-        if (!isDdgUrl(fileUrl))
+        if(!isDdgUrl(fileUrl)) {
             GM_download({
                 name: `${finalName}.${getFileExtension(fileUrl)}`,
                 url: ddgProxy(fileUrl),
@@ -340,16 +368,16 @@ function retry(fileUrl, finalName, count) {
                     console.error('Download failed:', fileUrl, rrr);
                 }
             });
+        }
         downloadSet.delete(fileUrl); // upon failure, remove the url from the list to give it another chance.
         console.error('Download failed:', finalName, fileUrl, rr);
     }
 }
 
-// unsafeWindow.genZip = genZip;
-
+// unsafeWindow.generateAndDownloadZip = generateAndDownloadZip;
 // unsafeWindow.zip = zip;
 
-function genZip(zipName) {
+function generateAndDownloadZip(zipName) {
     zipDl.generateAsync({type: "blob"}).then(function (content) {
             zipName = zipName || (tempDirectory.replace(/\/$/, "") || document.title);
             saveAs(content, zipName + ".zip");
@@ -358,11 +386,12 @@ function genZip(zipName) {
 }
 
 function downloadBatch(inputUrls, directory, maxDlLimit) { // download batch but with a max count limit
-    if (typeof maxDlLimit === 'undefined')
+    if(typeof maxDlLimit === 'undefined') {
         maxDlLimit = MAX_DOWNLOADS;
-    else
+    } else {
         console.log('maxDownloadCount was passed:', maxDlLimit);
-    if (!inputUrls) {
+    }
+    if(!inputUrls) {
         console.error("input URLs null!");
         return;
     }
@@ -380,33 +409,33 @@ function downloadBatch(inputUrls, directory, maxDlLimit) { // download batch but
 
     let dlCount = 0;
     for (let url of inputUrls) {
-        if (Array.isArray(url)) {
+        if(Array.isArray(url)) {
             downloadBatch(url, directory, maxDlLimit);
             break;
         }
-        if (++dlCount >= maxDlLimit) { // recursive call in case this element is an array
+        if(++dlCount >= maxDlLimit) { // recursive call in case this element is an array
             console.log('Exceeded maximum download size.');
             break;
         }
         const zipInsteadOfDownload = false;
-        if (zipInsteadOfDownload)
+        if(zipInsteadOfDownload) {
             imageUrl2blob(url, zipImage);
-        else
-            download(url, null, directory); // we used to use download, now we use ZIP
+        } else {
+            download(url, null, directory);
+        } // we used to use download, now we use ZIP
 
     }
 
     function zipImage(blob, url) {
         zipDl.file(`${nameFile(url)}.${(getFileExtension(url) || "gif")}`, blob, {base64: true});
-        if (zipTotal <= ++zipCurrent) {
-            genZip();
+        if(zipTotal <= ++zipCurrent) {
+            generateAndDownloadZip();
         }
     }
 }
-
 /**@deprecated*/
 function downloadImageBatch(inputUrls, directory) {
-    if (!inputUrls) {
+    if(!inputUrls) {
         console.error("mainImage input URLs null!");
         return;
     }
@@ -414,23 +443,23 @@ function downloadImageBatch(inputUrls, directory) {
     nameBatchDirectory(inputUrls);
     let dlCount = 0;
     for (let url of inputUrls) {
-        if (Array.isArray(url)) { // recursive call in case this element is an array
+        if(Array.isArray(url)) { // recursive call in case this element is an array
             downloadImageBatch(url);
             break;
         }
-        if (++dlCount >= MAX_DOWNLOADS) {
+        if(++dlCount >= MAX_DOWNLOADS) {
             console.log('Exceeded maximum download size:', dlCount + ' downloads.');
             break;
         }
-        if (/\.gif/.test(url))
+        if(/\.gif/.test(url)) {
             download(url, null, directory);
-        else
+        } else {
             downloadImageWithCondition(url);
+        }
     }
 }
-
 function downloadImageWithCondition(url, width, height, fileName, downloadDirectory, imgEl) {
-    if (url instanceof Set || Array.isArray(url)) {
+    if(url instanceof Set || Array.isArray(url)) {
         downloadImageBatch(url);
         return;
     }
@@ -443,7 +472,7 @@ function downloadImageWithCondition(url, width, height, fileName, downloadDirect
     img.addEventListener("load", function () {
         dim = (this.naturalWidth + 'x' + this.naturalHeight);
         onLoadDim(url, function () {
-            if (dimensionsCondition(dim, width, height)) {
+            if(dimensionsCondition(dim, width, height)) {
                 download(url, fileName, downloadDirectory, imgEl);
             }
         }, imgEl);
@@ -459,13 +488,12 @@ function nameBatchDirectory(inputUrls) {
         name = nameFile(inputUrls[i]);
         if(name){ directoryName += name+')'; return; }
     });*/
-    tempDirectory = cleanDirectoryName(clearGibberish(directoryName)) + '/';
+    tempDirectory = cleanDirectoryName(cleanGibberish(directoryName)) + '/';
     console.log('Directory name:', tempDirectory);
     return directoryName;
 }
-
 function nameFile(fileUrl) {
-    if (NAME_FILES_BY_NUMBER === true) return ("_" + fileNumber++);
+    if(NAME_FILES_BY_NUMBER === true) return (" " + fileNumber++);
 
     let fileName = 'untitled';
     try {
@@ -477,7 +505,6 @@ function nameFile(fileUrl) {
     fileName = cleanFileName(/^[\w\-. ]+$/.test(fileName) ? fileName : (document.title) + '_');
     return fileName;
 }
-
 function getFileExtension(fileUrl) {
     const ext = clearUrlGibberish(('' + fileUrl).split('.').pop()) //the string after the last '.'
         .replace(/[^a-zA-Z0-9].+($|\?)/gi, "") // replace everything that is non-alpha, numeric nor a '.'
@@ -497,15 +524,13 @@ function getGibberishCount(str) {
 function cleanFileName(fileName) {
     const fileCleanerRegex =
         // new RegExp('[^' + allLanguagesCharSetRegex + '\.]|\r|(\s\s+)', 'gi')
-        new RegExp('[' + invalidNameCharacters + ']|(\\s\\s+)', 'gi')
+        new RegExp('[' + invalidNameCharacters + ']|^\\.|(\\s\\s+)', 'gi')
     ;
     return clearUrlGibberish(decodeURIComponent(fileName)).replace(fileCleanerRegex, ' ').trim();
 }
-
 function removeDoubleSpaces(str) {
     return str ? str.replace(/(\s\s+)/g, " ") : str;
 }
-
 function cleanDirectoryName(directoryName) {
     /*testing*/
     return cleanFileName(directoryName);
@@ -513,7 +538,6 @@ function cleanDirectoryName(directoryName) {
     /*const directoryCleanerRegex = new RegExp('[^' + allLanguagesCharSetRegex + '\\.]|\\r|(\\s\\s+)', 'gi');
     return clearUrlGibberish(decodeURIComponent("" + directoryName)).replace(directoryCleanerRegex, ' ').trim();*/
 }
-
 function clearUrlGibberish(str) {
     return removeDoubleSpaces(decodeURIComponent(str).replace(/(^site)|www(\.?)|http(s?):\/\/|proxy\.duckduckgo|&f=1|&reload=on/gi, ""));
 }
@@ -527,6 +551,7 @@ unsafeWindow.saveByAnchor = saveByAnchor;
 /** creates an anchor, clicks it, then removes it
  * this is done because some actions cannot be done except in this way
  * @param downloadValue
+ * @param target
  * @param href */
 function anchorClick(href, downloadValue, target) {
     downloadValue = downloadValue || '_untitled';
@@ -537,7 +562,6 @@ function anchorClick(href, downloadValue, target) {
     a.click();
     a.remove();
 }
-
 function saveByAnchor(url, dlName) {
     anchorClick(url, dlName);
 }
@@ -550,7 +574,6 @@ function saveBase64AsFile(base64, fileName) {
     link.setAttribute("download", fileName);
     link.click();
 }
-
 function saveBlobAsFile(blob, fileName) {
     var reader = new FileReader();
 
@@ -570,7 +593,7 @@ function makeTextFile(text) {
     var data = new Blob([text], {type: 'text/plain'});
     var textFile = null;
     // If we are replacing a previously generated file we need to manually revoke the object URL to avoid memory leaks.
-    if (textFile !== null) window.URL.revokeObjectURL(textFile);
+    if(textFile !== null) window.URL.revokeObjectURL(textFile);
     textFile = window.URL.createObjectURL(data);
     return textFile;
 }
@@ -589,7 +612,6 @@ function zipFilesExample(imgData) {
         }
     );
 }
-
 function image2ArrayBuffer(requestURL) {
     GM_xmlhttpRequest({
         method: 'GET',
@@ -621,7 +643,6 @@ function image2ArrayBuffer(requestURL) {
         var imageUrl = urlCreator.createObjectURL(blob);
     };
 }
-
 function appendImageToZip(url, callback) {
 
 }

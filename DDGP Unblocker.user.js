@@ -18,18 +18,22 @@
 const DEFAULT_PROXY_STATE = true;
 const ddgUrlToken = 'is-ddg-url';
 
-const ATTRIBUTES = ['src', 'href'];
-let proxyOn = GM_getValue('proxyOn', DEFAULT_PROXY_STATE);
-let whiteListedSites = new Set(GM_getValue('whiteListedSites', []));
+let ATTRIBUTES = ['src', 'href', 'srcset', 'data-src'],
+    proxyOn = GM_getValue('proxyOn', DEFAULT_PROXY_STATE),
+    whiteListedSites = new Set(GM_getValue('whiteListedSites', ['www.deviant.com']));
 // noinspection ES6ConvertVarToLetConst
 var debug;
 if (typeof debug === 'undefined') debug = false;
-if (typeof log === 'undefined')
-    log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
+if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
+const stateStr = () => (proxyOn ? 'ON' : 'OFF');
 
-const stateStr = () => {
-    return (proxyOn ? 'ON' : 'OFF')
-};
+// language=CSS
+addCss(`
+    .ddg-og-link {
+        display: -webkit-box  ;
+        font-size: 50%  ;
+    }
+	`);
 
 if (typeof reverseDdgProxy === 'undefined') {
     reverseDdgProxy = function (url) {
@@ -42,34 +46,36 @@ if (typeof reverseDdgProxy === 'undefined') {
             console.log('Was unable to reverseDDGProxy for URL:', url);
     };
 }
-
 const HOSTNAME = getHostname(reverseDdgProxy(location.href), true);
 
 function whiteListSite(url) {
-    const stored = new Set(GM_getValue('whiteListedSites', []));
+    const stored = new Set(GM_getValue('whiteListedSites', ['www.pornhugo.com']));
     stored.add(url);
     GM_setValue('whiteListedSites', Array.from(stored));
     console.log("DDGP unblockable site added:", url);
 }
 
+
 (function () {
     'use strict';
+    if(proxyOn)
+	    if (/proxy\.duckduckgo\.com.*&f=1/.test(location.href) || whiteListedSites.has(HOSTNAME)) {
+	    	console.log('Auto run DDGP for this page.');
+	        go();
+	    }
+
     if (location.hostname !== "proxy.duckduckgo.com") {
         console.debug('Reverse-DDGp generated HOSTNAME:', HOSTNAME);
     }
-    if (whiteListedSites.has(HOSTNAME)) {
-        proxyOn = true;
-        go();
-    }
 
     if (document.cookie.indexOf("ddg_ubl;") === -1) {
-        log('This site is new to DDG Unblocker, taking note.');
+        console.debug('This site is new to DDG Unblocker, taking note.');
         document.cookie += " ddg_ubl";
     } else {
-        log("You've been to this site before, haven't you?");
+        console.debug("You've been to this site before, haven't you?");
     }
 
-    window.onkeyup = function (e) {
+    window.addEventListener('keyup', function (e) {
         const key = e.keyCode ? e.keyCode : e.which;
         switch (key) {
             case 118: // F7
@@ -86,6 +92,7 @@ function whiteListSite(url) {
                 if (e.ctrlKey && !e.shiftKey) { // ctrl key
                     if (confirm(`Turn DDGP unblocker ${stateStr()}?`)) {
                         GM_setValue('proxyOn', proxyOn);
+                        if(proxyOn) go();
                         return;
                     }
                 } else if (e.shiftKey && !e.ctrlKey) { // shift key
@@ -95,26 +102,27 @@ function whiteListSite(url) {
                         go();
                     }
                 }
-                if (proxyOn && !isDdgUrl(location.href))
-                    location.href = ddgProxy(location.href);
+                // if (proxyOn && !isDdgUrl(location.href))
+                //     location.href = ddgProxy(location.href);
 
                 if (document.cookie.indexOf("ddg_ubl;") === -1) {
                     document.cookie += " ddg_ubl;";
                     window.location.reload();
                 } else {
-                    log("No need to reload the page, seems that you've already been here");
+                    console.debug("No need to reload the page, seems that you've already been here");
                 }
                 go();
                 break;
         }
-    };
+    });
 
-    if (!/google/.test(location.hostname) && printState())
-        go();
+    // if (!/google/.test(location.hostname) && printState())
+    //     go();
 })();
 
 function go() {
     observeAllFrames(handleElement);
+
     // not gonna happen
     if (false) {
         document.querySelectorAll('[href]').forEach(function (e) { /*adds an mainImage of the href*/
@@ -153,29 +161,33 @@ function go() {
     }
 }
 
+function appendOgLink(node, ogURL) {
+    node.appendChild(createElement(`<a class="ddg-og-link ${ddgUrlToken}" href="${ogURL}">[OG-URL]</a>`));
+}
+
 function handleElement(node) {
     // console.debug('handleElement:', node);
     // if (!node) return false;
     // Array.from(node).forEach(ddgReplaceElementAttributes);
     const selector = '[' + ATTRIBUTES.join('], [') + ']';
     try {
+        for (const el of node.querySelectorAll(selector)) {
+            ddgReplaceElementAttributes(el);
+        }
         ddgReplaceElementAttributes(node);
-        Array.from(node.querySelectorAll(selector)).forEach(ddgReplaceElementAttributes);
-    } catch (exc) {
+    } catch (r) {
+        console.warn('original replace method not working', r);
         try {
-            console.warn('original replace method not working');
-            ATTRIBUTES.forEach(function (attrName) {
-                document.querySelectorAll('[' + attrName + ']').forEach(function (el) {
+            for (const attrName of ATTRIBUTES) {
+                for (const el of document.querySelectorAll(`[${attrName}]`)) {
                     const attr = el.getAttribute(attrName);
-
-                    if (el.classList.contains(ddgUrlToken) || isDdgUrl(attr)) {
-                        return;
+                    if (!attr || el.classList.contains(ddgUrlToken) || isDdgUrl(attr)) {
+                        continue;
                     }
-                    el.classList.add(ddgUrlToken);
                     ddgReplaceAttribute(el, attrName, attr, HOSTNAME);
-                    return false;
-                });
-            });
+                    el.classList.add(ddgUrlToken);
+                }
+            }
         } catch (exc2) {
             console.error('Caught error while replacing node attributes.', exc2);
         }
@@ -184,20 +196,35 @@ function handleElement(node) {
 
 function ddgReplaceAttribute(el, attrName, attrValue) {
     if (!attrValue) {
-        console.warn(`The element ${el} does not contain the attribute "${attrName}"`);
+        console.warn('The element ', el, ' does not contain the attribute "', attrName, '"');
         return false;
     }
-    const preceedingABackslash = /^\//.test(attrValue) ? HOSTNAME : '';
-    const newAttrValue = ddgProxy(preceedingABackslash + attrValue);
-    console.debug('preceedingABackslash: ' + preceedingABackslash, 'attr: ' + attrValue, 'new url value: ' + newAttrValue);
-    el.setAttribute(attrName, newAttrValue);
-}
+    // if there's a backslash at the beginning (relative URI)
+    var reconstructedURL = (/^\/|https:\/\/proxy\.duckduckgo\.com\//.test(attrValue) ? HOSTNAME : '') + attrValue;
+    if (!/^https?/.test(reconstructedURL))  // add protocol if one is not found
+        reconstructedURL = 'https://' + reconstructedURL;
 
+    const newAttrValue = ddgProxy(reconstructedURL);
+    console.debug(`reconstructedURL: ${reconstructedURL}
+attr: ${attrValue}
+new url value: ${newAttrValue}`);
+    el.setAttribute(attrName, newAttrValue);
+
+    if (el.tagName == "A" && !el.classList.contains('ddg-og-link')) { //  adding oglinks to link elements
+        appendOgLink(el, attrValue);
+    }
+}
 function ddgReplaceElementAttributes(el) {
-    console.debug('ddgReplaceElementAttributes:', el);
+    // console.debug('ddgReplaceElementAttributes:', el);
+    if (!el.classList) {
+        console.warn('el.classList doesn\'t exist. el:', el, '\nType of classList:', typeof(el.classList), '');
+    }
     if (el.classList.contains('ddgUrlToken')) return;
     for (const attrName of el.attributes) {
-        ddgReplaceAttribute(el, attrName, el.getAttribute(attrName));
+        if (!el.hasAttribute(attrName))
+            continue;
+        const attribute = el.getAttribute(attrName);
+        ddgReplaceAttribute(el, attrName, attribute);
     }
     el.classList.add('ddgUrlToken');
     /*for(let attr of ATTRIBUTES){
@@ -216,20 +243,18 @@ function observeAllFrames(callback) {
     callback(document);
     let mutationObserver = new MutationObserver(function (mutations) {
         for (let i = 0; i < mutations.length; i++) {
-            if (!mutations[i].addedNodes.length) continue;
+            // if (!mutations[i].addedNodes.length) continue;
             callback(mutations[i].target);
         }
     });
-    mutationObserver.observe(document, {
+    const mutationOptions = {
         childList: true, subtree: true,
-        attributes: true, characterData: false
-    });
+        attributes: true, characterData: true
+    };
+    mutationObserver.observe(document, mutationOptions);
     document.querySelectorAll('iframe').forEach(function (iframe) {
         callback(iframe.body);
-        mutationObserver.observe(iframe, {
-            childList: true, subtree: true,
-            attributes: true, characterData: false
-        });
+        mutationObserver.observe(iframe, mutationOptions);
     });
 }
 

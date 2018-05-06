@@ -1,4 +1,17 @@
-Safe saerch:
+
+
+
+
+
+https://proxy.duckduckgo.com/iu/?u=https%3A%2F%2Fm.drtuber.com
+
+working:			https://proxy.duckduckgo.com/iu/?u=https%3A%2F%2Fm.drtuber.com%2Fvideo%2F3014244%2Ffacialized-slut-facefuck&f=1
+not working:	 	https://proxy.duckduckgo.com/iu/?u=m.drtuber.com%2Fvideo%2F3014244%2Ffacialized-slut-facefuck&f=1
+
+
+
+
+DDG SAFE SAERCH:
 Strict:		https://duckduckgo.com/?q=Rachel+RoXXX+Softcore+Goes+Hard&atb=v61-3aa&iax=images&ia=images
 off:		https://duckduckgo.com/?q=Rachel+RoXXX+Softcore+Goes+Hard&atb=v61-3aa&ia=images
 
@@ -8,7 +21,38 @@ off:		https://duckduckgo.com/?q=<query>&atb=v61-3aa&ia=images
 
 
 
-ddg thumbnail html:
+GOOGLE IMAGES IMAGE CONDITIONS
+1) without conditions:		
+
+https://www.google.com/search?q=site:wetred.org 
+&hl=en
+&tbm=isch
+&tbas=0
+&source=lnt
+&sa=X
+&ved=0ahUKEwjik76HncHaAhWLQBQKHXB3CMUQpwUIHQ
+&biw=2560
+&bih=1354
+&dpr=1
+
+
+2) with conditions (>2MP):
+
+https://www.google.com/search?q=site:wetred.org 
+&hl=en
+&tbm=isch
+&source=lnt
+&tbs=isz:lt,islt:2mp									decyphered:	ImageSearchSize:LessThan, is LessThan: 2mp
+&sa=X
+&ved=0ahUKEwilmKTrnMHaAhVBuhQKHfdgA7MQpwUIHg
+&biw=2560
+&bih=1354
+&dpr=1
+
+
+
+
+DDG THUMBNAIL HTML:
 			<img class="tile--img__img  js-lazyload"
 				src=		"//images.duckduckgo.com/iu/?u=https%3A%2F%2Ftse4.explicit.bing.net%2Fth%3Fid%3DOIP.2NWxmWP69dQorykgrV98LwHaE7%26pid%3D15.1&amp;f=1" 
 		->				https://proxy.duckduckgo.com/iu/?u=https%3A%2F%2Ftse4.explicit.bing.net%2Fth%3Fid%3DOIP.2NWxmWP69dQorykgrV98LwHaE7%26pid%3D15.1&f=1
@@ -43,11 +87,24 @@ Big mainImage html:
 
 
 
-google images
+GOOGLE IMAGES ANIMATED SEARCH
 normal link:		https://encrypted.google.com/search?&hl=en&tbm=isch&q=DontBreakMe%20Alex%20More%20Huge%20Dick%20Crammed%20In%20Tiny%20Pussy%20XXX
 animated search:	https://encrypted.google.com/search?q=DontBreakMe+Alex+More+Huge+Dick+Crammed+In+Tiny+Pussy+XXX&hl=en&tbm=isch&source=lnt&tbs=itp:animated&sa=X&ved=0ahUKEwjqtY-40pPZAhUMOhQKHWkyAdUQpwUIHQ&biw=2560&bih=1403&dpr=1
 
 
+
+GOOGLE IMAGES NORMAL SEARCH
+localized safe search
+	https://www.google.com.sa/search?
+	safe=strict
+	&tbm=isch
+	&source=hp
+	&biw=2560
+	&bih=1403
+	&ei=h3vHWvnaA4eoUd-ykUA
+	&q=<QUERY>
+	&oq=<QUERY>
+	&gs_l=img.3...6028.6308.0.6718.7.7.0.0.0.0.158.300.0j2.2.0....0...1ac.1.64.img..5.1.142.0..0.0.gX1MxBFWnPY
 
 
 

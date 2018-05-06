@@ -19,12 +19,23 @@
 // javascript:q=""+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text);
 // if(q!=null)location="http://www.google.com/search?q="+q.replace(/%5Cs+/g,"+")+"+site:"+location.HOSTNAME;void(0);
 
+// check this element, it'll help you identify the page
+
+
 'use strict';
 const IMG_SEARCH_URL = "https://www.google.com/search?&tbm=isch&q=";
 
-(function () {
+// window.addEventListener('load', go);
+go();
+function go() {
+    const websiteBlockedElement = document.querySelector('#home > h2 > img[src="http://www2.kfupm.edu.sa/eattachments/Mail_Broadcast/images/pa-response-pages/icon.png"][title="Website BLOCKED!"]');
+    if(!websiteBlockedElement) {
+        console.debug('Not ZSCALAR page');
+        return;
+    }
+
     const ogLink = getOGZscalarUrl(location.href);
-    console.log('Link:', ogLink);
+    console.log('OGZscalarUrl:', ogLink);
 
     const cssRules = '' +
         '.myAnchors { text-align: center; } ' +
@@ -105,7 +116,7 @@ mainImage search:\t${theUrl}
     }
 
 //strong.remove();
-})();
+}
 
 function getHostname(href) {
     const l = document.createElement("a");
