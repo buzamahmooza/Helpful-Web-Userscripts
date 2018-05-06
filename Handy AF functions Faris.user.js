@@ -199,11 +199,7 @@ function getGImgReverseSearchURL(url) {
     return url ? gImgReverseSearchURL + encodeURIComponent(url.trim()) : "";
 }
 
-/**Returns the url wrapped with proxy.DuckDuckGo.com
- example url:
- https://zscaler.kfupm.edu.sa/Default.aspx?url=http%3a%2f%2fwww%2eeightysixed%2ecom%2fcollections%2fguilty-gear%2fproducts%2fguilty-gear-crazy-love&referer=https%3a%2f%2fwww%2epinterest%2eco%2euk%2f&reason=Not+allowed+to+browse+Nudity+category&reasoncode=CATEGORY_DENIED&timebound=1&action=deny&kind=category&rule=16072&cat=Nudity&user=s201578750@kfupm.edu.sa&lang=en_US&zsq=HG4WR0dPGsQq5V7NqR0qjB7SbJN20WR04S5GkBjzsq
- https://zscaler.kfupm.edu.sa/Default.aspx?url=http%3a%2f%2fxxxstreams%2eeu%2fwp-content%2fuploads%2f2017%2f07%2fCleo_Vixen-1636%2epng&referer=&reason=Not+allowed+to+browse+Nudity+category&reasoncode=CATEGORY_DENIED&timebound=1&action=deny&kind=category&rule=16072&cat=Nudity&user=s201578750@kfupm.edu.sa&lang=en_US&zsq=QtS2NTWrrSrr70LM6NTp4sv1kjn622NT6Jt6D1Pzsq
- */
+/**Returns the url wrapped with proxy.DuckDuckGo.com */
 function reverseDdgProxy(url) {
     var s = url;
     if (isZscalarUrl(url)) s = getOGZscalarUrl(url); // extra functionality:
