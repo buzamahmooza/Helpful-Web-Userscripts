@@ -238,6 +238,9 @@ div#extrares {
 	z-index: 16777271;
 }
 
+.ubl-site {
+    color: ${successColor} !important;
+}
 /*Hide the extra content warning and policy*/
 `);
 
@@ -352,6 +355,36 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
     return torrentURL;
 }
 
+/**
+ * This will set the style of an element by force, by manipulating the style HTML attribute.
+ * This gives you more control, you can set the exact text you want in the HTML element (like giving a style priority via "!important").
+ * @param {HTMLElement} el
+ * @param {String} styleProperty
+ * @param {String} styleValue
+ * @return el
+ */
+function setStyleByHTML(el, styleProperty, styleValue) {
+    styleProperty = styleProperty.trim();
+
+    if (el.hasAttribute('style')) {
+        const styleText = el.getAttribute('style');
+        const styleArgument = `${styleProperty}: ${styleValue};`;
+
+        let newStyle = new RegExp(styleProperty, 'i').test(styleText) ?
+            styleText.replace(new RegExp(`${styleProperty}:.+?;`, 'im'), styleArgument) :
+            styleText + ' ' + styleArgument;
+
+        console.log(
+            'adding to style ', `"${styleArgument}"`,
+            '\nnewStyle:', `"${newStyle}"`,
+            '\nelement:', el
+        );
+        el.setAttribute('style', newStyle);
+    }
+    return el;
+}
+unsafeWindow.setStyleByHTML = setStyleByHTML;
+
 /*Image boxes:
  classNames:
 
@@ -449,7 +482,7 @@ class IP {  // ImagePanel class
         if (!this.el) {
             return;
         }
-        const titleAndDescrDiv = this.q('._cjj,.Qc8zh,.i30053').querySelector('div.irc_it');
+        const titleAndDescrDiv = this.q('div._cjj, div.Qc8zh, div.i30053').querySelector('div.irc_it');
         if (!titleAndDescrDiv) {
             console.warn('TitleAndDescription div not found!');
         }
@@ -981,9 +1014,15 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
             if (ih) {
                 ih.innerText = hostname;
                 ih.href = gImgSearchURL + 'site:' + hostname;
-                if (ublSet.has(hostname)) {
-                    ih.style.color = successColor;
-                }
+
+                // ih.style.color = ublSet.has(hostname) ? `${successColor} !important;` : null;
+                if (ublSet.has(hostname))
+                    setStyleByHTML(ih, 'color', `${successColor} !important`);
+                // if (ublSet.has(hostname)) {
+                //     ih.classList.add('ubl-site');
+                // } else {
+                //     ih.classList.remove('ubl-site');
+                // }
             } else {
                 console.warn('ImageHost element not found:', ih);
             }
@@ -1031,7 +1070,16 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         if (ddgAnchor) {
             ddgAnchor.href = ddgProxy(this.pTitle_Anchor.href);
         }
-        this.sTitle_Anchor.style.color = ublSet.has(hostname) ? successColor : null;
+
+        // this.sTitle_Anchor.style.color = ublSet.has(hostname) ? `${successColor} !important` : null;
+        if (ublSet.has(hostname))
+            setStyleByHTML(this.sTitle_Anchor, 'color', `${successColor} !important`);
+
+        // if (ublSet.has(hostname)) {
+        //     this.sTitle_Anchor.classList.add('ubl-site');
+        // } else {
+        //     this.sTitle_Anchor.classList.remove('ubl-site');
+        // }
     }
 
     /** Removes the annoying image link when the panel is open */
