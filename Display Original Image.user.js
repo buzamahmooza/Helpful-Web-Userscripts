@@ -48,39 +48,43 @@
 // 'use-strict';
 const HIDE_FAILED_IMAGES_ON_LOAD = GM_getValue("HIDE_FAILED_IMAGES_ON_LOAD", false);
 
-var failedImagesCount = 0,
-    originalImagesCount = 0,
-    bigImagesCount = 0,
+var bigImagesCount = 0,
     currentDownloadCount = 0;
 
 // Options
 const loopReplacedVids = true,
-    autoplayReplacedVids = false,
-    logAnnoyingNetworkErrors = false,
-    /**When hiding failed images, use the style.visibility attribute, otherwise, use the style.display attribute*/
-    hideByVisibility = false;
+    autoplayReplacedVids = false;
 
+const GMValues = {};
 
-const TOKEN_DISPLAY = "display-original-mainImage",
-    TOKEN_GIF = "display-original-mainImage-gif",
-    TOKEN_FAILED = "display-original-mainImage-failed",
-    TOKEN_DDG_FAILED = "display-original-mainImage-ddg-failed",
-    BUTTONS_CLASS = "super-button",
-    controlsContainerId = 'google-controls-container';
+const Tokens = {
+    DISPLAY_ORIGINAL: "display-original-mainImage",
+    DISPLAY_ORIGINAL_GIF: "display-original-mainImage" + "-gif",
+    FAILED: "display-original-mainImage" + "-failed",
+    FAILED_DDG: "display-original-mainImage" + "-ddg-failed"
+};
+unsafeWindow.Tokens = Tokens;
+
+const ClassNames = {
+    BUTTONS: "super-button"
+};
+const controlsContainerId = 'google-controls-container';
 
 let slider_dlLimit,
     slider_minImgSize,
     cbox_ShowFailedImages,
     cbox_GIFsOnly,
     cbox_UseDdgProxy,
-    cbox_GIFsException
+    cbox_GIFsException,
+    cbox_OnlyShowQualifiedImages
 ;
+let KeyEvent;
+
 unsafeWindow.displayImages = displayImages;
 unsafeWindow.replaceImgSrc = replaceImgSrc;
 
 // use ddg proxy upon failure to show original?
-const useDdgProxy = () => document.getElementById('useDdgProxyBox').checked,
-    checked_GIFsOnly = () => document.getElementById('GIFsOnlyBox').checked,
+const checked_useDdgProxy = () => document.getElementById('useDdgProxyBox').checked,
     checked_ShowFailedImages = () => document.getElementById('showFailedImagesBox').checked,
     SUCCESSFUL_URLS = new Set();
 var urls = new Set();
@@ -94,48 +98,50 @@ const onGoogle = /google/.test(location.hostname),
 
 createAndAddCSS();
 
-if(onGoogleImages) {
+if (onGoogleImages) {
     waitForElement('#hdtb-msb', injectGoogleButtons);
 }
-window.onkeyup = function (e) {
-    const key = e.keyCode ? e.keyCode : e.which;
 
-    if(!targetIsInput(e)) {
+
+window.addEventListener('keydown', function (e) {
+    const key = e.keyCode ? e.keyCode : e.which;
+    let modifierKeys = getModifierKeys(e);
+    if (!targetIsInput(e)) {
         switch (key) {
-            case 79: // 'O' key
-                if(e.altKey) {
+            case KeyEvent.DOM_VK_O: // 'O' key
+                if (modifierKeys.ALT_ONLY) {
                     displayImages();
                 }
                 break;
         }
-        if(onGoogle) {
+        if (onGoogle) {
             switch (key) {
-                case 65: // 'A' key
-                    if(e.altKey) {
-                        (!q('#itp_animated').childNodes[0]?q('#itp_').childNodes[0]:q('#itp_animated').childNodes[0]).click();
+                case KeyEvent.DOM_VK_A: // 'A' key
+                    if (modifierKeys.ALT_ONLY) {
+                        (!q('#itp_animated').firstElementChild ? q('#itp_').firstElementChild : q('#itp_animated').firstElementChild).click();
                     }
                     break;
-                case 68: // 'D' key
-                    if(e.shiftKey) {
+                case KeyEvent.DOM_VK_D: // 'D' key
+                    if (modifierKeys.SHIFT_ONLY) {
                         q('#downloadBtn').click();
                     }
                     break;
-                case 72: // H
-                    if(!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                        if(targetIsInput(e)) break;
+                case KeyEvent.DOM_VK_H: // H
+                    if (modifierKeys.NONE) {
+                        if (targetIsInput(e)) break;
                         q('#showFailedImagesBox').click();
                     }
                     break;
                 case KeyEvent.DOM_VK_G: //
-                    if(!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                        if(targetIsInput(e)) break;
+                    if (modifierKeys.NONE) {
+                        if (targetIsInput(e)) break;
                         q('#GIFsOnlyBox').click();
                     }
                     break;
             }
         }
     }
-};
+});
 window.ImageManager = {
     _images: new Set(),
 
@@ -143,14 +149,14 @@ window.ImageManager = {
         // During the onload event, IE correctly identifies any images that
         // weren’t downloaded as not complete. Others should too. Gecko-based
         // browsers act like NS4 in that they report this incorrectly.
-        if(!img.complete) {
+        if (!img.complete) {
             return false;
         }
 
         // However, they do have two very useful properties: naturalWidth and
         // naturalHeight. These give the true size of the image. If it failed
         // to load, either of these should be zero.
-        if(img.naturalWidth === 0) {
+        if (img.naturalWidth === 0) {
             return false;
         }
 
@@ -168,12 +174,12 @@ window.ImageManager = {
      * @param onLoad
      */
     markImageOnLoad: function (imgEl, imgUrl, onError, onLoad) {
-        if(!imgEl) return;
-        if(imgEl.hasAttribute('loaded')) {
+        if (!imgEl) return;
+        if (imgEl.hasAttribute('loaded')) {
             /* console.debug('Img already has "loaded" attr:', imgEl);*/
             return;
         }
-        if(!imgEl.hasAttribute('loaded')) {
+        if (!imgEl.hasAttribute('loaded')) {
             createAndAddAttribute(imgEl, 'loaded');
         } else {
             imgEl.setAttribute("loaded", "false");
@@ -182,7 +188,7 @@ window.ImageManager = {
         imgObj.onerror = onError || ImageManager.imgOnError;
         imgObj.onload = onLoad || ImageManager.imgOnLoad;
         imgObj.src = imgUrl || imgEl.src || imgEl.href;
-        if(ImageManager._images.has(imgObj)) {
+        if (ImageManager._images.has(imgObj)) {
             console.warn('Duplicate image object!', imgObj);
             imgObj = null;
             return;
@@ -190,11 +196,11 @@ window.ImageManager = {
         ImageManager._images.add(imgObj);
     },
     imgOnError: function () {
-        if(ImageManager.isImageOk(this)) {
+        if (ImageManager.isImageOk(this)) {
             this.setAttribute('loaded', true);
             return;
         }
-        if(this.classList.contains(TOKEN_DISPLAY)) {
+        if (this.classList.contains(Tokens.DISPLAY_ORIGINAL)) {
             handleError(this);
         } else {
             this.setAttribute('loaded', 'error');
@@ -206,35 +212,47 @@ window.ImageManager = {
         SUCCESSFUL_URLS.add(this.src);
     }
 };
-
-function qa(selector) {return document.querySelectorAll(selector);}
-function q(selector) {return document.querySelector(selector);}
+/** @param selector
+ * @return {NodeListOf<HTMLElement>}*/
+function qa(selector) {
+    return document.querySelectorAll(selector);
+}
+/** @param selector
+ * @return {HTMLElement} */
+function q(selector) {
+    return document.querySelector(selector);
+}
 
 function displayImages() {
-    log("Displaying originals\nOriginal Images Displayed:\n" + Array.from(SUCCESSFUL_URLS));
     observeDocument(displayOriginalImage);
     qa('iframe').forEach(iframe =>
-        iframe.querySelectorAll("a[href]>img[src]").forEach(img =>
+        iframe.querySelectorAll("a[href] > img[src]").forEach(img =>
             replaceImgSrc(img, img.parentNode)
         )
     );
+    console.debug("Displaying originals\nOriginal Images Displayed:", Array.from(qa('.' + Tokens.DISPLAY_ORIGINAL)));
 }
 
 /** @param visibleThumbnailsOnly
- * @returns {*} */
+ * @returns {set<HTMLImageElement>} */
 function getThumbnails(visibleThumbnailsOnly) {
-    const selector = 'a[jsname="hSRGPd"] img' +
+    const selector = 'div.rg_bx > a.rg_l[jsname="hSRGPd"] > img' +
         (visibleThumbnailsOnly ? ':not([display="none"]):not([visibility="hidden"])' : '')
-        // q('#zipInsteadOfDownload').checked ? '.rg_ic.rg_i.display-original-mainImage:not(.display-original-mainImage-failed)' :`.${TOKEN_DISPLAY}:not(${TOKEN_FAILED})`
-        // '.rg_bx'
     ;
     return qa(selector);
 }
 
 function injectGoogleButtons() {
     function updateQualifiedImagesLabel(value) {
-        value = value || Array.from(getQualifiedGImgs()).length;
-        satCondLabel.innerHTML =  value + ' images satisfying conditions';
+        const qualifiedGImgs = getQualifiedGImgs();
+        value = value || Array.from(qualifiedGImgs).length;
+        satCondLabel.innerHTML = value + ' images satisfying conditions';
+
+        // if (q("#OnlyShowQualifiedImages").checked)
+        //     for (const img of getThumbnails()) {
+        //         const qualified = img.hasAttribute('qualified-dimensions');
+        //         setVisible(img, qualified);
+        //     }
     }
 
     try {
@@ -247,8 +265,8 @@ function injectGoogleButtons() {
 
         // click on "tools" for Google Images
         const btn_Tools = q(".hdtb-tl");
-        if(!!btn_Tools) {
-            if(!btn_Tools.classList.contains('hdtb-tl-sel')) { // if the tools bar is not visible (button not clicked)
+        if (!!btn_Tools) {
+            if (!btn_Tools.classList.contains('hdtb-tl-sel')) { // if the tools bar is not visible (button not clicked)
                 btn_Tools.click();
             } else {
                 console.warn('tools button already activated');
@@ -258,24 +276,7 @@ function injectGoogleButtons() {
         }
 
 
-        // var linkAnimated = createElement('<a style="display:" class="hdtb-tl" href="#" onclick="alert("finally"); document.getElementById("itp_animated").childNodes[0].click();">Animated</a>');
-
-
-        // injecting "site" button
-        if(false) {
-            try {
-                var searchBar = q('#lst-ib'),
-                    siteBtn = createElement(`<a class="gsst_a" href="javascript:void(0)" aria-label="Site"><span><span class="gsst_e" id="">Site</span></span></a>`);
-                siteBtn.addEventListener('click', function () {
-                    searchBar.value = ((/^site:/.test(searchBar.value)) ?
-                        searchBar.value.replace("site:", '') :
-                        'site:' + searchBar.value).trim();
-                });
-                q('#sfdiv > div').appendChild(siteBtn);
-            } catch (e) {
-                console.warn(e);
-            }
-        }
+        // var linkAnimated = createElement('<a style="display:" class="hdtb-tl" href="#" onclick="alert("finally"); document.getElementById("itp_animated").firstElementChild.click();">Animated</a>');
 
 
         /**
@@ -291,9 +292,9 @@ function injectGoogleButtons() {
             checkBoxContainerEl = createElement(
                 `<div class="sg" style="display:inline;">
 <input id="${id}" type="checkbox" ${(checked !== null ? checked : GM_getValue(id)) ? 'checked="checked"' : ""}>
-<label for="${id}">${labelText}</label>
+<label for="${id}">${labelText.replace(/\s/g, '&nbsp;')}</label>
 </div>`);
-            if(!!changeListener) {
+            if (!!changeListener) {
                 checkBoxContainerEl.addEventListener('change', () => {
                     changeListener();
                 });
@@ -302,20 +303,28 @@ function injectGoogleButtons() {
         }
 
         // Check boxes
-        cbox_ShowFailedImages = createGCheckBox("showFailedImagesBox", "Show&nbsp;failed&nbsp;images", f_sfi, HIDE_FAILED_IMAGES_ON_LOAD);
-        cbox_GIFsOnly =         createGCheckBox("GIFsOnlyBox", "GIFs&nbsp;only", f_gifsOnly, false);
-        cbox_UseDdgProxy =      createGCheckBox("useDdgProxyBox", "Try&nbsp;DDG_P", 
-            () => GM_setValue("useDdgProxy", this.checked),
+        cbox_ShowFailedImages = createGCheckBox("showFailedImagesBox", "Show failed images", f_sfi, HIDE_FAILED_IMAGES_ON_LOAD);
+        cbox_GIFsOnly = createGCheckBox("GIFsOnlyBox", "GIFs only", f_gifsOnly, false);
+        cbox_UseDdgProxy = createGCheckBox("useDdgProxyBox", "Try DDGP",
+            () => {
+                GM_setValue("useDdgProxy", q('#useDdgProxyBox').checked);
+                updateQualifiedImagesLabel();
+            },
             GM_getValue("useDdgProxy", true)
         );
-        cbox_GIFsException =    createGCheckBox("GIFsException", "Always&nbsp;download&nbsp;GIFs", 
-            () => GM_setValue("GIFsException", this.checked),
+
+        // passive checkbox
+        cbox_GIFsException = createGCheckBox("GIFsExceptionBox", "Always download GIFs",
+            () => GM_setValue("GIFsException", q('#GIFsExceptionBox').checked),
             GM_getValue("GIFsException", true)
         );
+        // passive checkbox
+        cbox_OnlyShowQualifiedImages = createGCheckBox("OnlyShowQualifiedImages", "Only show qualified images",
+            () => GM_setValue("OnlyShowQualifiedImages", this.checked),
+            GM_getValue("OnlyShowQualifiedImages", false)
+        );
 
-        /**
-         * Show failed images
-         */
+        /** Show failed images */
         function f_sfi() {
             const checked = q("#showFailedImagesBox").checked;
             setVisibilityForFailedImages(checked);
@@ -326,7 +335,7 @@ function injectGoogleButtons() {
             f_sfi();
             const checked = q("#GIFsOnlyBox").checked;
             Array.from(qa(`.rg_bx a.rg_l img`)).forEach(nonGifImg => {
-                if(!/\.gif($|\?)/.test(getMeta(nonGifImg).ou)) {
+                if (!/\.gif($|\?)/.test(getMeta(nonGifImg).ou)) {
                     console.debug('nonGifImg href doesn\'t end with .gif, settings visibility to:', checked, nonGifImg);
                     setVisible(nonGifImg, checked);
                 }
@@ -334,10 +343,11 @@ function injectGoogleButtons() {
         }
 
 
-        for (const img of getThumbnails()) {
+        for (const img of getThumbnails(true)) {
             img.classList.add('blur');
         }
 
+        //todo: make the image size slider increment discretely, depending on the available dimensions of the images
         // Sliders
         const default_slider_minImgSize_value = 250;
         slider_minImgSize = createElement(`<input id="minImgSizeSlider" type="range" min="0" max="3000" value="${default_slider_minImgSize_value}" step="25">`);
@@ -347,12 +357,12 @@ function injectGoogleButtons() {
 
             // Highlighting images that will be downloaded
             // clearAllEffects(); // todo: this is being called too much
-            for (const img of getThumbnails()) {
+            for (const img of getThumbnails(true)) {
                 var meta = getMeta(img);
                 var width = meta.ow, height = meta.oh,
                     isBigger = width >= this.value || height >= this.value;
 
-                if(isBigger) {
+                if (isBigger) {
                     img.classList.add('qualified-dimensions', 'out');
                     img.classList.remove('in');
                 } else {
@@ -379,41 +389,40 @@ function injectGoogleButtons() {
             // Highlighting images that will be downloaded
 
             // blur all
-          
-            
+
 
             var i = 0;
-            // for (const qualifiedImgObj of getQualifiedGImgs(null, null, true)) {
-            //     const img = qualifiedImgObj.img;
-            //     console.debug('i:', i, 'this.value:', this.value);
-            //     if(++i <= this.value) {
-            //         img.classList.add('drop-shadow', 'out');
-            //         img.classList.remove('in');
-            //     }
-            //     // else {
-            //     //     console.debug('img should be hidden:', img);
-            //     //     img.classList.remove('out');
-            //     //     img.classList.add('blur', 'in');
-            //     // }
-            // }
-
-            for (const img of qa('.rg_bx img.qualified-dimensions')) {
+            /*for (const qualifiedImgObj of getQualifiedGImgs(null, null, true)) {
+                const img = qualifiedImgObj.img;
+                console.debug('i:', i, 'this.value:', this.value);
                 if(++i <= this.value) {
                     img.classList.add('drop-shadow', 'out');
                     img.classList.remove('in');
+                }
+                // else {
+                //     console.debug('img should be hidden:', img);
+                //     img.classList.remove('out');
+                //     img.classList.add('blur', 'in');
+                // }
+            }*/
+
+            for (const img of qa('.rg_bx img.qualified-dimensions')) {
+                if (++i <= this.value) {
+                    img.classList.add('drop-shadow', 'out');
+                    img.classList.remove('in');
                 } else {
-                    console.debug('img should be hidden:', img);
+                    // console.debug('img should be hidden:', img);
                     img.classList.remove('out');
                     img.classList.add('blur', 'in');
                 }
             }
-            // unblur the remaining images (even though they may not satisfy img dimensions)
+            // un-blur the remaining images (even though they may not satisfy img dimensions)
             for (const img of qa('.rg_bx img:not(.qualified-dimensions)')) {
-                if(++i <= this.value) {
+                if (++i <= this.value) {
                     img.classList.add('drop-shadow', 'out');
                     img.classList.remove('in');
                 } else {
-                    console.debug('img should be hidden:', img);
+                    // console.debug('img should be hidden:', img);
                     img.classList.remove('out');
                     img.classList.add('blur', 'in');
                 }
@@ -438,8 +447,8 @@ function injectGoogleButtons() {
 
         // buttons
         function createGButton(id, innerText, onClick) {
-            const button = createElement(`<button class="${BUTTONS_CLASS} sg sbtn hdtb-tl" id="${id}">${innerText}</button>`);
-            if(onClick) {
+            const button = createElement(`<button class="${ClassNames.BUTTONS} sg sbtn hdtb-tl" id="${id}">${innerText}</button>`);
+            if (onClick) {
                 button.onclick = function () {
                     onClick()
                 };
@@ -451,12 +460,12 @@ function injectGoogleButtons() {
         // Display originals
         var btn_dispOgs = createGButton(`dispOgsBtn`, `Display&nbsp;<u>o</u>riginals`, displayImages),
             btn_animated = createGButton(`AnimatedBtn`, `<u>A</u>nimated`, function () {
-                document.getElementById('itp_animated').childNodes[0].click();
+                q('#itp_animated').firstElementChild.click();
             }),
             btn_download = createGButton(`downloadBtn`, `Download&nbsp;⇓`, function () {
-                const zipbox = q('#zipInsteadOfDownload');
-                if(zipbox && zipbox.checked) {
-                    if(!zip || Object.keys(zip.files).length < 1) {
+                const zipBox = q('#zipInsteadOfDownload');
+                if (zipBox && zipBox.checked) {
+                    if (!zip || Object.keys(zip.files).length < 1) {
                         zipImages();
                     } else {
                         genZip();
@@ -475,11 +484,11 @@ function injectGoogleButtons() {
 
                     createAndAddAttribute(img, 'download-name', dlName);
                     img.alt = dlName;
-                    ImageManager.markImageOnLoad(img, a.href);
+                    ImageManager.markImageOnLoad(img, a.getAttribute('href'));
                     console.log('Preloading image:', `"${dlName}"`, !isBase64ImageData(img.src) ? img.src : "Base64ImageData");
                 });
             });
-              
+
 
         btn_download.style.margin = "20px";
         btn_download.style.border = "20px";
@@ -487,7 +496,7 @@ function injectGoogleButtons() {
         var cbox_ZIP = createGCheckBox('zipInsteadOfDownload', 'ZIP', function changeZIPBtnText() {
             const checked = q('#zipInsteadOfDownload').checked;
             const downloadBtn = q('#downloadBtn');
-            downloadBtn.innerHTML = checked ? (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP' : 'Download&nbsp;ZIP&nbsp;⇓') : 'Download&nbsp;⇓';
+            downloadBtn.innerHTML = checked ? (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP&nbsp;images' : 'Download&nbsp;ZIP&nbsp;⇓') : 'Download&nbsp;⇓';
             GM_setValue("zipInsteadOfDownload", checked);
         }, GM_getValue("zipInsteadOfDownload", true));
         cbox_ZIP.style.padding = "0px";
@@ -522,37 +531,25 @@ function injectGoogleButtons() {
 
         // don't use this function, BAD // var dlCondition = function (element) {return (element.hasAttribute('img-w') && element.getAttribute('img-w') > minImgSizeSlider.value);};
 
-        if(/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
+        if (/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
             displayImages();
         }
-        
+
         const divider = document.createElement('div');
         controlsContainer.appendChild(divider);
-        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, btn_animated, downloadPanel);
+        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, downloadPanel);
         sliderConstraintsContainer.after(satCondLabel);
         q('#download-panel').appendChild(createElement(`<div id="progressbar-container"></div>`));
+
+        btn_download.innerHTML = q('#zipInsteadOfDownload').checked ? 'ZIP&nbsp;images' : `Download&nbsp;⇓`;
     } catch (r) {
-        if(onGoogle) {
+        if (onGoogle) {
             console.error(r);
         }
     }
 }
 
-function imageIsBigEnough(image) {
-    if(image.hasAttribute('img-dim')) {
-        var [w, h] = image.getAttribute('img-dim').split('x');
-        if(w >= slider_minImgSize.value || h >= slider_minImgSize.value) {
-            console.log("IMAGE IS BIG ENOUGH!!", image);
-            return true;
-        } else {
-            console.debug("Rejecting image cuz too small lol", image);
-        }
-    } else {
-        console.debug("Image doesn't have the img-dim attribute", image);
-    }
-    return false;
-}
-
+//todo: problem: this even removes the effects of images that didn't load (greyscale), fix this! Make a separate selector in the CSS for those that didn't load
 function clearAllEffects() { // remove highlighting of elements
     console.warn('clearAllEffects()');
     for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', /*'qualified-dimensions',*/ 'sg-too-small-hide', 'in']) {
@@ -571,7 +568,7 @@ function clearAllEffectsFromEl(el) { // remove highlighting of elements
 }
 function downloadImages() {
     bigImagesCount = 0;
-    if(currentDownloadCount >= slider_dlLimit.value) {
+    if (currentDownloadCount >= slider_dlLimit.value) {
         currentDownloadCount = 0;
     } else {
         console.log('currentDownloadCount >= dlNumSlider.value');
@@ -580,7 +577,7 @@ function downloadImages() {
 
     for (const qualifiedImgArgs of getQualifiedGImgs()) {
         const directoryName = document.title;
-        download(qualifiedImgArgs.fileURL, qualifiedImgArgs.fileName, directoryName, qualifiedImgArgs.img);
+        download(qualifiedImgArgs.fileURL, qualifiedImgArgs.fileName, directoryName, qualifiedImgArgs);
     }
 }
 
@@ -593,38 +590,17 @@ if (bigImgs.length < 7) {
     displayOriginalImage();
 }*/
 
-function downloadIfBigEnough(w, h, url, imgEl) {
-    const dimStr = w + "x" + h;
-    console.log(dimStr + "\n" + (/data:image\/.+?base64/.test(url) ? "base64 mainImage data" : url));
-
-    if(currentDownloadCount >= slider_dlLimit.value) {
-        console.log("currentDownloadCount >= dlNumSlider.value", currentDownloadCount, slider_dlLimit.value);
-        return false;
-    }
-    if(w > slider_minImgSize.value && h > slider_minImgSize.value) {
-        console.log('Image is BIG enough');
-        bigImagesCount++;
-        var dlName;
-
-        dlName = imgEl.hasAttribute('download-name') ? imgEl.getAttribute('download-name') : getGimgDescription(imgEl);
-        console.log('Gimg DLName:', dlName);
-
-        download(url, dlName, document.title, imgEl);
-        currentDownloadCount++;
-    } else {
-        console.log('too small: ', dimStr, imgEl);
-    }
-}
-
 function observeDocument(callback) {
     callback(document.body);
-    const mutationCallback = /**@param {mutation} mutationsList */ function (mutationsList) {
-        for (var mutation of mutationsList) {
-            if(!mutation.addedNodes.length) continue;
-            callback(mutation.target);
+    new MutationObserver(
+        /**@param {mutation} mutationsList */
+        function mutationCallback(mutationsList) {
+            for (var mutation of mutationsList) {
+                if (!mutation.addedNodes.length) continue;
+                callback(mutation.target);
+            }
         }
-    };
-    new MutationObserver(mutationCallback).observe(document.body, {
+    ).observe(document.body, {
         childList: true,
         subtree: true,
         attributes: true,
@@ -632,19 +608,20 @@ function observeDocument(callback) {
     });
 }
 function displayOriginalImage(node) {
-    node.querySelectorAll("a[href] > img[src]").forEach(function (img) {
+    for (const img of node.querySelectorAll("a[href] > img[src]")) {
         replaceImgSrc(img, img.parentNode);
         ImageManager.markImageOnLoad(img);
-    });
-    node.querySelectorAll("a[href] > img").forEach(replaceThumbWithVid);
+    }
+    for (const vidThumb of node.querySelectorAll("a[href] > img")) {
+        replaceThumbWithVid(vidThumb);
+    }
 }
 
 
 function handleError() {
-    // console.log('this.src:'+this.src);
     this.removeEventListener("error", handleError);
     this.setAttribute("loaded", "");
-    if(!onGoogle || useDdgProxy()) {
+    if (!onGoogle || checked_useDdgProxy()) {
         tryDdgProxy(this);
     } else {
         markNotFound(this);
@@ -655,16 +632,16 @@ function ddgHandleError() {
     this.src = this.oldSrc;
     markNotFound(this);
     this.removeEventListener("error", ddgHandleError);
-    this.classList.add(TOKEN_DDG_FAILED);
+    this.classList.add(Tokens.FAILED_DDG);
 }
 function tryDdgProxy(imgEl) {
     // If it already failed ddgProxy, don't even try
-    if(imgEl.classList.contains(TOKEN_DDG_FAILED)) return;
+    if (imgEl.classList.contains(Tokens.FAILED_DDG)) return;
     // if (imgEl.hasAttribute('loaded')) imgEl.setAttribute('loaded', '');
 
     imgEl.addEventListener("error", ddgHandleError);
 
-    if(!imgEl.classList.contains("irc_mi")) // Condition to improve performance only for Google.com
+    if (!imgEl.classList.contains("irc_mi")) // Condition to improve performance only for Google.com
     {
         imgEl.style.border = "2px" + "#FFA500" + " solid";
     } //Make borders ORANGE
@@ -677,7 +654,7 @@ function tryDdgProxy(imgEl) {
     imgEl.src = ddgProxyUrl;
 
     // replace(imgEl, createElement('<a anchor='+ddgProxyUrl+'></a>'));
-    imgEl.classList.remove(TOKEN_FAILED);
+    imgEl.classList.remove(Tokens.FAILED);
     ImageManager.markImageOnLoad(imgEl, imgEl.src, function () {
         this.setAttribute('loaded', 'error');
     }, function () {
@@ -688,35 +665,40 @@ function tryDdgProxy(imgEl) {
 function replaceThumbWithVid(vidThumb) {
     const anchor = vidThumb.parentNode;
     const href = anchor.href;
-    const w = vidThumb.style.width;
-    const h = vidThumb.style.height;
-    if(/\.(mov|mp4|avi|webm|flv|wmv)($|\?)/i.test(href)) { // if the link is to a video
+    if (/\.(mov|mp4|avi|webm|flv|wmv)($|\?)/i.test(href)) { // if the link is to a video
         console.log('Replacing video thumbnail with original video:', href, vidThumb);
         vidThumb.src = href;
         const videoOptions = 'controls' + (autoplayReplacedVids ? ' autoplay ' : '') + (loopReplacedVids ? ' loop ' : '');
-        const vidEl = anchor.after(createElement(`<video ${videoOptions} name="media" src="${href}"  type="video/webm">`));
+        const vidEl = createElement(`<video ${videoOptions} name="media" src="${href}"  type="video/webm" style="width:${vidThumb.clientWidth * 2}px;">`);
+        anchor.after(vidEl);
         anchor.remove();
-        vidEl.style.width = w;
-        vidEl.style.height = h;
     }
 }
 function replaceImgSrc(img, anchor) {
-    if(img.classList.contains(TOKEN_DISPLAY)) return;
-    if(!/\.(jpg|png|gif)($|\?)/i.test(anchor.href)) return;
+    if (img.classList.contains(Tokens.DISPLAY_ORIGINAL)) return;
+    if (!/\.(jpg|png|gif)($|\?)/i.test(anchor.href)) return;
 
     img.addEventListener("error", handleError);
     img.oldSrc = img.src;
-    img.src = anchor.href;
-    img.anchor = anchor; // TODO: please explain this??
-    img.classList.add(TOKEN_DISPLAY);
+    function getSrc() {
+        let src = anchor.href;
+        if (/\.kym-cdn\.com\/photos\/images\/masonry/.test(img.src)) {
+            src = img.src.replace('masonry', 'original');
+        }
+        return src;
+    }
+    console.debug('disp og img:', img);
+    img.src = getSrc();
+    img.anchor = anchor; // Storing the anchor object in case we need it later
+    img.classList.add(Tokens.DISPLAY_ORIGINAL);
 
     const imageObj = new Image();
     imageObj.src = img.src;
     ImageManager._images.add(imageObj);
 
-    if(/\.(gif)($|\?)/i.test(anchor)) {
+    if (/\.(gif)($|\?)/i.test(anchor)) {
         img.style.border = "5px #6800FF solid"; //Purple for GIFs
-        img.classList.add(TOKEN_GIF);
+        img.classList.add(Tokens.DISPLAY_ORIGINAL_GIF);
     }
 }
 
@@ -724,34 +706,48 @@ function replaceImgSrc(img, anchor) {
  * @param node
  */
 function markNotFound(node) {
-    node.classList.add(TOKEN_FAILED);
-    if(!onGoogle || !checked_ShowFailedImages()) {
+    node.classList.add(Tokens.FAILED);
+    if (!onGoogle || !checked_ShowFailedImages()) {
         setVisible(node, false);
     }
     node.setAttribute('loaded', 'error');
     SUCCESSFUL_URLS.delete(node.src);
 }
 function setVisibilityForFailedImages(visibility) {
-    console.log("Set visibility for failed images:", visibility);
-    let count = 0;
-    let bxs = qa('.rg_bx .rg_l img');
-    if(!bxs.length) return;
 
-    bxs.forEach(function (imageBox) {
-        if(imageBox.classList.contains(TOKEN_FAILED) || imageBox.classList.contains(TOKEN_DDG_FAILED)) {
-            setVisible(imageBox, visibility);
-            count++;
-        }
-    });
-    console.log("Set visibility of " + count + " images to: " + visibility);
+// language=CSS
+//     const css = visibility ? '' :
+//         ` /*Failed images selector*/
+//     div.rg_bx > a.rg_l > img.${Tokens.FAILED_DDG},
+//     div.rg_bx > a.rg_l > img.${Tokens.FAILED} {
+//         display: none !important;
+//     }
+// `;
+//     const id = 'hide-failed-images-style';
+//     const styleEl = q('#' + id);
+//     if (!styleEl) {
+//         addCss(css, id);
+//     } else {
+//         styleEl.innerHTML = css;
+//     }
+
+    let bxs = qa(`div.rg_bx > a.rg_l > img.${Tokens.FAILED_DDG}, div.rg_bx > a.rg_l > img.${Tokens.FAILED}`);
+    if (!bxs.length) return;
+
+    let count = 0;
+    for (const imageBox of bxs) {
+        setVisible(imageBox, visibility);
+        count++;
+    }
+    console.log("Set visibility of " + count + " images to", visibility);
 }
 function setVisible(node, visible) {
-    if(!node) return;
-    if(onGoogle) {
+    if (!node) return;
+    if (onGoogle) {
         node = node.parentNode.parentNode;
     }
 
-    if(visible) {
+    if (visible) {
         node.classList.remove('hide-img');
     } else {
         node.classList.add('hide-img');
@@ -767,7 +763,7 @@ function setVisible(node, visible) {
 function createAndAddCSS() {
     // language=CSS
     addCss(`
-.${BUTTONS_CLASS} {
+.${ClassNames.BUTTONS} {
 margin: 10px;
 }
 .tooltip {
@@ -776,30 +772,36 @@ margin: 10px;
     border-bottom: 1px dotted black;
 }
 
-.${TOKEN_DISPLAY}[loaded="false"],
-.${TOKEN_DISPLAY}[loaded="error"]{
-    border:2px #F00 solid
+/* add padding to checkbox labels */
+.sg > label[for] {
+	padding-top: 20px;
+	padding-bottom: 20px;
+}
+
+.${Tokens.DISPLAY_ORIGINAL}[loaded="false"], 
+.${Tokens.DISPLAY_ORIGINAL}[loaded="error"]{
+    border:2px #F00 solid;
 }` +
         // .${CLASS_TOKEN_DDG_FAILED}:not([loaded="true"]),
-        // .${CLASS_TOKEN_FAILED}:not([loaded="true"])
+        // .${CLASS_Tokens.FAILED}:not([loaded="true"])
         `
-.${TOKEN_DISPLAY}[loaded="false"],
-.${TOKEN_DISPLAY}[loaded="error"]{
-    -webkit-filter: grayscale(1); /* Webkit */
-    filter: gray; /* IE6-9 */
-    filter: grayscale(1); /* W3C */
+.${Tokens.DISPLAY_ORIGINAL}[loaded="false"],
+.${Tokens.DISPLAY_ORIGINAL}[loaded="error"]{
+    -webkit-filter: grayscale(1) !important; /* Webkit */
+    filter: gray !important; /* IE6-9 */
+    filter: grayscale(1) !important; /* W3C */
 
-    opacity: 0.5;
-    filter: alpha(opacity=50); /* For IE8 and earlier */
+    opacity: 0.5 !important;
+    filter: alpha(opacity=50) !important; /* For IE8 and earlier */
 }
-.${TOKEN_DISPLAY}:not(.irc_mi){
-    border: 3px #0F0 solid
+.${Tokens.DISPLAY_ORIGINAL}:not(.irc_mi){
+    border: 3px #0F0 solid;
 }
-.${TOKEN_GIF}:not(.irc_mi){
-    border: 5px #6800FF solid
+.${Tokens.DISPLAY_ORIGINAL_GIF}:not(.irc_mi){
+    border: 5px #6800FF solid;
 }
-.${TOKEN_DDG_FAILED}:not(.irc_mi){
-    border: 2px #FFA500 solid
+.${Tokens.FAILED_DDG}:not(.irc_mi){
+    border: 2px #FFA500 solid;
 }
 `);
 
@@ -807,27 +809,27 @@ margin: 10px;
     // language=CSS
     addCss(`
         .highlight, .drop-shadow {
-            filter: drop-shadow(8px 8px 10px gray);
+            filter: drop-shadow(8px 8px 10px gray) !important;
         }
 
         .blur.in {
-            -webkit-transition: all 0.1s ease-in;
-            /*-webkit-filter: blur(6px);*/
-            transform: scale(0.7);
-            opacity: 0.3;
+            -webkit-transition: all 0.1s ease-in !important;
+            /*-webkit-filter: blur(6px) !important;*/
+            transform: scale(0.7) !important;
+            opacity: 0.3 !important;
         }
 
         .blur.out:not(.in) {
-            -webkit-filter: blur(0px);
-            /*filter: blur(0px);*/
-            transform: scale(1);
-            opacity: 1;
-            -webkit-transition: all 0.25s ease-out;
-            transition: all 0.25s ease-out;
+            -webkit-filter: blur(0px) !important;
+            /*filter: blur(0px) !important;*/
+            transform: scale(1) !important;
+            opacity: 1 !important;
+            -webkit-transition: all 0.25s ease-out !important;
+            transition: all 0.25s ease-out !important;
         }
 
         .transparent {
-            opacity: 0.4;
+            opacity: 0.4 !important;
         }
 
         .sg-too-small {
@@ -844,6 +846,158 @@ margin: 10px;
     `, 'filters-style');
     /* "border-bottom: 1px dotted black;" is for if you want dots under the hover-able text */
 }
+
+if (typeof KeyEvent == 'undefined')
+    KeyEvent = {
+        DOM_VK_BACKSPACE: 8,
+        DOM_VK_TAB: 9,
+        DOM_VK_ENTER: 13,
+        DOM_VK_SHIFT: 16,
+        DOM_VK_CTRL: 17,
+        DOM_VK_ALT: 18,
+        DOM_VK_PAUSE_BREAK: 19,
+        DOM_VK_CAPS_LOCK: 20,
+        DOM_VK_ESCAPE: 27,
+        DOM_VK_PGUP: 33, DOM_VK_PAGE_UP: 33,
+        DOM_VK_PGDN: 34, DOM_VK_PAGE_DOWN: 34,
+        DOM_VK_END: 35,
+        DOM_VK_HOME: 36,
+        DOM_VK_LEFT: 37, DOM_VK_LEFT_ARROW: 37,
+        DOM_VK_UP: 38, DOM_VK_UP_ARROW: 38,
+        DOM_VK_RIGHT: 39, DOM_VK_RIGHT_ARROW: 39,
+        DOM_VK_DOWN: 40, DOM_VK_DOWN_ARROW: 40,
+        DOM_VK_INSERT: 45,
+        DOM_VK_DEL: 46, DOM_VK_DELETE: 46,
+        DOM_VK_0: 48, DOM_VK_ALPHA0: 48,
+        DOM_VK_1: 49, DOM_VK_ALPHA1: 49,
+        DOM_VK_2: 50, DOM_VK_ALPHA2: 50,
+        DOM_VK_3: 51, DOM_VK_ALPHA3: 51,
+        DOM_VK_4: 52, DOM_VK_ALPHA4: 52,
+        DOM_VK_5: 53, DOM_VK_ALPHA5: 53,
+        DOM_VK_6: 54, DOM_VK_ALPHA6: 54,
+        DOM_VK_7: 55, DOM_VK_ALPHA7: 55,
+        DOM_VK_8: 56, DOM_VK_ALPHA8: 56,
+        DOM_VK_9: 57, DOM_VK_ALPHA9: 57,
+        DOM_VK_A: 65,
+        DOM_VK_B: 66,
+        DOM_VK_C: 67,
+        DOM_VK_D: 68,
+        DOM_VK_E: 69,
+        DOM_VK_F: 70,
+        DOM_VK_G: 71,
+        DOM_VK_H: 72,
+        DOM_VK_I: 73,
+        DOM_VK_J: 74,
+        DOM_VK_K: 75,
+        DOM_VK_L: 76,
+        DOM_VK_M: 77,
+        DOM_VK_N: 78,
+        DOM_VK_O: 79,
+        DOM_VK_P: 80,
+        DOM_VK_Q: 81,
+        DOM_VK_R: 82,
+        DOM_VK_S: 83,
+        DOM_VK_T: 84,
+        DOM_VK_U: 85,
+        DOM_VK_V: 86,
+        DOM_VK_W: 87,
+        DOM_VK_X: 88,
+        DOM_VK_Y: 89,
+        DOM_VK_Z: 90,
+        DOM_VK_LWIN: 91, DOM_VK_LEFT_WINDOW: 91,
+        DOM_VK_RWIN: 92, DOM_VK_RIGHT_WINDOW: 92,
+        DOM_VK_SELECT: 93,
+
+        DOM_VK_NUMPAD0: 96,
+        DOM_VK_NUMPAD1: 97,
+        DOM_VK_NUMPAD2: 98,
+        DOM_VK_NUMPAD3: 99,
+        DOM_VK_NUMPAD4: 100,
+        DOM_VK_NUMPAD5: 101,
+        DOM_VK_NUMPAD6: 102,
+        DOM_VK_NUMPAD7: 103,
+        DOM_VK_NUMPAD8: 104,
+        DOM_VK_NUMPAD9: 105,
+        DOM_VK_MULTIPLY: 106,
+
+        DOM_VK_ADD: 107,
+        DOM_VK_SUBTRACT: 109,
+        DOM_VK_DECIMAL_POINT: 110,
+        DOM_VK_DIVIDE: 111,
+        DOM_VK_F1: 112,
+        DOM_VK_F2: 113,
+        DOM_VK_F3: 114,
+        DOM_VK_F4: 115,
+        DOM_VK_F5: 116,
+        DOM_VK_F6: 117,
+        DOM_VK_F7: 118,
+        DOM_VK_F8: 119,
+        DOM_VK_F9: 120,
+        DOM_VK_F10: 121,
+        DOM_VK_F11: 122,
+        DOM_VK_F12: 123,
+        DOM_VK_NUM_LOCK: 144,
+        DOM_VK_SCROLL_LOCK: 145,
+        DOM_VK_SEMICOLON: 186,
+        DOM_VK_EQUALS: 187, DOM_VK_EQUAL_SIGN: 187,
+        DOM_VK_COMMA: 188,
+        DOM_VK_DASH: 189,
+        DOM_VK_PERIOD: 190,
+        DOM_VK_FORWARD_SLASH: 191,
+        DOM_VK_GRAVE_ACCENT: 192,
+        DOM_VK_OPEN_BRACKET: 219,
+        DOM_VK_BACK_SLASH: 220,
+        DOM_VK_CLOSE_BRAKET: 221,
+        DOM_VK_SINGLE_QUOTE: 222
+    };
+/**
+ * Order of key strokes in naming convention:   Ctrl > Alt > Shift >  Meta
+ * @param keyEvent
+ * @returns {{
+            CTRL_SHIFT: boolean,
+            CTRL_ALT: boolean,
+            ALT_SHIFT: boolean,
+            CTRL_ONLY: boolean,
+            CTRL_ALT_SHIFT: boolean,
+
+            SHIFT_ONLY: boolean,
+            ALT_ONLY: boolean,
+            META_ONLY: boolean,
+
+            NONE: boolean
+      }}
+ */
+function getModifierKeys(keyEvent) {
+    /** @type {
+      {
+            CTRL_SHIFT: boolean,
+            CTRL_ALT: boolean,
+            ALT_SHIFT: boolean,
+            CTRL_ONLY: boolean,
+            CTRL_ALT_SHIFT: boolean,
+
+            SHIFT_ONLY: boolean,
+            ALT_ONLY: boolean,
+            META_ONLY: boolean,
+
+            NONE: boolean
+      }
+  } */
+    return {
+        CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_SHIFT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT_SHIFT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+
+        SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
+
+        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey
+    };
+}
+
 
 /*
  data node text:
