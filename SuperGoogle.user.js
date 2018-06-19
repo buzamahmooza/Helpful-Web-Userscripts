@@ -32,11 +32,11 @@
 // [x]      Add image dimensions next to sTitle
 // [] TOD
 
-
 /** Just for the stupid IDE to shut up */
 if (typeof GM_getValue === "undefined") GM_getValue = params => params;
 if (typeof GM_setValue === "undefined") GM_setValue = params => params;
 
+console.debug('SuperGoogleScript running');
 
 // noinspection ES6ConvertVarToLetConst
 var debug = true;
@@ -44,18 +44,32 @@ var logAnnoyingNetworkErrors = false;
 if (typeof debug === 'undefined') debug = false;
 if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
 
-var AUTO_SAVE_UBL_SITES = GM_getValue('AUTO_SAVE_UBL_SITES', false);
+const Constants = {
+    GMValues: {
+        UBL_SITES: 'unblocked sites of og images',
+        UBL_URLS: 'unblocked image URLs',
+        UBL_SITES_MAP: 'UBL sites map',
+        autosaveUblSites: 'AUTO_SAVE_UBL_SITES'
+    },
+    Selectors: {
+        showAllSizes: '#jHnbRc > div.O1id0e > span:nth-child(2) > a',    // The "All sizes" link from the SearchByImage page
+        searchModeDiv: '#hdtb-msb-vis',
+        selectedSearchMode: '#hdtb-msb-vis' + ' div.hdtb-msel',
+    }
+};
 
-googleBaseURL = location.protocol + "google.com";
-gImgSearchURL = googleBaseURL + "/search?&hl=en&tbm=isch&q=";
+var AUTO_SAVE_UBL_SITES = GM_getValue(Constants.GMValues.autosaveUblSites, false);
+googleBaseURL = `${location.protocol}//${location.hostname}`;
 
-const UBL_SITES_VALUE_NAME = 'unblocked sites of og images',
-    UBL_SITES_MAP_VALUE_NAME = 'UBL sites map';
-let ublSet = new Set();
+gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+// GM_setValue(Constants.GMValues.UBL_SITES, "");
+// GM_setValue(Constants.GMValues.UBL_URLS, "");
+// GM_setValue(Constants.GMValues.UBL_SITES_MAP, "");
 
-/**
- * Contains the ubl data of a single domain name
- */
+let ublSitesSet = new Set(),
+    ublMetas = new Set();
+
+/** Contains the ubl data of a single domain name */
 class UBLdata {
     constructor(url, successful, dataObj) {
         this.hostname = getHostname(url);
@@ -119,16 +133,13 @@ let ublMap = $.extend(new Map(), {
 if (typeof GM === 'undefined') // PRE GM4
 {
     GM = {};
-    // noinspection JSUnresolvedVariable
     GM.getValue = GM_getValue;
-    // noinspection JSUnresolvedVariable
     GM.setValue = GM_setValue;
 }
 
 if (typeof unsafeWindow === "undefined") {
     unsafeWindow = window;
 }
-
 // prevents duplicates
 if (typeof unsafeWindow.superGoogleScript === 'undefined') {
     unsafeWindow.superGoogleScript = this;
@@ -138,19 +149,25 @@ if (typeof unsafeWindow.superGoogleScript === 'undefined') {
 
 // OPTIONS:
 let LOOP_RELATED_IMAGES = GM_getValue('LOOP_RELATED_IMAGES', false);
-const invertWheelRelativeImageNavigation = false,
+const Settings = {
+    invertWheelRelativeImageNavigation: false,
+    defaultAnchorTarget: "_blank"
+};
+const
     successColor = 'rgb(167, 99, 255)',
-    DEFAULT_TARGET = "_blank",
-    urlArgs = '', // '&tbs=isz:lt,islt:2mp',
-    allSizesSelector = '#jHnbRc > div.O1id0e > span:nth-child(2) > a'	// The "All sizes" link from the SearchByImage page
+    urlArgs = {
+        // "tbs=isz": "lt",//
+        // islt: "2mp",    // isLargerThan
+        // tbs: "isz:l",   // l=large, m=medium...
+        "hl": "en"
+    }
 ;
 
 let progressBar,
     zippingInProgress = false,
-    zipTotal = 0,
-    activeZipThreads = 0,
     totalSize = 0,
     totalLoaded = 0,
+
     searchModeDiv = q('#hdtb-msb-vis'),
     selectedSearchMode = !searchModeDiv ? null : searchModeDiv.querySelector('div.hdtb-msel'),
     onGoogleImages = selectedSearchMode && selectedSearchMode.innerHTML == 'Images'
@@ -159,8 +176,8 @@ let progressBar,
 
 const staticNavbar = false;
 // language=CSS
-addCss
-(`.hover-click:hover,
+addCss(
+    `.hover-click:hover,
 .hover-click:focus {
     color: #999;
     text-decoration: none;
@@ -192,8 +209,29 @@ div#extrares {
     display: none !important;
 }
 
+/*bigger space between image boxes*/
+div.rg_bx {
+    margin: 10px;
+}
+
+/*fixes the selection area of main image anchors*/
 .irc_asc {
     display: inline-block !important;
+}
+
+/**/
+div.text-block {
+    position: absolute;
+	bottom: 20px;
+	right: 20px;
+	color: white;
+	padding: 7px;
+	opacity: 0.4;
+	display: block;
+	height: 15%;
+	width: 10%;
+	top: 0px;
+	left: 0px;
 }
 
 /**/
@@ -232,30 +270,28 @@ div#extrares {
     cursor: pointer;
 }
 
-.fixed-position ${staticNavbar ? ', #qbc, #rshdr :not(#sfcnt)' : ''} {
-	position: fixed;
-	top: 0;
-	z-index: 16777271;
+.fixed-position${staticNavbar ? ', #qbc, #rshdr:not(#sfcnt)' : ''} {
+    position: fixed;
+    top: 0;
+    z-index: 16777271;
 }
 
 .ubl-site {
     color: ${successColor} !important;
 }
-/*Hide the extra content warning and policy*/
-`);
+
+.scroll-nav:hover,
+.scroll-nav *:hover:not(.hover-click),
+.scroll-nav *:focus:not(.hover-click) {
+    cursor: crosshair, auto;
+}
+`, 'superGoogleStyle');
 
 
 /** change mouse cursor when hovering over elements for scroll navigation
  * cursor found here:   https://www.flaticon.com/free-icon/arrows_95103#
  */
 /*addCss(`
- /!*
- .scroll-nav *:hover:not(.hover-click),
- .scroll-nav *:focus:not(.hover-click)
- {
- cursor:url(data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTcuMS4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDM0Ny4yMjMgMzQ3LjIyMyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzQ3LjIyMyAzNDcuMjIzOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgd2lkdGg9IjUxMnB4IiBoZWlnaHQ9IjUxMnB4Ij4KPGc+Cgk8cGF0aCBkPSJNMzQzLjcyNiwxNjYuODY1bC00NC4wMDktMzAuODMzYy0xLjQxMy0wLjk5LTIuNzI4LTEuNTEzLTQuMjUyLTEuNTEzYy0zLjMwNywwLTYuNDE3LDIuNTEyLTYuNDE3LDcuMzEzdjkuNzhoLTQ0LjA3NiAgIGMtNC45NjIsMC04LjkyNCwzLjc0My04LjkyNCw4LjcwNXYyNS44N2MwLDQuOTYyLDMuOTYyLDkuNDI1LDguOTI0LDkuNDI1aDQ0LjA3NnY5LjA2NGMwLDQuOCwzLjExMSw2LjkzNiw2LjQxOCw2LjkzNmgtMC4xMTggICBjMS41MjQsMCwzLjAxNy0wLjMzNSw0LjQzMS0xLjMyNGw0My45NzctMzAuNzM3YzIuMjEzLTEuNTUxLDMuNDY3LTMuODMzLDMuNDY3LTYuMzQ0ICAgQzM0Ny4yMjMsMTcwLjY5NiwzNDUuOTM4LDE2OC40MTQsMzQzLjcyNiwxNjYuODY1eiIgZmlsbD0iIzAwMDAwMCIvPgoJPHBhdGggZD0iTTEwMi4yMDgsMTUxLjYxMUg1OS4wNDh2LTkuNzhjMC00LjgwMS0zLjU2OS03LjMxMy02Ljg3Ni03LjMxM2MtMS41MjQsMC0zLjE4OCwwLjUyMy00LjYwMSwxLjUxM0wzLjUwOSwxNjYuODYyICAgQzEuMjk3LDE2OC40MTMsMCwxNzAuNzQyLDAsMTczLjI1MmMwLDIuNTEsMS4yNTUsNC44MzksMy40NjgsNi4zOTFsNDQuMDAyLDMwLjY0NWMxLjQxMywwLjk4OSwyLjk2MSwxLjMyNCw0LjQ4NiwxLjMyNGgtMC4wMDEgICBjMi4wODIsMCw0LjIwMy0wLjc3LDUuNDM4LTIuNDQxYzAuOTM5LTEuMjcyLDEuNjU1LTIuNzAzLDEuNjU1LTQuNDk1di05LjA2NGg0My4xNjFjNC45NjIsMCw4LjgzOS00LjQ1OSw4LjgzOS05LjQyMXYtMjUuODcgICBDMTExLjA0OCwxNTUuMzU4LDEwNy4xNzEsMTUxLjYxMSwxMDIuMjA4LDE1MS42MTF6IiBmaWxsPSIjMDAwMDAwIi8+Cgk8cGF0aCBkPSJNMTkyLjA0OCwxNy42MTFoLTM3Yy00Ljk2MiwwLTksNC4wMzgtOSw5djI5NGMwLDQuOTYyLDQuMDM4LDksOSw5aDM3YzQuOTYyLDAsOS00LjAzOCw5LTl2LTI5NCAgIEMyMDEuMDQ4LDIxLjY0OSwxOTcuMDEsMTcuNjExLDE5Mi4wNDgsMTcuNjExeiIgZmlsbD0iIzAwMDAwMCIvPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo=) 16 16, auto;
- }
- *!/
 
  .grey-scale,
  img[loaded="error"] {
@@ -275,17 +311,64 @@ div#extrares {
  filter: alpha(opacity=100); /!* For IE8 and earlier *!/
  }`);*/
 
-// Modifying the URL and adding arguments, such as specifying the size
-if (urlArgs && urlArgs.length) {
-    var hIdx = location.href.indexOf('#');
-    if (!(hIdx > -1)) hIdx = location.href.length;
-    if (!new RegExp(urlArgs).test(location.href)) {
-        var newLocation = location.href.substring(0, hIdx) + urlArgs + location.href.substring(hIdx, location.href.length);
-        console.debug('new location:', newLocation);
-        location.href = newLocation;
+// URL args: Modifying the URL and adding arguments, such as specifying the size
+if (urlArgs && Object.keys(urlArgs).length) {
+    const url = new URL(location.href),
+        searchParams = url.searchParams;
+
+    for (const key in urlArgs) {
+        if (searchParams.has(key))
+            searchParams.set(key, urlArgs[key]);
+        else
+            searchParams.append(key, urlArgs[key]);
+    }
+    console.debug('new location:', url.toString());
+
+
+    // if (false)
+    if (!compareUrlSearchParams(new URL(location.href), url))
+        location.assign(url.toString());
+
+    //done: problem: url equality between old and new URLs always returns false. Find a way to compare the new URL with the old one (considering the fact that searchParams may have been reordered, so string comparison is not an option).
+    function compareUrlSearchParams(url1, url2) {
+        const sp1 = url1.searchParams;
+        const sp2 = url2.searchParams;
+        sp1.sort();
+        sp2.sort();
+        console.log(
+            sp1.toString() + " === " + sp2.toString(),
+            "\n " + sp1.toString() === sp2.toString()
+        );
+        return sp1.toString() === sp2.toString();
     }
 }
 
+if (/google\..+\/save/.test(location.href)) {
+    console.log('beginning of google.com/save site...');
+    // setInterval(wrapGSavesPanelsWithAnchors, 1500);
+    window.addEventListener('keydown', function keyDown(e) {
+        const targetElIsInput = targetIsInput(e),
+            k = (window.event) ? e.keyCode : e.which,
+            modKeys = getModKeys(e);
+        switch (k) {
+            case KeyEvent.DOM_VK_GRAVE_ACCENT: // `
+                if (modKeys.NONE) {
+                    console.log('wrapGSavesPanelsWithAnchors');
+                    GSaves.wrapPanels();
+                }
+                break;
+        }
+    });
+
+    if (false)
+        observeAllFrames(function (mutationTarget) {
+            console.log('mutationTarget:', mutationTarget);
+            if (mutationTarget.querySelector('.str-clip-card-space')) {
+                console.log('mutationTarget invoked wrapGSavesPanelsWithAnchors()');
+                GSaves.wrapPanels();
+            }
+        });
+}
 
 const belowDivClassName = 'below-st-div';
 
@@ -320,7 +403,7 @@ function getImgMetaById(id) {
     return false;
 }
 
-unsafeWindow.zipImages = zipImages;
+unsafeWindow.gZipImages = gZipImages;
 var zip = new JSZip();
 unsafeWindow.zip = zip;
 unsafeWindow.genZip = genZip;
@@ -334,10 +417,11 @@ function genZip(zipName) {
             }
             saveAs(content, `${zipName} [${Object.keys(zip.files).length}].zip`);
             unsafeWindow.zipGenerated = true;
-            window.onbeforeunload = null;
+
+            window.removeEventListener('beforeunload', zipBeforeUnload);
+            window.onunload = null;
         }
     );
-
 }
 
 unsafeWindow.extractRarbgTorrentURL = extractRarbgTorrentURL;
@@ -355,35 +439,6 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
     return torrentURL;
 }
 
-/**
- * This will set the style of an element by force, by manipulating the style HTML attribute.
- * This gives you more control, you can set the exact text you want in the HTML element (like giving a style priority via "!important").
- * @param {HTMLElement} el
- * @param {String} styleProperty
- * @param {String} styleValue
- * @return el
- */
-function setStyleByHTML(el, styleProperty, styleValue) {
-    styleProperty = styleProperty.trim();
-
-    if (el.hasAttribute('style')) {
-        const styleText = el.getAttribute('style');
-        const styleArgument = `${styleProperty}: ${styleValue};`;
-
-        let newStyle = new RegExp(styleProperty, 'i').test(styleText) ?
-            styleText.replace(new RegExp(`${styleProperty}:.+?;`, 'im'), styleArgument) :
-            styleText + ' ' + styleArgument;
-
-        console.log(
-            'adding to style ', `"${styleArgument}"`,
-            '\nnewStyle:', `"${newStyle}"`,
-            '\nelement:', el
-        );
-        el.setAttribute('style', newStyle);
-    }
-    return el;
-}
-unsafeWindow.setStyleByHTML = setStyleByHTML;
 
 /*Image boxes:
  classNames:
@@ -443,7 +498,7 @@ unsafeWindow.setStyleByHTML = setStyleByHTML;
  * fc:  focused
  * sbi: search by image
  */
-class IP {  // ImagePanel class
+class ImagePanel {  // ImagePanel class
     constructor(element) {
         if (typeof element !== 'undefined') {
             this.el = element;
@@ -454,25 +509,32 @@ class IP {  // ImagePanel class
     static get mainPanelEl() {
         return q("#irc_cc");
     }
-    /** @return {IP} returns the panel that is currently in focus (there are 3 panels) */
+    /** @return {ImagePanel} returns the panel that is currently in focus (there are 3 panels) */
     static get focP() {
-        return this.mainPanelEl ? new IP(this.mainPanelEl.querySelector('div.irc_c[style*="translate3d(0px, 0px, 0px)"]')) : console.warn('MainPanel not found!');
+        return this.mainPanelEl ? new ImagePanel(this.mainPanelEl.querySelector('div.irc_c[style*="translate3d(0px, 0px, 0px)"]')) : console.warn('MainPanel not found!');
         // return this.mainPanelEl ? new IP(this.mainPanelEl.querySelector('div.immersive-container')) : console.warn('MainPanel not found!');
     }
-
+    static get noPanelWasOpened() {
+        return q('#irc_cb').getAttribute('data-ved') == null;
+    }
+    static get panelCurrentlyOpen() {
+        return q('#irc_bg').style.display != 'none';
+    }
     /**
-     * @return {{ clt: string, id: string,
+     @return {
+     { clt: string, id: string,
                  isu: string, itg: string, ity: string,
                  oh: string, ou: string, ow: string,
                  pt: string,
                  rid: string, rmt: string, rt: string, ru: string,
                  s: string, st: string,
                  th: string, tu: string, tw
-                 }} */
+                 }
+                 }
+     */
     get imageData() {
-        return JSON.parse(getDataText(this.mainImage));
+        return JSON.parse(getMetaText(this.mainImage));
     }
-
     get isFocused() {
         return new RegExp(`translate3d(0px, 0px, 0px)`, 'i').test(this.el.getAttribute('style'));
     }
@@ -527,24 +589,24 @@ class IP {  // ImagePanel class
     }
 
     get ris_fc_Url() {
-        return this.ris_fc_Div ? this.ris_fc_Div.querySelector('a').href : "#";
+        return this.ris_fc_Div ? this.ris_fc_Div.querySelector('a').href : "JavaScript:void(0);";
     }
     /** Returns that small square at the bottom right (the focused one)
      * @return {HTMLDivElement} */
     get ris_fc_Div() {
-        return this.q('.irc-deck > div.irc_rimask.irc_rist');
+        return this.q('div.irc-deck > div.irc_rimask.irc_rist');
     }
     /** @return {NodeListOf<HTMLDivElement>} returns all related image divs (including the "VIEW MORE" div)*/
     get ris_DivsAll() {
-        return this.qa('.irc-deck > div.irc_rimask');
+        return this.qa('div.irc-deck > div.irc_rimask');
     }
     /** @return {NodeListOf<HTMLDivElement>} returns only related image divs (excluding the "VIEW MORE" div)*/
     get ris_Divs() {
-        return this.qa('.irc-deck > div.irc_rimask:not(.irc_rismo)');
+        return this.qa('div.irc-deck > div.irc_rimask:not(.irc_rismo)');
     }
-    /** @return {HTMLDivElement} returns related image container (.irc-deck)*/
+    /** @return {HTMLDivElement} returns related image container (div.irc-deck)*/
     get ris_Container() {
-        return this.q('.irc-deck');
+        return this.q('div.irc-deck');
     }
 
     /**
@@ -555,7 +617,15 @@ class IP {  // ImagePanel class
      * Share:       a.i17628
      */
     get buttons() {
-        return this.qa('.irc_but_r > tbody > tr a:first-child');
+        var buttonsContaier = this.q('.irc_but_r > tbody > tr');
+        var buttons = this.qa('.irc_but_r > tbody > tr a:first-child');
+
+        buttons.Visit = buttonsContaier.querySelector('a.i3599.irc_vpl.irc_lth');
+        buttons.Save = buttonsContaier.querySelector('a.i15087');
+        buttons.ViewSaved = buttonsContaier.querySelector('a.i18192.r-iXoO2jjyyEGY');
+        buttons.Share = buttonsContaier.querySelector('a.i17628');
+
+        return buttons;
     }
 
     //get imageUrl() {return this.mainImage.src;}
@@ -574,10 +644,12 @@ class IP {  // ImagePanel class
             description = this.descriptionText;
         var unionPTitleAndDescrAndSTitle = unionTitleAndDescr(description, unionTitleAndDescr(pTitle, sTitle));
 
-        console.log('BestNameFromTitle:', `sTitle:${sTitle}
-        pTitle:${pTitle}
-        description:${description}
-        unionPTitleAndDescrAndSTitle :${unionPTitleAndDescrAndSTitle}`
+        console.log(
+            'BestNameFromTitle:',
+            `sTitle: ${sTitle}
+pTitle: ${pTitle}
+description: ${description}
+unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         );
 
         return unionPTitleAndDescrAndSTitle;
@@ -585,7 +657,8 @@ class IP {  // ImagePanel class
         /* const candidate1 = (pTitle.length > sTitle.length ? pTitle : sTitle).trim(); // choose the longer one
          if (candidate1.length > 5 && description.length > 5)
          return candidate1 + " " + description;
-         return (candidate1.length > description.length ? candidate1 : description).trim().slice(0, 50);*/
+         return (candidate1.length > description.length ? candidate1 : description).trim().slice(0, 50);
+         */
     }
     get leftPart() {
         return this.q('.irc_t');
@@ -604,20 +677,16 @@ class IP {  // ImagePanel class
         var reverseImgSearchUrl = "#";
         if (!!risFcDiv) {
             const imgURL = this.mainImage.src || risFcDiv.querySelector('a').href;
-            reverseImgSearchUrl = getGImgReverseSearchURL(imgURL);
+            const reverseSearchURL = getGImgReverseSearchURL(imgURL),
+                url = new URL(reverseSearchURL);
+            url.searchParams.append('allsizes', '1');
+            reverseImgSearchUrl = url.toString();
         }
-        /*
-         console.log(`ReverseImgSearchUrl:${reverseImgSearchUrl}
-         Panel.MainImage:${panel.mainImage}
-         Panel.imageUrl:${panel.imageUrl}
-         Panel: ${panel}`);
-         */
-        // openInTab(reverseImgSearchUrl);
         return reverseImgSearchUrl;
     }
     /**Goes to the previous (Left) main mainImage*/
     static previousImage() {
-        const previousImageArrow = q('#irc_la');
+        const previousImageArrow = q('a[id^="irc-la"]');  // id that starts with "irc-la"
         var x = previousImageArrow.style.display != 'none' ? // is it there?
             !previousImageArrow.click() : // returns true
             false;
@@ -627,7 +696,7 @@ class IP {  // ImagePanel class
 
     /**Goes to the next (Right) main mainImage*/
     static nextImage() {
-        const nextImageArrow = q('#irc_ra');
+        const nextImageArrow = q('a[id^="irc-ra"]');  // id that starts with "irc-ra"
         var x = nextImageArrow.style.display != 'none' ? // is it there?
             !nextImageArrow.click() : // returns true
             false;
@@ -636,13 +705,15 @@ class IP {  // ImagePanel class
     }
     static modifyP(panelEl) {
         console.log('Modifying panelEl:', panelEl);
-        let p = new IP(panelEl);
+        let p = new ImagePanel(panelEl);
 
         const classList = p.rightPart.classList;
         if (!classList.contains('scroll-nav')) {
             classList.add('scroll-nav');
         }
 
+        // if(!!p.buttons.Save) underlineText(p.buttons.Save.querySelector('span'), 's');
+        // if(!!p.buttons.ViewSaved) underlineText(p.buttons.ViewSaved.querySelector('span'), 'v');
 
         // p.makeDescriptionClickable();
         /// belowDivClassName
@@ -662,7 +733,7 @@ class IP {  // ImagePanel class
         p.inject_ImageHost();
 
         const dimensionsEl = p.q('.irc_idim');
-        dimensionsEl.addEventListener('click', IP.moreSizes);
+        dimensionsEl.addEventListener('click', ImagePanel.moreSizes);
         dimensionsEl.classList.add('hover-click');
 
         // remove "Images may be subject to copyright"
@@ -672,14 +743,14 @@ class IP {  // ImagePanel class
 
         // injecting rarbg torrent link button
         (function () {
-            const rarbg_tl = createElement(`<a class="_r3 hover-click o5rIVb torrent-link" 
-    style=" float: left; padding: 4px; display: inline-block; font-size: 10px; color: white;">
-    <img src="https://rarbg.unblocker.win/cdn/static/20/img/16x16/download.png" alt="Rarbg torrent link" border="0" style=" width: 25px; height: 25px; ">
+            const rarbg_tl = createElement(`<a class="_r3 hover-click o5rIVb torrent-link"
+   style=" float: left; padding: 4px; display: inline-block; font-size: 10px; color: white;">
+    <img src="https://rarbg.unblocker.win/cdn/static/20/img/16x16/download.png" alt="Rarbg torrent link" border="0"
+         style=" width: 25px; height: 25px; ">
     <label style=" display: list-item; ">Torrent link</label></a>`);
             rarbg_tl.onclick = () => {
-                if (/\/torrent\/|rarbg/i.test(p.pTitle_Anchor.href)) {
-                    return anchorClick(extractRarbgTorrentURL(p.pTitle_Anchor.innerText, p.pTitle_Anchor.href), '_blank');
-                }
+                if (/\/torrent\/|rarbg/i.test(p.pTitle_Anchor.href))
+                    anchorClick(extractRarbgTorrentURL(p.pTitle_Anchor.innerText, p.pTitle_Anchor.href), '_blank');
             };
             p.pTitle_Anchor.before(rarbg_tl);
         })();
@@ -689,22 +760,19 @@ class IP {  // ImagePanel class
          * @param {WheelEvent} wheelEvent
          * @return {boolean}
          */
-        function (wheelEvent) {
+        function handleScroll(wheelEvent) {
             if (!wheelEvent.ctrlKey && !wheelEvent.metaKey && !wheelEvent.shiftKey && !wheelEvent.altKey) {
-                let elUnderMouse =
-                    // wheelEvent.target
-                    elementUnderMouse(wheelEvent)
-                ;
-                if (IP.mainPanelEl.contains(elUnderMouse)) {
+                let elUnderMouse = elementUnderMouse(wheelEvent);
+                if (ImagePanel.mainPanelEl.contains(elUnderMouse)) {
                     try {
                         // Listen for scroll events
                         /** @type {DOMRect} */
                             // var rect = IP.mainPanelEl.getBoundingClientRect();
                             // console.log(rect.top, rect.right, rect.bottom, rect.left);
 
-                        const leftPart = IP.focP.leftPart;
-                        const rightPart = IP.focP.rightPart; // this is NOT the entire RIGHT part
-                        const irc_ris = IP.focP.q('.irc_ris');
+                        const leftPart = ImagePanel.focP.leftPart;
+                        const rightPart = ImagePanel.focP.rightPart; // this is NOT the entire RIGHT part
+                        const irc_ris = ImagePanel.focP.q('.irc_ris');
                         const onLeftSide = isOrContains(leftPart, elUnderMouse); //containsClassName(elUnderMouse, '.irc_t');// on left half of panel
                         const onRightPart = isOrContains(rightPart, elUnderMouse); // on RIGHT half of panel
                         const delta = getWheelDelta(wheelEvent);
@@ -713,18 +781,24 @@ class IP {  // ImagePanel class
                             return false;
                         }
                         /// Wheel definetely moved at this point
-                        let wheelUp = invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
+                        let wheelUp = Settings.invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
                         if (!onLeftSide) {   // If the mouse is under the RIGHT side of the image panel
                             if (isOrContains(elUnderMouse, leftPart)) {
-                                (wheelUp) ? IP.nextImage() :
-                                    IP.previousImage();
+                                if (wheelUp) {
+                                    ImagePanel.nextImage();
+                                } else {
+                                    ImagePanel.previousImage();
+                                }
                             }
                             if (onRightPart || isOrContains(irc_ris, elUnderMouse) || (elUnderMouse.classList.contains('irc_mut'))) {
                                 // console.log('elUnderMouse:', elUnderMouse);
-                                (wheelUp) ? nextRelImg() :
+                                if (wheelUp) {
+                                    nextRelImg();
+                                } else {
                                     prevRelImg();
+                                }
                             } else {
-                                console.debug('Mgouse wheel did NOT scroll while over a container element.\nelUnderMouse:', elUnderMouse);
+                                console.debug('Mouse wheel did NOT scroll while over a container element.\nelUnderMouse:', elUnderMouse);
                             }
                             wheelEvent.preventDefault();
                         }
@@ -736,7 +810,7 @@ class IP {  // ImagePanel class
             }
         });
 
-        // Underlining binded keys
+        // Underlining bound keys
         /* var keymap = new Map([ // Key: selector, Value: character
          ['.i15087', 's'],
          ['.i18192', 'v']
@@ -755,7 +829,7 @@ class IP {  // ImagePanel class
             console.error('image dimensions element not found');
         }
 
-        IP.updateP(p);
+        ImagePanel.updateP(p);
     }
     static updateP(panelEl) {
         // console.debug('Updating panel');
@@ -764,7 +838,7 @@ class IP {  // ImagePanel class
             return false;
         }
 
-        let p = (panelEl instanceof HTMLElement) ? new IP(panelEl) : IP.focP;
+        let p = (panelEl instanceof HTMLElement) ? new ImagePanel(panelEl) : ImagePanel.focP;
         // p.removeLink();
         // p.injectSearchByImage();
         // p.addDownloadRelatedImages();
@@ -783,15 +857,14 @@ class IP {  // ImagePanel class
         }
     }
     static moreSizes() {
-        const panel = IP.focP;
+        const panel = ImagePanel.focP;
         const reverseImgSearchUrl = getGImgReverseSearchURL(panel.ris_fc_Div.querySelector('img').src);
         let z = open().document;
-        //TODO:
         fetchUsingProxy(reverseImgSearchUrl, function (content) {
             console.log('content:', content);
             let doc = document.createElement('html');
             doc.innerHTML = content;
-            const allSizesAnchor = doc.querySelector(allSizesSelector);
+            const allSizesAnchor = doc.querySelector(Constants.Selectors.showAllSizes);
             if (allSizesAnchor && allSizesAnchor.href) {
                 fetchUsingProxy(allSizesAnchor.href, function (content2) {
                         let doc2 = document.createElement('html');
@@ -806,7 +879,7 @@ class IP {  // ImagePanel class
     }
     static download_ris() {
         const dir = "GImgRis " + document.title.replace(/google|com/gi, '');
-        const relatedImageDivs = IP.focP.ris_DivsAll;
+        const relatedImageDivs = ImagePanel.focP.ris_DivsAll;
         console.log('download related images:', relatedImageDivs);
 
         var metaDataStr =
@@ -817,7 +890,7 @@ class IP {  // ImagePanel class
         ;
         for (const imgDiv of relatedImageDivs) {
             var img = imgDiv.querySelector('img'),
-                dataText = getDataText(img),
+                dataText = getMetaText(img),
                 metaObj = JSON.parse(dataText),
                 imgTitle
             ;
@@ -833,20 +906,19 @@ class IP {  // ImagePanel class
             console.log("Downloading:", href, imgTitle, dir, img);
             download(href, imgTitle, dir, img);
         }
-        download(makeTextFile(metaDataStr), 'info.txt', dir);
+        anchorClick(makeTextFile(metaDataStr), dir + '/' + 'info.txt');
     }
     static downloadCurrentImage() {
         try {
-            const panel = IP.focP;
+            const panel = ImagePanel.focP;
             const name = panel.bestNameFromTitle;
             console.log('downloadCurrentImage:', name);
-            // if (!this.focusedRelatedImageDiv) return;
-            const focusedRelatedImageDiv = panel.ris_fc_Div;
-            var currentImageURL = panel.mainImage.src && panel.mainImage.parentNode.classList.contains("display-original-mainImage") ?
-                focusedRelatedImageDiv.querySelector('img').src :
-                focusedRelatedImageDiv.querySelector('[href]').href;
+            const focused_risDiv = panel.ris_fc_Div;
+            var currentImageURL = panel.mainImage.src && panel.mainImage.parentElement.classList.contains("display-original-mainImage") ?
+                focused_risDiv.querySelector('img').src :
+                focused_risDiv.querySelector('[href]').href;
             console.log('Download:', name, currentImageURL);
-            download(currentImageURL, name, undefined, focusedRelatedImageDiv);
+            download(currentImageURL, name, undefined, focused_risDiv);
             panel.q('.torrent-link').click();
         } catch (e) {
             console.warn(e);
@@ -877,12 +949,10 @@ class IP {  // ImagePanel class
         const targetEl = this.q('.irc_msc');//this.q('div.irc_ris');
 
         // if (risContainer && !risContainer.parentNode.classList.contains('download-related')) {
-        const buttonHtml = `<a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}" 
-style="padding-right: 5px; padding-left: 5px; text-decoration:none;">
-<span>${text}</span></a>`;
+        const buttonHtml = `<a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}" style="padding-right: 5px; padding-left: 5px; text-decoration:none;"> <span>${text}</span></a>`;
         var button = createElement(buttonHtml);
         button.addEventListener('click', function (element) {
-            IP.download_ris(element);
+            ImagePanel.download_ris(element);
             return false;
         });
         targetEl.after(button);
@@ -896,26 +966,15 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;">
             const className = 'download-image';
 
             // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
-            const buttonHtml = `<td><a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}">
-<span>${text}</span></a></td>`;
-            //             const html = `<span class="${className}" target="_blank" data-ved="${dataVed}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
-            // <span class="irc_ho" dir="ltr" style="text-align: left;">${text}</span></span>`;
-            //             const button = this.addElementAfterSTitle(html, className + " hover-click", IP.downloadCurrentImage, 'BOTTOM');
+            const buttonHtml = `<td><a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}"> <span>${text}</span></a></td>`;
             const button = createElement(buttonHtml);
-            button.addEventListener('click', function (element) {
-                IP.downloadCurrentImage(element);
+            button.addEventListener('click', function handleClick(element) {
+                ImagePanel.downloadCurrentImage(element);
                 return false;
             });
             var tb = this.buttons[0].parentElement.cloneNode(false);
             tb.appendChild(button);
-            const saveBtn = this.q('.iv_mssc.i35661');
             return this.q('.view-image').parentNode.after(tb);
-            //this.buttons[1].after(tb);
-            /*if (this.buttons && this.buttons.length) {
-             const lastButton = this.buttons[this.buttons.length - 1];
-             const saveButton = this.buttons[0].parentNode.querySelector('a.i15087');
-             ((!!saveButton) ? saveButton : lastButton).before(button);
-             }*/
         }
     }
 
@@ -923,11 +982,9 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;">
      * @return {*} */
     inject_sbi() {
         const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
-        const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
+        const dataVed = ''; //()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
         const className = `search-by-image`;
-        var html = `<a class="o5rIVb ${className}" target="${DEFAULT_TARGET}" href="${href}" data-ved="${dataVed}" 
-rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
-<span class="irc_ho" dir="ltr" style="text-align: left;">Search&nbsp;by&nbsp;image</span></a>`;
+        var html = `<a class="o5rIVb ${className}" target="${Settings.defaultAnchorTarget}" href="${href}" data-ved="${dataVed}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2" <span class="irc_ho" dir="ltr" style="text-align: left;">Search&nbsp;by&nbsp;image</span></a>`;
 
         return this.addElementAfterSTitle(html, className, null, 'RIGHT');
     }
@@ -948,41 +1005,28 @@ rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-c
             const className = 'view-image';
 
             // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
-            const buttonHtml = `<td><a href="#" target="${"_blank"}" class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}">
-<span>${text}</span></a></td>`;
-            //             const html = `<span class="${className}" target="_blank" data-ved="${dataVed}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-ctbtn="2"
-            // <span class="irc_ho" dir="ltr" style="text-align: left;">${text}</span></span>`;
-            //             const button = this.addElementAfterSTitle(html, className + " hover-click", IP.downloadCurrentImage, 'BOTTOM');
+            const buttonHtml = `<td><a href="JavaScript:void(0);" target="${"_blank"}" class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}"> <span>${text}</span></a></td>`;
             const link = createElement(buttonHtml);
-            /*button.addEventListener('click', function (element) {
-             let url = IP.focP.ris_fc_Url; //IP.focusedPanel.mainImage.parentNode.href;
-             openInTab(url);
-             return false;
-             });*/
             var globeIcon = document.querySelector('._RKw._wtf._Ptf');
             if (!globeIcon) {
                 globeIcon = document.querySelector('.RL3J9c.Cws1Yc.wmCrUb');
             }
-            link.firstElementChild.before(globeIcon.cloneNode(true));
+            if (!!globeIcon)
+                link.firstElementChild.before(globeIcon.cloneNode(true));
 
             var tb = this.buttons[0].parentElement.cloneNode(false);
             tb.appendChild(link);
 
 
             var afterSaveBtn = false; // add View image button after save button?
-            // 				 = const saveBtn = this.q('.iv_mssc.i35661');
+            const saveBtn = this.q('.iv_mssc.i35661');
             return (afterSaveBtn ? saveBtn.parentNode : this.buttons[0].parentNode).after(tb);
-            /*if (this.buttons && this.buttons.length) {
-             const lastButton = this.buttons[this.buttons.length - 1];
-             const saveButton = this.buttons[0].parentNode.querySelector('a.i15087');
-             ((!!saveButton) ? saveButton : lastButton).before(button);
-             }*/
         }
     }
     update_ViewImage() {
         const viewImage = this.q('.view-image');
         if (viewImage) {
-            viewImage.href = IP.focP.ris_fc_Url;
+            viewImage.href = ImagePanel.focP.ris_fc_Url;
         }
         else {
             console.warn('viewImage element not found:', viewImage);
@@ -996,7 +1040,7 @@ rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" data-c
         if (this.sTitle_Anchor) {
             // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
             var className = 'image-host hover-click';
-            const element = createElement(`<a class="${className}" href="" target="${DEFAULT_TARGET}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0"  data-ved="" data-ctbtn="2" 
+            const element = createElement(`<a class="${className}" href="" target="${Settings.defaultAnchorTarget}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0"  data-ved="" data-ctbtn="2" 
 style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
 <span class="irc_ho" dir="ltr" style="text-align: center;">Image&nbsp;Host</span></a>`);
             // const button = this.addElementAfterSTitle(html, "image-host hover-click", null, 'NONE');
@@ -1005,7 +1049,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         }
     }
     update_ImageHost() {
-        const focusedImageDiv = IP.focP.ris_fc_Div;
+        const focusedImageDiv = ImagePanel.focP.ris_fc_Div;
         if (focusedImageDiv) {
             const url = focusedImageDiv.querySelector('a').href;
             const hostname = getHostname(isDdgUrl(url) ? reverseDdgProxy(url) : url);
@@ -1015,14 +1059,8 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
                 ih.innerText = hostname;
                 ih.href = gImgSearchURL + 'site:' + hostname;
 
-                // ih.style.color = ublSet.has(hostname) ? `${successColor} !important;` : null;
-                if (ublSet.has(hostname))
-                    setStyleByHTML(ih, 'color', `${successColor} !important`);
-                // if (ublSet.has(hostname)) {
-                //     ih.classList.add('ubl-site');
-                // } else {
-                //     ih.classList.remove('ubl-site');
-                // }
+                if (ublSitesSet.has(hostname))
+                    setStyleInHTML(ih, 'color', `${successColor} !important`);
             } else {
                 console.warn('ImageHost element not found:', ih);
             }
@@ -1044,7 +1082,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         const dataVed = '';//()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
         const hostname = getHostname(this.sTitle_Anchor.href);
         const spanClass = `site-search`;
-        const html = `<a class="${spanClass} _r3 hover-click o5rIVb" target="${DEFAULT_TARGET}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" href="${href}" data-ved="${dataVed}" data-ctbtn="2" <span class="irc_ho" dir="ltr" style="text-align: left;font-size: 12px;" >Site: ${hostname}</span></a>`;
+        const html = `<a class="${spanClass} _r3 hover-click o5rIVb" target="${Settings.defaultAnchorTarget}" rel="noreferrer" data-noload="" referrerpolicy="no-referrer" tabindex="0" href="${href}" data-ved="${dataVed}" data-ctbtn="2" <span class="irc_ho" dir="ltr" style="text-align: left;font-size: 12px;" >Site: ${hostname}</span></a>`;
         var siteSearch = createElement(html);
 
         let ddgSearch = siteSearch.cloneNode(false);
@@ -1052,7 +1090,6 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         ddgSearch.id = "ddgSearch";
 
         siteSearch = this.addElementAfterSTitle(siteSearch, "", null, 'BOTTOM', 'div');
-        // this.pTitle_Anchor.before(ddgSearch);
         siteSearch.appendChild(ddgSearch);
         return siteSearch;
     }
@@ -1061,7 +1098,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         const hostname = getHostname(this.sTitle_Anchor.href);
         if (siteSearchAnchor) {
             siteSearchAnchor.innerText = hostname;
-            siteSearchAnchor.href = (siteSearchUrl(getHostname(IP.focP.q('span a.irc_lth.irc_hol').href)));
+            siteSearchAnchor.href = (siteSearchUrl(getHostname(ImagePanel.focP.q('span a.irc_lth.irc_hol').href)));
         } else {
             console.warn('Site Search element not found:', siteSearchAnchor);
         }
@@ -1071,15 +1108,8 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
             ddgAnchor.href = ddgProxy(this.pTitle_Anchor.href);
         }
 
-        // this.sTitle_Anchor.style.color = ublSet.has(hostname) ? `${successColor} !important` : null;
-        if (ublSet.has(hostname))
-            setStyleByHTML(this.sTitle_Anchor, 'color', `${successColor} !important`);
-
-        // if (ublSet.has(hostname)) {
-        //     this.sTitle_Anchor.classList.add('ubl-site');
-        // } else {
-        //     this.sTitle_Anchor.classList.remove('ubl-site');
-        // }
+        if (ublSitesSet.has(hostname))
+            setStyleInHTML(this.sTitle_Anchor, 'color', `${successColor} !important`);
     }
 
     /** Removes the annoying image link when the panel is open */
@@ -1088,9 +1118,6 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         const anchor = image.parentNode;
         anchor.href = null;
         console.log('anchor.href', anchor.href);
-        /*anchor.onclick = function () {
-         return false;
-         };*/
     }
     addImageAttributes() {
         createAndAddAttribute(this.mainImage, 'img-title', this.pTitle_Text);
@@ -1125,11 +1152,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         switch (position) {
             case 'BOTTOM':
                 // check if the below-st-div exists, create if it doesn't, then appendChild
-                let belowDiv = sTitle.parentNode.parentNode.querySelector(`.${belowDivClassName}`);
-                /*if (!belowDiv) {
-                 belowDiv = createElement(`<div class="${belowDivClassName}_r3 ${containerClassName}-container" style="padding-right: 5px; text-decoration:none;"/></div>`);
-                 sTitle.parentNode.after(belowDiv);
-                 }*/
+                let belowDiv = sTitle.parentElement.parentElement.querySelector(`.${belowDivClassName}`);
                 belowDiv.after(containerEl);
                 break;
             case 'LEFT':
@@ -1153,87 +1176,101 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
     }
 }
 
-unsafeWindow.IP = IP;
-unsafeWindow.successfulUrlsSet = ublSet;
+unsafeWindow.ImagePanel = ImagePanel;
+unsafeWindow.successfulUrlsSet = ublSitesSet;
+unsafeWindow.ublSitesSet = ublSitesSet;
 unsafeWindow.ublMap = ublMap;
 
 go();
+if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of determining whether the page is a Google Image search
+    window.addEventListener("keydown", onKeyDown, true);
+    console.log('added super google key listener');
+    window.addEventListener("load", function modifyImgsOnLoad() {
+        for (const a of getImgAnchors()) {
+            let img = a.querySelector('img');
+            createAndAddAttribute(img, 'download-name', getGimgDescription(img));
+            markImageOnLoad(img, a.href);
+        }
+    }, true);
 
-window.addEventListener("keydown", onkeydown, true);
-console.log('added super google key listener');
-window.addEventListener("load", function () {
-    for (let a of getImgAnchors()) {
-        let img = a.querySelector('img');
-        createAndAddAttribute(img, 'download-name', getGimgDescription(img));
-        markImageOnLoad(img, a.href);
-    }
-}, true);
-
-let GIUtOST_MutOb = (window.MutationObserver) ? window.MutationObserver : window.WebKitMutationObserver;
-if (GIUtOST_MutOb) {
-    const GIUtOST_chgMon = new GIUtOST_MutOb(function (mutationSet) {
-        mutationSet.forEach(function (mutation) {
-            for (let i = 0; i < mutation.addedNodes.length; i++) { // noinspection EqualityComparisonWithCoercionJS
-                if (mutation.addedNodes[i].nodeType == 1) {
-                    GIUtOST_checkNode(mutation.addedNodes[i]);
-
-                    const dlLimitSlider = q('#dlLimitSlider');
-                    if (!!dlLimitSlider) {
-                        var tmpValue = dlLimitSlider.getAttribute('value');
-                        const numImages = qa('.rg_bx').length;
-                        dlLimitSlider.setAttribute('max', numImages);
-                        const newValue = tmpValue > numImages ? numImages : tmpValue;
-                        dlLimitSlider.setAttribute('value', newValue);
-                        q('#dlLimitSliderValue').setAttribute('value', newValue);
-                    }
-                }
-            }
-        });
-    }); // attach chgMon to document.body
-    const opts = {childList: true, subtree: true};
-    GIUtOST_chgMon.observe(document.body, opts);
+    (function afterPageReloads() {
+        var reloading = sessionStorage.getItem("reloading");
+        if (reloading) {
+            sessionStorage.removeItem("reloading");
+            GSaves.wrapPanels();
+        }
+    })();
 }
 
-GIUtOST_checkNode(document.elements);
+
+observeDocument(function (mutationTarget, addedNodes) {
+    clickLoadMoreImages(mutationTarget);
+
+    for (const imgbox of document.querySelectorAll("div.rg_bx:not(.ext)")) {
+        if (imgbox.querySelector('.text-block')) return;
+        const img = imgbox.querySelector('img.rg_ic'),
+            ext = getMeta(img).ity;
+        img.classList.add('ext');
+        const color = ext == 'gif' ? "purple" : "blue";
+        img.after(createElement(`<div class="text-block rg_ilmbg" style="background-color: ${color};">
+<h4>${ext}</h4></div>`
+        ));
+    }
+
+    (function updateDlLimitSliderMax() {
+        const dlLimitSlider = q('#dlLimitSlider');
+        if (dlLimitSlider) {
+            var tmpValue = dlLimitSlider.getAttribute('value');
+            const numImages = qa('.rg_bx').length;
+            dlLimitSlider.setAttribute('max', numImages);
+
+            const newValue = Math.min(numImages, tmpValue);
+            dlLimitSlider.setAttribute('value', newValue);
+            q('#dlLimitSliderValue').setAttribute('value', newValue);
+        }
+    })();
+});
+// attach chgMon to document.body
+
 
 function go() {
     try {
-        // iterating of the stored ubl sites
-        for (const ublHostname of GM_getValue(UBL_SITES_VALUE_NAME, new Set([]))) {
-            ublSet.add(ublHostname);
-        }
-        for (const [ublHostname, data] of new Map(GM_getValue(UBL_SITES_MAP_VALUE_NAME))) {
-            ublMap.set(ublHostname, data);
-        }
+        // iterating over the stored ubl sites
+        for (const ublHostname of GM_getValue(Constants.GMValues.UBL_SITES, new Set())) ublSitesSet.add(ublHostname);
+        for (const ublURL of GM_getValue(Constants.GMValues.UBL_URLS, new Set())) ublMetas.add(ublURL);
+        for (const [ublHostname, data] of new Map(GM_getValue(Constants.GMValues.UBL_SITES_MAP, new Map()))) ublMap.set(ublHostname, data);
+        if (AUTO_SAVE_UBL_SITES) setInterval(storeUblSitesSet, 5000);
 
-        var allSizesAnchor = q(allSizesSelector);
-        if (!!allSizesAnchor) allSizesAnchor.click();
-
+        // if (new URL(location.href).searchParams.get('allsizes'))
+        {
+            var showAllSizesAnchor = q(Constants.Selectors.showAllSizes);
+            if (!!showAllSizesAnchor) showAllSizesAnchor.click();
+        }
         const conditionSelector = '#irc_cc > div';
+
         waitForElement(() => {
-            if (IP.mainPanelEl && IP.focP && IP.focP.mainImage && IP.focP.buttons) {
+            if (ImagePanel.mainPanelEl && ImagePanel.focP && ImagePanel.focP.mainImage && ImagePanel.focP.buttons) {
                 return qa(conditionSelector);
             }
         }, function startPanelModifications(panelEl) {
-            IP.modifyP(panelEl);
+            ImagePanel.modifyP(panelEl);
             const mutationObserver = new MutationObserver(function (mutations) {
                 mutations.forEach(function (mutation) {
                     if (!mutation.addedNodes.length) {
                         return;
                     }
                     try {
-                        q('#dlLimitSlider').setAttribute('max', qa('.rg_bx').length);
-                        if (!!IP.focP) {
-                            // console.log('Mutation causing the update:', mutation);
-                            IP.updateP(IP.focP);
+                        if (!!ImagePanel.focP) {
+                            ImagePanel.updateP(ImagePanel.focP);
                         }
+                        q('#dlLimitSlider').setAttribute('max', qa('.rg_bx').length);
                     } catch (e) {
-                        console.warn(e, "Focused panel:", IP.focP);
+                        console.warn(e, "Focused panel:", ImagePanel.focP);
                     }
                 })
             });
 
-            const target = IP.mainPanelEl;
+            const target = ImagePanel.mainPanelEl;
             // console.debug('Target element to be observed:', target, 'type:', typeof target);
             mutationObserver.observe(target, {
                 childList: true, subtree: true,
@@ -1241,95 +1278,129 @@ function go() {
             });
         });
 
-        // const toggleEncryptedGoogleAnchor = createElement(`<a id="toggleEngrypted" href="${toggleEncryptedGoogle(true)}">${/www\.google/.test(location.hostname)?"engrypted.google&nbsp;⇌":"www.google.com"}</a>`)
-        // const listElement = document.createElement('i');
-        // listElement.classList.add('ab_ctl');
-        // listElement.appendChild(toggleEncryptedGoogleAnchor);
-        // q('#ab_ctls').appendChild(listElement);
-
-        // const onUpdateCallback = mutations => Array.from(mutations.querySelectorAll(panelSelector)).forEach(IP.updatePanel);
-        // observeDocument(onUpdateCallback);
-
-        // addToSet(storedSuccessfulURLs, successfulUrls);
-        // log('Stored successfulUrls:', storedSuccessfulURLs);
-        // log('successfulUrls:', successfulUrls);
-
-        if (AUTO_SAVE_UBL_SITES) setInterval(storeSuccessfulUrlsSet, 5000);
-
+        // adds a toggleEncryptedGoogle button
+        /*q('#ab_ctls').appendChild(createElement(`<i class="ab_ctl">
+    <a id="toggleEngrypted" href="${toggleEncryptedGoogle(true)}"> ${/www\.google/.test(location.hostname) ? "engrypted.google&nbsp;⇌" : "www.google.com"}</a>
+</i>`));*/
     } catch (e) {
         console.error(e);
     }
 }
 
-function updateSuccessfulUrlsSet() {
-    for (const img of qa('.display-original-mainImage, img[loaded="true"]')) {
-        const gimgRUrl = getGimgRUrl(img);
-        if (img.classList.contains('display-original-mainImage-failed') || img.classList.contains('display-original-mainImage-ddg-failed'))
+function getQualifiedUblImgMetas() {
+    let qualifiedUblImgMetas = new Set();
+    for (const img of qa(`.${Tokens.DISPLAY_ORIGINAL}, img[loaded="true"]`)) {
+        if (img.classList.contains(Tokens.FAILED) || img.classList.contains(Tokens.FAILED_DDG))
             continue;
-        let siteUrl = "" + getHostname(gimgRUrl);
-        if (/google\.com/.test(siteUrl)) siteUrl = getHostname(img.getAttribute('rg_meta_ru'));
-        if (/tumblr\.com/.test(siteUrl)) siteUrl = siteUrl.replace(/^\d+?\./, "");
-        ublSet.add(siteUrl);
-        console.log('adding ubl site:', siteUrl);
-    }
-    console.log('in updateSuccessfulUrlsSet:', Array.from(ublSet));
-    return ublSet; // returning just cuz it could be handy
-}
-function updateSuccessfulUrlsMap() {
-    for (const img of qa('.display-original-mainImage, img[loaded="true"]')) {
-        let url = getGimgRUrl(img),
-            siteHostname = "" + getHostname(reverseDdgProxy(url));
-        if (/google\.com/.test(siteHostname)) siteHostname = getHostname(img.getAttribute('rg_meta_ru'));
-        if (/tumblr\.com/.test(siteHostname)) siteHostname = siteHostname.replace(/^\d+?\./, "");
+        let meta = getMeta(img);
+        if (meta && Math.max(meta.ow, meta.oh) < 120) continue;
+        meta.imgEl = img;
 
-        ublMap.addURL(url, img.loaded == true || img.loaded == "ddgp", {
-            imgEl: img,
-            dimensions: img.getAttribute('img-dim')
-        });
-        console.log('adding ubl site:', siteHostname, 'url:', url);
+        qualifiedUblImgMetas.add(meta);
+        console.log('Ubl URLs:', isBase64ImageData(img.src) ? 'base64 image data...' : img.src);
     }
-    return ublMap; // returning just cuz it could be handy
+    return qualifiedUblImgMetas;
 }
 
-function storeSuccessfulUrlsSet() {
-    updateSuccessfulUrlsSet();
+unsafeWindow.storeUblMap = storeUblMap;
+
+function storeUblSitesSet() {
+    for (const imgMeta of getQualifiedUblImgMetas()) {
+        let hostname = "" + getHostname(imgMeta.src);
+        if (/tumblr\.com/.test(hostname)) hostname = hostname.replace(/^\d+?\./, "");
+        if (/google|gstatic/i.test(hostname)) {
+            hostname = getHostname(imgMeta.anchor.href);
+            if (/google|gstatic/i.test(hostname)) {
+                continue;
+            }
+        }
+        ublSitesSet.add(hostname);
+    }
     const merged = new Set();
-    const stored = GM_getValue(UBL_SITES_VALUE_NAME);
-    addToSet(merged, ublSet);
+    const stored = GM_getValue(Constants.GMValues.UBL_SITES);
+    addToSet(merged, ublSitesSet);
     addToSet(merged, stored);
 
-    const diff = Array.from(ublSet).filter(x => Array.from(stored).indexOf(x) < 0);
-    GM_setValue(UBL_SITES_VALUE_NAME, Array.from(merged));
+    const diff = Array.from(ublSitesSet).filter(x => Array.from(stored).indexOf(x) < 0);
+    GM_setValue(Constants.GMValues.UBL_SITES, Array.from(merged));
 
     console.log("Found new unblocked sites:", diff);
-    // console.log('stored set:', GM_getValue('unblocked sites of og images'));
-    return ublSet;
+    return ublSitesSet;
+
 }
-unsafeWindow.storeSuccessfulUrlsMap = storeSuccessfulUrlsMap;
-function storeSuccessfulUrlsMap() {
-    updateSuccessfulUrlsMap();
-    const stored = new Map(GM_getValue(UBL_SITES_MAP_VALUE_NAME));
+unsafeWindow.ublMetas = ublMetas;
+unsafeWindow.storeUblMetas = storeUblMetas;
+function storeUblMetas() {
+    for (const imgMeta of getQualifiedUblImgMetas()) {
+        imgMeta.imgEl = undefined;
+        ublMetas.add(imgMeta);
+    }
+
+    const stored = new Set(GM_getValue(Constants.GMValues.UBL_URLS, new Set()));
+    for (const meta of stored) {
+        ublMetas.add(meta);
+    }
+    console.debug(
+        'stored ublURLs:', stored,
+        '\nnew ublURLs:', ublMetas
+    );
+
+    GM_setValue(Constants.GMValues.UBL_URLS, Array.from(ublMetas).map(ublMeta => {
+        if (!ublMeta || Array.isArray(ublMeta)) {
+            ublMetas.delete(ublMeta);
+            return;
+        }
+        delete ublMeta.clt;
+        delete ublMeta.cl;
+        delete ublMeta.cb;
+        delete ublMeta.cr;
+        delete ublMeta.sc;
+        delete ublMeta.tu;
+        delete ublMeta.th;
+        delete ublMeta.tw;
+        delete ublMeta.rh;
+        delete ublMeta.rid;
+        delete ublMeta.rt;
+        delete ublMeta.itg;
+        delete ublMeta.imgEl;
+
+        return ublMeta;
+    }));
+    return ublMetas;
+}
+function storeUblMap() {
+    for (const imgMeta of getQualifiedUblImgMetas()) {
+        ublMap.addURL(imgMeta.src, imgMeta.imgEl.loaded == true || imgMeta.imgEl.loaded == "ddgp", {
+            imgEl: imgMeta.imgEl,
+            dimensions: (imgMeta.ow + 'x' + imgMeta.oh)
+        });
+    }
+
+    const stored = new Map(GM_getValue(Constants.GMValues.UBL_SITES_MAP, new Map()));
     for (const [k, v] of stored) {
         ublMap.addURL(k, v);
     }
-    console.debug('stored map:', stored, 'new ublMap:', ublMap);
+    console.debug(
+        'stored map:', stored,
+        '\nnew ublMap:', ublMap
+    );
 
-    GM_setValue(UBL_SITES_MAP_VALUE_NAME, Array.from(ublMap.entries()));
+    GM_setValue(Constants.GMValues.UBL_SITES_MAP, Array.from(ublMap.entries()));
     return ublMap;
 }
 
-/**abbreviation for querySelectorAll()*/
+/** @param selector
+ * @return {NodeListOf<Node>}*/
 function qa(selector) {
-    let x = document.querySelectorAll(selector);
-    return x ? x : null;
+    return document.querySelectorAll(selector);
 }
+/** @param selector
+ * @return {HTMLElement} */
 function q(selector) {
-    let x = document.querySelector(selector);
-    return x ? x : null;
+    return document.querySelector(selector);
 }
 
-// Google images
-function GIUtOST_checkNode(els) {
+function clickLoadMoreImages(mutationNode) {
     // click "Load more images"
     let el = q("#smb");
     if (el) {
@@ -1337,16 +1408,12 @@ function GIUtOST_checkNode(els) {
     }
 }
 
-// function getImgBoxes() {return qa('.rg_bx');}
 
-
-//[Google.com images]
-function getMetaEl(thumbnail) {
-    // return thumbnail.parentNode.closest('.rg_meta');
-    return thumbnail.parentNode.parentNode.querySelector('.rg_meta');
-    // return thumbnail.closest('.rg_bx').querySelector('.rg_meta');
-}
-function getDataText(imgN) {
+/**
+ * @param imgN
+ * @return {string}
+ */
+function getMetaText(imgN) {
     let data = "Not a main mainImage, No data text available";
     try {
         data = getMetaEl(imgN).innerText;
@@ -1354,41 +1421,79 @@ function getDataText(imgN) {
         console.error('Caught:', e);
     }
     // console.log('Data text:', data);
+
+    //[Google.com images]
+    /**
+     * @deprecated just use getMeta() instead
+     * @param thumbnail
+     * @return {HTMLDivElement }
+     */
+    function getMetaEl(thumbnail) {
+        // return thumbnail.parentNode.closest('.rg_meta');
+        return thumbnail.parentNode.parentNode.querySelector('div.rg_meta');
+        // return thumbnail.closest('.rg_bx').querySelector('.rg_meta');
+    }
+
     return data;
 }
-function getGimgDescription(imgN) {
-    let txt = getDataText(imgN);
-    let title = extractFromText(txt, "pt");
-    let desc = extractFromText(txt, "s");
+/**
+ * @param {HTMLImageElement} imgEl
+ * @return {string}
+ */
+function getGimgDescription(imgEl) {
+    let meta = getMeta(imgEl);
+    let title = meta.pt,
+        desc = meta.s;
     return title + "_" + desc;
     // desc.length > 1 ? desc : title; // choosing one of them (prioratizing the description over the title)
 }
 function getGimgTitle(imgN) {
     return getGImgMetaAttribute(imgN, 'pt');
 }
-function getGimgRUrl(imgN) {
-    const imgUrl = getGImgMetaAttribute(imgN, 'ru');
-    const anchor = imgN.parentNode;
-    return imgUrl ? imgUrl :
-        anchor ? anchor.href : imgN.src;
-}
+
 
 unsafeWindow.getMeta = getMeta;
 /**
  * @param imageElement image element, either <img class="rg_ic rg_i" ....> in .rg_bx
  * todo: make this function detect if the image is a thumbnail or inside the panel, also make it work by getting the "id" and finding the meta through that
- * @returns {any}
+ * @return {
+ * { clt: string, id: string,
+ *   isu: string, itg: string, ity: string,
+ *   oh: string, ou: string, ow: string,
+ *   pt: string,
+ *   rid: string, rmt: string, rt: string, ru: string,
+ *   s: string, st: string,
+ *   th: string, tu: string, tw,
+ *   src: string
+ *   }
+ * }
  */
 function getMeta(imageElement) {
     var metaObj;
     try {
-        metaObj = JSON.parse(getDataText(imageElement));
+        metaObj = JSON.parse(getMetaText(imageElement));
+
+        delete metaObj.clt;
+        delete metaObj.cl;
+        delete metaObj.cb;
+        delete metaObj.cr;
+        delete metaObj.sc;
+        delete metaObj.tu;
+        delete metaObj.th;
+        delete metaObj.tw;
+        delete metaObj.rh;
+        delete metaObj.rid;
+        delete metaObj.rt;
+        delete metaObj.itg;
+
+        metaObj.src = imageElement.src;
     } catch (e) {
         console.warn(e);
     }
     return metaObj;
 }
 /**
+ * @deprecated just use getMeta()
  * @param imgN {HTMLImageElement}
  * @param {string} key [ "clt", "id", "isu", "itg", "ity", "oh", "ou", "ow", "pt", "rid", "rmt", "rt", "ru", "s", "st", "th", "tu", "tw" ]
  * @return {string}
@@ -1405,32 +1510,6 @@ function getGImgMetaAttribute(imgN, key) {
         console.error(`Key "${key}" not found in data:`, dataObj);
         return false;
     }
-}
-
-/** The fallback will be the value returned if no results were found.
- * @param txt {string}
- * @param key {string}: [ "clt", "id", "isu", "itg", "ity", "oh", "ou", "ow", "pt", "rid", "rmt", "rt", "ru", "s", "st", "th", "tu", "tw" ]
- * @return {string}
- * */
-function extractFromText(txt, key) {
-    if (!key) {
-        console.error(`Key ${key}is null`);
-        return;
-    }
-    const dataObj = JSON.parse(txt);
-    if (dataObj.hasOwnProperty(key)) {
-        return dataObj[key];
-    } else {
-        return false;
-    }
-    /*
-     let data = typeof fallback === undefined ? fallback : ("No mainImage data found for key: '" + key + "'");
-     let regex = new RegExp(`(?<="${key}":")(.+?)(?=")`);
-     if (!txt) return data;
-     let matches = txt.match(regex);
-     data = (matches) ? matches[0] : data;
-     return data;
-     */
 }
 
 /*window.onbeforeunload = function (e) { // on tab exit
@@ -1482,7 +1561,6 @@ function extractFromText(txt, key) {
 
 unsafeWindow.extractImgData = getGImgMetaAttribute;
 unsafeWindow.getGimgTitle = getGimgTitle;
-unsafeWindow.getGimgRUrl = getGimgRUrl;
 unsafeWindow.getGimgDescription = getGimgDescription;
 
 unsafeWindow.geResultsData = getResultsData;
@@ -1492,8 +1570,8 @@ unsafeWindow.downloadImageData = downloadImageData;
 unsafeWindow.saveUblSites = saveUblSites;
 
 function saveUblSites() {
-    storeSuccessfulUrlsSet();
-    console.log('Site links of unblocked images:', Array.from(ublSet));
+    storeUblSitesSet();
+    console.log('Site links of unblocked images:', Array.from(ublSitesSet));
 }
 /**
  * @param {Set} mainSet
@@ -1659,7 +1737,7 @@ if (typeof KeyEvent === "undefined") { /* var str="KeyEvent = {\n"; for(var i=0;
         DOM_VK_GRAVE_ACCENT: 192,
         DOM_VK_OPEN_BRACKET: 219,
         DOM_VK_BACK_SLASH: 220,
-        DOM_VK_CLOSE_BRAKET: 221,
+        DOM_VK_CLOSE_BRACKET: 221,
         DOM_VK_SINGLE_QUOTE: 222
     };
 }
@@ -1671,7 +1749,7 @@ if (typeof KeyEvent === "undefined") { /* var str="KeyEvent = {\n"; for(var i=0;
 function tryToClickBottom_ris_image(interval) {
     if (!interval) interval = 30;
     const recursivelyClickLastRelImg = () => setTimeout(function () {
-        const relatedImageDivs = IP.focP.ris_Divs;
+        const relatedImageDivs = ImagePanel.focP.ris_Divs;
         const pop = Array.from(relatedImageDivs).pop();
         // log('recursivelyClickLastRelImg:', pop);
         if (pop && pop.click) {
@@ -1691,21 +1769,32 @@ function tryToClickBottom_ris_image(interval) {
  */
 function prevRelImg() {
     try {
-        const panel = IP.focP;
+        const panel = ImagePanel.focP;
         if (!panel.ris_fc_Div) return false;
         let previousElementSibling = panel.ris_fc_Div.previousElementSibling;
 
-        if (previousElementSibling) {
+        if (!!previousElementSibling) {
             previousElementSibling.click();
+        } else if (LOOP_RELATED_IMAGES) {
+            const relImgsOnly = Array.from(panel.ris_Divs);// List of relImgs without that last "View More".
+
+            const endRis = relImgsOnly.pop();
+            endRis.click();
         } else {
-            if (LOOP_RELATED_IMAGES) {
-                const relImgsOnly = Array.from(panel.ris_Divs);// List of relImgs without that last "View More".
-                relImgsOnly.pop().click();
-            } else {
-                IP.previousImage();
-                tryToClickBottom_ris_image(10);
-            }
+            ImagePanel.previousImage();
+            tryToClickBottom_ris_image(10);
         }
+
+
+        /* // if the image hasn't loaded (doesn't appear), then just go to the one after it
+         try {
+             const sibblingImg = panel.ris_fc_Div.querySelector('img');
+             if (sibblingImg && sibblingImg.getAttribute('loaded') == 'undefined') {
+                 console.debug('sibblingImg.loaded = ', sibblingImg.getAttribute('loaded'));
+                 return prevRelImg()
+             }
+         } catch (e) {
+         }*/
         return true;
     } catch (e) {
         console.warn(e);
@@ -1717,7 +1806,7 @@ function prevRelImg() {
  */
 function nextRelImg() {
     try {
-        const panel = IP.focP;
+        const panel = ImagePanel.focP;
         const ris_fc_Div = panel.ris_fc_Div;
         if (!panel.ris_fc_Div) {
             return false;
@@ -1725,35 +1814,44 @@ function nextRelImg() {
         let nextElSibling = ris_fc_Div.nextElementSibling;
         if (nextElSibling && !nextElSibling.classList.contains('irc_rismo')) {
             nextElSibling.click();
+        } else if (LOOP_RELATED_IMAGES) {
+            Array.from(panel.ris_DivsAll)[0].click();
+            console.debug("clicking first irc_irs to loop, cuz there isn't any on the right", panel.ris_DivsAll[0]);
         } else {
-            if (LOOP_RELATED_IMAGES) {
-                console.log("clicking first irc_irs to loop, cuz there isn't any on the right", panel.ris_DivsAll[0]);
-                Array.from(panel.ris_DivsAll)[0].click();
-            } else {
-                IP.nextImage();
-            }
+            ImagePanel.nextImage();
         }
+
+        /*// if the image hasn't loaded (doesn't appear), then just go to the one after it
+        try {
+            const sibblingImg = panel.ris_fc_Div.querySelector('img');
+            const attr_loaded = sibblingImg.getAttribute('loaded');
+            console.debug('sibblingImg.loaded = ', attr_loaded, '\ntype:', typeof(attr_loaded));
+            if (sibblingImg && attr_loaded == 'undefined') {
+                console.debug('sibblingImg.loaded = ', attr_loaded);
+                return nextRelImg()
+            }
+        } catch (e) {
+        }*/
         return true;
     } catch (e) {
         console.warn(e);
     }
 }
 
-unsafeWindow.toggleEncryptedGoogle = toggleEncryptedGoogle; // todo: Remove this! it's just made public for the DisplayOriginalImage script
-function toggleEncryptedGoogle(dontChangeLocation) {
+function toggleEncryptedGoogle(doNotChangeLocation) {
     console.log("Toggle encrypted google");
-    const onEncrGoogle = new RegExp("encrypted\.google\.com").test(location.hostname);
+    const onEncrGoogle = new RegExp("encrypted\\.google\\.com").test(location.hostname);
 
     var targetURL;
-    // targetURL=safeSearchOffUrl(); if (targetURL) location.href = targetURL;
+    // targetURL=safeSearchOffUrl(); if (targetURL) location.assign(targetURL);
 
     targetURL = location.href;
     targetURL = !onEncrGoogle ?
         targetURL.replace(/www\.google\.[\w.]+/i, "encrypted.google.com") :
         targetURL.replace(/encrypted\.google\.[\w.]+/i, "www.google.com");
     console.log('Target URL:', targetURL);
-    if (!dontChangeLocation)
-        location.href = targetURL;
+    if (!doNotChangeLocation)
+        location.assign(targetURL);
     return targetURL;
 }
 
@@ -1767,9 +1865,9 @@ function getKeyEventModifiers(keyEvent) {
     return {
         CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        SHIFT_ALT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_SHIFT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        CTRL_SHIFT_ALT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT_SHIFT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
 
         SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
@@ -1778,16 +1876,10 @@ function getKeyEventModifiers(keyEvent) {
         NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey
     };
 }
-function onkeydown(e) { // there will be no event if the target element is of type input (example: typing in the search bar, no hotkey will activate)
+function onKeyDown(e) { // there will be no event if the target element is of type input (example: typing in the search bar, no hotkey will activate)
     const targetElIsInput = targetIsInput(e);
-
-    if (targetElIsInput) {
-        // console.debug('TargetElIsInput', e.target);
-        return false;
-    }
     const k = (window.event) ? e.keyCode : e.which;
-
-    const ModifierKeys = getModifierKeys(e);
+    const modKeys = getModKeys(e);
     /*if(e.ctrlKey && a == KeyEvent.DOM_VK_S)
      {
      if(i)
@@ -1808,24 +1900,47 @@ function onkeydown(e) { // there will be no event if the target element is of ty
     // keys that don't need focusedPanel and all those other variables
     switch (k) {
         case KeyEvent.DOM_VK_R:
-            if (ModifierKeys.CTRL_ONLY || ModifierKeys.ALT_ONLY) {
+            if (targetElIsInput) break;
+            if (modKeys.CTRL_ONLY || modKeys.ALT_ONLY) {
                 e.preventDefault();
                 toggleEncryptedGoogle();
                 break;
             }
+        // noinspection FallThroughInSwitchStatementJS
+        case KeyEvent.DOM_VK_I:
+            if (targetElIsInput) break;
+            var mi = getMenuItems();
+            if (mi.images.firstElementChild) {
+                mi.images.firstElementChild.click();
+            }
+            break;
+        case KeyEvent.DOM_VK_FORWARD_SLASH: // focus search box
+            if (!$(q('#lst-ib')).is(':focus')) {
+                q('#lst-ib').focus();
+                e.preventDefault();
+            }
+            break;
     }
 
-    if (!IP.mainPanelEl || typeof IP.mainPanelEl === 'undefined') {
+    if (targetElIsInput) {
+        // console.debug('TargetElIsInput', e.target);
+        return false;
+    }
+
+    if (!ImagePanel.mainPanelEl || typeof ImagePanel.mainPanelEl === 'undefined') {
         console.debug("Main mainImage panel not found!!");
         return;
     }
-    const focusedPanel = IP.focP; //getFocusedPanel(); //ImagePanel.focusedPanel; // the active panel
+    const focusedPanel = ImagePanel.focP; //getFocusedPanel(); //ImagePanel.focusedPanel; // the active panel
     if (!focusedPanel) {
         console.warn("PANEL NOT FOUND!");
         return false;
     }
 
     // @info mainImage drop-down panel:    #irc_bg
+
+    // todo: split the switch statement to 2, one of them is panel-specific (panel controls, and a panel must be active for them to work)
+
 
     // keys between 1 and (#buttons-1)
     if (k >= KeyEvent.DOM_VK_ALPHA1 && k <= (KeyEvent.DOM_VK_ALPHA1 + focusedPanel.buttons.length - 1)) {
@@ -1835,52 +1950,57 @@ function onkeydown(e) { // there will be no event if the target element is of ty
             console.warn('Panel buttons not found');
         }
     }
+    // noinspection FallThroughInSwitchStatementJS
     switch (k) {
         // case KeyEvent.DOM_VK_ESCAPE:
         //     break;
-        case KeyEvent.DOM_VK_CLOSE_BRAKET:
-            if (ModifierKeys.NONE) { //
+        case KeyEvent.DOM_VK_CLOSE_BRACKET: // ]
+            if (modKeys.NONE) { // increment minImgSize
                 const minImgSizeSlider = q('#minImgSizeSlider');
                 minImgSizeSlider.value = parseInt(minImgSizeSlider.value) + parseInt(minImgSizeSlider.step);
             }
             break;
-        case KeyEvent.DOM_VK_OPEN_BRACKET:
-            if (ModifierKeys.NONE) { //
+        case KeyEvent.DOM_VK_OPEN_BRACKET: // [
+            if (modKeys.NONE) { // decrement minImgSize
                 const minImgSizeSlider = q('#minImgSizeSlider');
                 minImgSizeSlider.value = parseInt(minImgSizeSlider.value) - parseInt(minImgSizeSlider.step);
-            } else if (ModifierKeys.CTRL_ONLY) { // trim search query from left
+            } else if (modKeys.CTRL_ONLY) { // trim left search query
                 const searchBox = q('#lst-ib');
-                var unwantedStr = searchBox.value.match(/(?<=(:)).+?\./);
+                var unwantedStr = searchBox.value.match(/(?<=([.:])).+?\./);
                 if (!unwantedStr)
                     break;
                 searchBox.value = searchBox.value.replace(unwantedStr[0], '');
                 searchBox.form.submit();
             }
             break;
-        case KeyEvent.DOM_VK_SINGLE_QUOTE: // '  toggle the loop-relImgs option on and off
-            if (!ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_SINGLE_QUOTE: // '
+            if (!modKeys.NONE) { //    toggle "loop-relImgs" option on/off
                 LOOP_RELATED_IMAGES = !LOOP_RELATED_IMAGES;
                 GM_setValue('LOOP_RELATED_IMAGES', LOOP_RELATED_IMAGES);
                 console.log('LOOP_RELATED_IMAGES toggled to:', LOOP_RELATED_IMAGES);
             }
             break;
-        case KeyEvent.DOM_VK_T: // T for torrent
+        case KeyEvent.DOM_VK_T: // T (for torrent)
             console.debug('Torrent search');
             openInTab(gImgSearchURL + encodeURIComponent("+torrent +rarbg " + cleanSymbols(focusedPanel.bestNameFromTitle)));
             break;
-        case KeyEvent.DOM_VK_S: // Save
-            var btn_Save = focusedPanel.q('.i15087');
-            console.debug('btn_Save', btn_Save);
-            if (!!btn_Save) btn_Save.click();
+        case KeyEvent.DOM_VK_S: // S
+            if (modKeys.NONE) { // Save
+                var btn_Save = focusedPanel.q('.i15087');
+                console.debug('btn_Save', btn_Save);
+                if (!!btn_Save) btn_Save.click();
+            }
             break;
         case KeyEvent.DOM_VK_V: // View saves
-            var btn_ViewSaves = focusedPanel.q('.i18192');
-            console.debug('btn_ViewSaves', btn_ViewSaves);
-            if (!!btn_ViewSaves) btn_ViewSaves.click();
+            if (modKeys.NONE) {
+                var btn_ViewSaves = focusedPanel.q('.i18192');
+                console.debug('btn_ViewSaves', btn_ViewSaves);
+                if (!!btn_ViewSaves) btn_ViewSaves.click();
+            }
             break;
-        case KeyEvent.DOM_VK_B: // Search _B_y image
-        case KeyEvent.DOM_VK_NUMPAD1:
-            if (ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_B: // Search By image
+        case KeyEvent.DOM_VK_NUMPAD1:// ⬋
+            if (modKeys.NONE) { // Search by image
                 const focusedRelatedImageUrl = focusedPanel.ris_fc_Url;
                 if (typeof focusedPanel.mainImage !== "undefined") {
                     focusedPanel.q('a.search-by-image').click();
@@ -1890,76 +2010,80 @@ function onkeydown(e) { // there will be no event if the target element is of ty
                 }
             }
             break;
-        // TODO:
-        case KeyEvent.DOM_VK_NUMPAD4:
-            if (ModifierKeys.NONE) {
-                IP.previousImage();
+        case KeyEvent.DOM_VK_NUMPAD4:// ◀
+            if (modKeys.NONE) {
+                ImagePanel.previousImage();
             }
             break;
-        case KeyEvent.DOM_VK_NUMPAD6:
-            if (ModifierKeys.NONE) {
-                IP.nextImage();
+        case KeyEvent.DOM_VK_NUMPAD6: // ▶
+            if (modKeys.NONE) {
+                ImagePanel.nextImage();
             }
             break;
         // Open related images (press the bottom right square in the corner) in new tab
-        case KeyEvent.DOM_VK_NUMPAD3:
-            if (ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_NUMPAD3:// ⬊
+            if (modKeys.NONE) {
                 const moreRelatedImagesLink = focusedPanel.q('.irc_rismo.irc_rimask a');
                 if (moreRelatedImagesLink != null) {
                     openInTab(moreRelatedImagesLink.href);
                 }
             }
             break;
+        case KeyEvent.DOM_VK_D:
+            if (modKeys.NONE) {
+                ImagePanel.downloadCurrentImage();
+            }
+            break;
         case KeyEvent.DOM_VK_ENTER:
             console.log('Numpad5 pressed', e);
-            if (ModifierKeys.NONE) {
+            if (modKeys.NONE) {
                 const currentImgUrl = focusedPanel.ris_fc_Url;
                 console.log('currentImgUrl:', currentImgUrl);
                 openInTab(currentImgUrl);
-            } else if (e.shiftKey) {    // NOT WORKING!!
-                IP.downloadCurrentImage();
+            } else if (modKeys.SHIFT_ONLY) {    // NOT WORKING!!
+                ImagePanel.downloadCurrentImage();
                 // e.preventDefault();
             }
             break;
         // Previous related mainImage
         case KeyEvent.DOM_VK_COMMA:
         case KeyEvent.DOM_VK_UP:
-        case KeyEvent.DOM_VK_NUMPAD8: // Prev/Left relImage
-            if (ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_NUMPAD8: // ▲
+            // Prev/Left relImage
+            if (modKeys.NONE) {
                 prevRelImg();
                 break;
             }
         // Next related mainImage
-        case KeyEvent.DOM_VK_PERIOD:
+        case KeyEvent.DOM_VK_PERIOD: //fall-through
         case KeyEvent.DOM_VK_DOWN:
-        case KeyEvent.DOM_VK_NUMPAD2:// Next/Right relImage
-            if (ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_NUMPAD2:// ▼
+            if (modKeys.NONE) {// Next/Right relImage
                 nextRelImg();
             }
             break;
         case KeyEvent.DOM_VK_O:
-            if (ModifierKeys.NONE) {
+            if (modKeys.NONE) {
                 for (var div of focusedPanel.ris_Divs) {
-                    var anchor = div.querySelector('a[href]');
                     const img = div.querySelector('img');
+                    var anchor = img.closest('a[href]');
                     console.log('Replacing with original:', img, "Anchor:", anchor);
                     replaceImgSrc(img, anchor);
                 }
             }
             break;
         case KeyEvent.DOM_VK_H:
-            if (ModifierKeys.ALT_ONLY) {
+            if (modKeys.ALT_ONLY) {
                 q('#rcnt').style.visibility = (/hidden/i).test(q('#rcnt').style.visibility) ? 'visible' : 'hidden';
                 e.preventDefault();
             }
             break;
         case KeyEvent.DOM_VK_M:
-            IP.download_ris();
+            ImagePanel.download_ris();
             break;
-        // lookup the images title.
-        case KeyEvent.DOM_VK_NUMPAD7:
-            // I have options, I'll choose the best later
-            if (ModifierKeys.NONE) {
+        // I have options, I'll choose the best later
+        case KeyEvent.DOM_VK_NUMPAD7:// ⬉
+            if (modKeys.NONE) { // lookup the images title.
                 const visitUrl = focusedPanel.buttons[0].href;
                 // const visitTitleUrl = subtitleEl.href;
 
@@ -1968,22 +2092,22 @@ function onkeydown(e) { // there will be no event if the target element is of ty
             }
             break;
         // Search using title
-        case KeyEvent.DOM_VK_NUMPAD9:
-            if (ModifierKeys.NONE) {
+        case KeyEvent.DOM_VK_NUMPAD9:// ⬈
+            if (modKeys.NONE) {
                 focusedPanel.lookupTitle();
-            } else if (ModifierKeys.ALT_ONLY) { // TODO:
-                openInTab(gImgSearchURL + encodeURIComponent(cleanSymbols(focusedPanel.descriptionText).trim()));
-                e.preventDefault();
             }
             break;
-        case KeyEvent.DOM_VK_NUMPAD5:
-            IP.downloadCurrentImage();
+        case KeyEvent.DOM_VK_NUMPAD5: //downloadCurrentImage
+            ImagePanel.downloadCurrentImage();
             break;
         case KeyEvent.DOM_VK_SEMICOLON:
-            if (ModifierKeys.SHIFT_ONLY) {
+            if (modKeys.SHIFT_ONLY) {
                 focusedPanel.siteSearch();
             }
             break;
+        // TODO: find a hotkey for this function
+        /*openInTab(`${gImgSearchURL}${encodeURIComponent(cleanSymbols(focusedPanel.descriptionText).trim())}`);
+        e.preventDefault();*/
     }
 }
 
@@ -1991,8 +2115,8 @@ function openInTab(url, target) {
     window.open(url, target || "_blank");
 }
 function cleanDates(str) {
-    return str;
-    // return !str ? str : removeDoubleSpaces(str.replace(/\d*([^-/.]+)\d*/g, ' '));
+    // return str;
+    return !str ? str : removeDoubleSpaces(str.replace(/\d+([.\-])(\d+)([.\-])\d*/g, ' '));
 }
 function cleanSymbols(str) {
     return !str ? str : removeDoubleSpaces(
@@ -2014,11 +2138,14 @@ function getResultsData() {
     // let map = new Map();
     let set = new Set();
     for (let a of anchors) {
-        var img, metaDataObj, metaDataJSONText = "{}";
+        var img,
+            metaDataObj,
+            metaDataJSONText;
         try {
             img = a.querySelector('img');
-            metaDataJSONText = getMetaEl(img).innerText;
-            metaDataObj = JSON.parse(metaDataJSONText);
+            metaDataObj = getMeta(img);
+            metaDataJSONText = getMetaText(img);
+            JSON.parse(metaDataJSONText);
 
             metaDataObj.loaded = img.getAttribute('loaded');
             metaDataObj.imgSrc = img.src;
@@ -2033,7 +2160,7 @@ function getResultsData() {
 function stringifyIterable(iterable) {
     let str = '{';
     let i = 0;
-    for (let e of iterable.keys()) {
+    for (const e of iterable.keys()) {
         str += (i == 0 ? '' : ', ') + '\n\t' + e.toString();
         i++;
     }
@@ -2042,7 +2169,7 @@ function stringifyIterable(iterable) {
 function downloadImageData() {
     let text = stringifyIterable(getResultsData());
     let name = 'GImg data_' + document.title;
-    anchorClick(makeTextFile(text), name);
+    anchorClick(makeTextFile(text), name + '.txt');
 }
 
 /**
@@ -2078,6 +2205,7 @@ function markImageOnLoad(imgEl, imgUrl) {
 /**
  * This is the URL with safe search off
  * @returns false if the page is already with "safe search" off
+ * @deprecated
  */
 function safeSearchOffUrl() {
     var safeSearchButton = document.getElementById("ss-bimodal-default");
@@ -2096,7 +2224,7 @@ ${stringifyIterable(getResultsData())}
 `;
 }
 
-function setupProgressBar() {
+/*function setupProgressBar() {
     progressBar = progressBar || new ProgressBar.Line('#progressbar-container', {
         easing: 'easeInOut',
         color: '#FCB03C',
@@ -2108,11 +2236,50 @@ function setupProgressBar() {
     });
     progressBar.set(0);
     q('.progressbar-text').style = "position: relative;display: inline;";
+}*/
+
+function setupProgressBar() {
+    // noinspection JSUnresolvedVariable
+    if (typeof(ProgressBar) == 'undefined') {
+        console.warn("ProgressBar is not defined.");
+        return;
+    }
+    if (!q('#progressbar-container'))
+        document.body.firstElementChild.before(createElement(`<header id="progressbar-container" 
+style="
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-height: 30px;
+    padding: 10px 0;
+    background-color: #36465d;
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,.13);
+    z-index: 100;"
+    />`));
+
+    // noinspection JSUnresolvedVariable
+    var progressBar = new ProgressBar.Line('#progressbar-container', {
+        easing: 'easeInOut',
+        color: '#FCB03C',
+        strokeWidth: 1,
+        trailWidth: 1,
+        text: {
+            value: '0'
+        }
+    });
+    progressBar.set(0);
+    const progressbarText = q('.progressbar-text');
+    progressbarText.style.display = "inline";
+    progressbarText.style.position = "relative";
+    return progressBar;
 }
 
 unsafeWindow.getQualifiedGImgs = getQualifiedGImgs;
 /**
  * @param ogs
+ * @param minSizeExceptionForGIFs
+ * @param ignoreDlLimit
  * @returns {Set<{fileURL: string, fileName: string, img: HTMLImageElement}>}
  * to get images that only satisfy the dimensions condition:    getQualifiedGImgs(null, null, true)
  */
@@ -2120,7 +2287,7 @@ function getQualifiedGImgs(ogs, minSizeExceptionForGIFs, ignoreDlLimit) {
     ogs = !ogs ? qa('img.rg_ic.rg_i') : ogs;
     const minImgSize = q('#minImgSizeSlider').value,
         dlLimit = q('#dlLimitSlider').value,
-        urlNameElOfQualifiedImgs = new Set();
+        qualifiedImgsExtended = new Set();
 
     for (const og of ogs) {
         try {
@@ -2134,31 +2301,40 @@ function getQualifiedGImgs(ogs, minSizeExceptionForGIFs, ignoreDlLimit) {
                 h = parseInt(meta.oh)
             ;
 
-            const bigEnough = w >= minImgSize || h >= minImgSize || minSizeExceptionForGIFs && /\.gif\?|$/i.test(fileURL);
+            // adding new property names to the img object
+            img["fileURL"] = fileURL;
+            img["fileName"] = fileName;
+            img["meta"] = meta;
 
-            if (bigEnough && (urlNameElOfQualifiedImgs.size < dlLimit || ignoreDlLimit)) {
-                urlNameElOfQualifiedImgs.add({fileURL: fileURL, fileName: fileName, img: img})
+            const bigEnough = w >= minImgSize || h >= minImgSize,
+                qualifiedDimensions = bigEnough || minSizeExceptionForGIFs && /\.gif\?|$/i.test(fileURL),
+                underDlLimit = qualifiedImgsExtended.size < dlLimit;
+            if (qualifiedDimensions && (ignoreDlLimit || underDlLimit)) {
+                qualifiedImgsExtended.add(img);
             }
+            createAndAddAttribute(img, "image-qualified", bigEnough && underDlLimit);
 
         } catch (e) {
             console.warn(e);
         }
     }
-    console.debug('qualified img objects list:', urlNameElOfQualifiedImgs);
-    return urlNameElOfQualifiedImgs;
+    console.debug('qualified img objects list:', qualifiedImgsExtended);
+    return qualifiedImgsExtended;
 }
 
-function zipImages(zipName) {
+function zipBeforeUnload(e) {
+    var dialogText = "You still didn't download your zipped files, are you sure you want to exit?";
+    e.returnValue = dialogText;
+    return dialogText;
+}
+function gZipImages(zipName) {
     var zipCurrent = 0;
     zip = zip || new JSZip();
-    zipName = (zipName || document.title).replace(/\//g, " ");
 
-    window.onbeforeunload = function (e) {
-        var dialogText = "You still didn't download your zipped files, are you sure you want to exit?";
-        e.returnValue = dialogText;
-        return dialogText;
-    };
-    const selector = `.rg_ic.rg_i`
+    zipName = (zipName || document.title).replace(/\//g, " ");
+    window.addEventListener('beforeunload', zipBeforeUnload);
+    window.onunload = genZip;
+    const selector = `img.rg_ic.rg_i`
         // `.${TOKEN_DISPLAY}[loaded^="true"], .img-big`
         // '.rg_ic.rg_i.display-original-mainImage:not(.display-original-mainImage-failed)'
     ;
@@ -2166,17 +2342,15 @@ function zipImages(zipName) {
     const ogs = qa(selector);
 
 
-    const qualifiedImages = getQualifiedGImgs(null, q('#GIFsException').checked);
-    zipTotal = qualifiedImages.size;
+    const qualifiedImages = getQualifiedGImgs(null, q('#GIFsExceptionBox').checked);
+    zip.zipTotal = qualifiedImages.size;
 
-    setupProgressBar();
+    progressBar = setupProgressBar();
 
     console.debug('Original images to be downloaded:', ogs);
     totalSize = 0;
     totalLoaded = 0;
-    activeZipThreads = 0,
-        filesCount = 0
-    ;
+    var activeZipThreads = 0;
 
     for (const qualifiedImgArgs of qualifiedImages)
         requestAndZipImage(qualifiedImgArgs.fileURL, qualifiedImgArgs.fileName, qualifiedImgArgs.img);
@@ -2187,7 +2361,7 @@ function zipImages(zipName) {
         ;
         activeZipThreads++;
         zippingInProgress = true; // todo: destroy this variable
-        fileName = /*(++filesCount) +' '+*/ removeDoubleSpaces(fileName.replace(/\//g, " "));
+        fileName = removeDoubleSpaces(fileName.replace(/\//g, " "));
 
         if (zip.files.hasOwnProperty(fileName)) {
             console.log('ZIP already contains the file: ', fileName);
@@ -2263,13 +2437,14 @@ function zipImages(zipName) {
                     'Download&nbsp;⇓';
 
 
-                if (zipCurrent < zipTotal || zipTotal <= 0) {
+                if (zipCurrent < zip.zipTotal || zip.zipTotal <= 0) {
                     return;
                 }
 
-                if (zipCurrent >= zipTotal) {
+                if (zipCurrent >= zip.zipTotal) {
                     console.log("Generating ZIP...", "\nFile count:", Object.keys(zip.files).length);
-                    zipTotal = 0;
+                    zip.zipTotal = 0;
+                    progressBar.remove();
                     genZip();
                 }
                 activeZipThreads--;
@@ -2298,7 +2473,7 @@ function zipImages(zipName) {
                 activeZipThreads--;
             },
             onprogress: function (res) {
-                if (zip.files.hasOwnProperty(fileName) || zipCurrent < zipTotal || zipTotal <= 0) {
+                if (zip.files.hasOwnProperty(fileName) || zipCurrent < zip.zipTotal || zip.zipTotal <= 0) {
                     //TODO: stop the GM_xmlrequest at this point
 
                     // if(res.abort)
@@ -2332,7 +2507,7 @@ fileprogress = ${loadedSoFar / res.total}`);
                     }
 
                     progressBar.set(totalProgress);
-                    progressBar.setText(`Files in ZIP: (${Object.keys(zip.files).length} / ${zipTotal}) Active threads: ${activeZipThreads}     (${totalLoaded} / ${totalSize})`);
+                    progressBar.setText(`Files in ZIP: (${Object.keys(zip.files).length} / ${zip.zipTotal}) Active threads: ${activeZipThreads}     (${totalLoaded} / ${totalSize})`);
 
                     loadedLast = loadedSoFar;
                 }
@@ -2342,59 +2517,6 @@ fileprogress = ${loadedSoFar / res.total}`);
 
     return zip;
 }
-
-/*
- function addToZip(og) {
- try {
- let image = og.tagName == 'IMG' ? og :
- og.querySelector('img[src]');
-
- if (true || imageIsBigEnough(image)) {
- let fileUrl = isDdgUrl(image.src) ? image.src : extractImgData(image, 'ou');
- const ext = /com/.test(getFileExtension(fileUrl)) ? getFileExtension(fileUrl) : 'gif';
- GM_xmlhttpRequest({
- method: "GET",
- url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
- responseType: 'arraybuffer',
- binary: true,
- onload: function (res) {
- var blob = new Blob([res.response], {type: "image/" + ext});
- const fileName = image.getAttribute('download-name') || image.alt;
- console.log("Filename:", fileName, image);
- zip.file(`${fileName}.${ext}`, blob);
-
-
- (++zipCurrent >= zipTotal) ? genZip() : addToZip(ogs[zipCurrent]);
- }, onreadystatechange: function (res) {
- console.debug("Request state changed to: " + res.readyState);
- if (res.readyState === 4) {
- console.debug('ret.readyState === 4');
- }
- },
- onerror: function (res) {
- console.error("An error occurred."
- + "\nresponseText: " + res.responseText
- + "\nreadyState: " + res.readyState
- + "\nresponseHeaders: " + res.responseHeaders
- + "\nstatus: " + res.status
- + "\nstatusText: " + res.statusText
- + "\nfinalUrl: " + res.finalUrl);
- zipCurrent++;
- },
- onprogress: function (res) {
- if (res.lengthComputable) {
- const progress = res.loaded / res.total;
- console.log("progress:", progress);
- progressBar.animate(progress);
- }
- }
- });
- }
- } catch (e) {
- console.warn(e);
- }
- }
- */
 
 function unionTitleAndDescr(str1, str2) {
     if (!str1) return str2;
@@ -2427,46 +2549,196 @@ function unionStrings(str1, str2) {
     return resultWords.join(' ');
 }
 
-function iterateOverURLPattern(inputURL) {
-    inputURL = inputURL || 'https://proxy.duckduckgo.com/iu/?u=http%3A%2F%2Fwww.chestmeat.com%2Fwp-content%2Fuploads%2Fbusty-blonde-sex-[0-30].jpg&f=1';
-
-    var bracketsContent = inputURL.match(/\[.+]/),
-        [start, end] = bracketsContent[0].replace(/[\[\]]/g, '').split('-')
-    ;
-
-    console.log('bracketsContent:', bracketsContent);
-    console.log('start, end:', `["${start}", "${end}"]`);
-
-    for (var i = start; i < end; i++) {
-        var url = inputURL.replace(/\[.+]/, i);
-        console.log(url);
+/** @deprecated stupid function, use "google.pmc.colmob.initial_item" instead
+ * @returns the innerHTML of the script containing the saves data on saves.google */
+function getGSavesScriptHTML() {
+    const scriptElements = document.querySelectorAll('script[nonce]'),
+        scripts = Array.from(scriptElements).map(script => script.innerHTML);
+    /** This string should always exist in the metadata script, just test if it's there
+     * @type {string} */
+    const TEST_STRING = `(function () {\n    var c = {`;
+    for (const scriptStr of scripts) {
+        if (/^\(function\s*\(\)\s*{[\W]*var c/.test(scriptStr)) {
+            return scriptStr.slice("(function(){".length, -"})();".length);
+        }
     }
 }
-function incrementURL(up) {
-    var e, s;
-    IB = !!up ? 1 : -1;
 
-    function isDigit(c) {
-        return ("0" <= c && c <= "9")
-    }
 
-    var tip = location.href.match(/&f=1$/)[0] || "";
-    L = location.href.replace(tip, "");
-    LL = L.length;
-    for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
-        for (s = e - 1; s >= 0; --s) if (!isDigit(L.charAt(s))) break;
-        break;
-    }
-    ++s;
-    if (e < 0) return;
-    oldNum = L.substring(s, e + 1);
-    newNum = "" + (parseInt(oldNum, 10) + IB);
-    while (newNum.length < oldNum.length) newNum = "0" + newNum;
-    location.href = L.substring(0, s) + newNum + L.slice(e + 1) + tip;
+/** reloads and a function will be called once reloading is done */
+function reloadP() {
+    sessionStorage.setItem("reloading", "true");
+    document.location.reload();
 }
 
-function getGSavesURL(input) {
+class GSaves {
+    static get initialItem() {
+        return google.pmc.colmob.initial_item.map(item => JSON.parse(item));
+    }
+    /**
+     * @return {{
+     * imageUrl:{string},
+     * url:{string},
+     * title:{string},
+     * faviconUrl:{string},
+     * redirectUrl:{string},
+     * realUrl:{string}
+     * }}
+     */
+    static get initialItemObjectList() {
+        function item2Obj(item) {
+            var itemObj = {};
+            try {
+                itemObj.imageUrl = item[9] ? item[9][0] : null; // img url
+                itemObj.url = item[5];
+                itemObj.title = item[6];
+                itemObj.faviconUrl = item[17];
+                itemObj.redirectUrl = item[18];
 
+                const searchParams = new URL(itemObj.redirectUrl, 'https://www.google.com').searchParams;
+                console.log('searchParams for:', item, searchParams);
+
+                var q = searchParams.get("q");
+                var qUrl = new URL(q, "https://google.com");
+
+                const imgrefurl = qUrl.searchParams.get("imgrefurl") ? qUrl.searchParams.get("imgrefurl") : q;
+
+                itemObj.realUrl = imgrefurl ? imgrefurl : q;
+            } catch (e) {
+                console.error(e);
+            }
+
+            return itemObj;
+        }
+        return this.initialItem.map(item2Obj);
+    }
+    static get containers() {
+        return qa('div.str-clip-card-space:not(.modified)');
+    }
+    static removeClickListeners(container) {
+        container.parentNode.appendChild(createElement(container.outerHTML));
+        container.remove();
+    }
+    static wrapPanels() {
+
+        var iio = this.initialItemObjectList;
+
+        for (const container of this.containers) {
+            this.removeClickListeners(container);
+        }
+
+        var i = 0;
+        for (const container of this.containers) {
+            if (container.querySelector(['.str-tag-card-images-holder', 'a.wrapper-anchor', 'a.mod-anchor'].join(', '))) {
+                console.warn('element will not be wrapped by anchor:', container);
+                continue;
+            }
+            // main card
+            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-text-holder'), iio[i].realUrl);
+
+            // title div
+            // this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-title'), iio[i].url);
+
+            // img container
+            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-image-holder'), iio[i].imageUrl);
+
+            i++;
+        }
+
+        // language=CSS
+        addCss(`.str-wide-card {
+            cursor: default !important;
+        }
+
+        .str-wide-card-title, .str-wide-card-text-holder {
+            display: -webkit-inline-box !important;
+        }`);
+    }
+    static slipAnchorUnderElement(element, href) {
+        var tempInnerHTML = element.innerHTML;
+        element.innerHTML = "";
+        element.appendChild(createElement(`<a class="mod-anchor" target="_blank" href="${href}">${tempInnerHTML}</a>`));
+    }
+    static outerWrapPanels() {
+        /**
+         * @type {any[]}
+         [
+         0: "wc_70E6Xj2JB_HiZhxy9l7_mcA5R5meGZhF"
+         1: 2
+         5 site: "https://www.google.com.sa/search?q=site%3A4chanarchives.cu.cc&tbm=isch&tbs=rimg%3ACW1a4FzI3jU7Ijin5u866o8-rRk8k1t7XEy5aJ7Uf3c8yS3dCdQ8DD2esqCQHRopVHoj1O5adUXJe-LHtJD3Y9fi6CoSCafm7zrqjz6tEd2HvPoFvwkxKhIJGTyTW3tcTLkR2HOwTpIxd-4qEglontR_1dzzJLRFUC00ZWceOXioSCd0J1DwMPZ6yEY-nOZAfV2KIKhIJoJAdGilUeiMR0eOEGcWrGUAqEgnU7lp1Rcl74hF8oHVvSZhDTCoSCce0kPdj1-LoEbJ4kSjG9QhA&tbo=u&bih=543&biw=1097&ved=0ahUKEwjeqcS_6u7PAhVEuBoKHXXVDX4Q9C8ICQ"
+         6: "site:4chanarchives.cu.cc - Google Search"
+         9 image: (4) ["https://encrypted-tbn2.gstatic.com/images?q=tbn:AN…RbziTjEKR8ZLQR0mN1zewWYHbr73MsqCmMIwLWB3wjEfiqt2A", 264, 191, Array(0)]
+         10: (4) ["https://encrypted-tbn3.gstatic.com/images?q=tbn:AN…QZ1NGhDYp5R-QDtW_mhH5YsTF7o9etY-TMv0yUcTt1LbX6yo_", 211, 152, Array(10)]
+         17: "https://encrypted-tbn2.gstatic.com/favicon?q=tbn:ANd9GcS7Gq4fBcOyAR1DBH7iP5t2k1zJfM6QTpiEKaR1ODP7GzDzQ5gGFkl0gfZA326v72gT-spvAg"
+         18: "/url?q=https%3A%2F%2Fwww.google.com.sa%2Fsearch%3Fq%3Dsite%253A4chanarchives.cu.cc%26tbm%3Disch%26tbs%3Drimg%253ACW1a4FzI3jU7Ijin5u866o8-rRk8k1t7XEy5aJ7Uf3c8yS3dCdQ8DD2esqCQHRopVHoj1O5adUXJe-LHtJD3Y9fi6CoSCafm7zrqjz6tEd2HvPoFvwkxKhIJGTyTW3tcTLkR2HOwTpIxd-4qEglontR_1dzzJLRFUC00ZWceOXioSCd0J1DwMPZ6yEY-nOZAfV2KIKhIJoJAdGilUeiMR0eOEGcWrGUAqEgnU7lp1Rcl74hF8oHVvSZhDTCoSCce0kPdj1-LoEbJ4kSjG9QhA%26tbo%3Du%26bih%3D543%26biw%3D1097%26ved%3D0ahUKEwjeqcS_6u7PAhVEuBoKHXXVDX4Q9C8ICQ&usg=AOvVaw3eb9K2V3-5Fl2DR41rvzXB"
+         length: 20
+         ]
+         */
+        var initial_item = google.pmc.colmob.initial_item.map(item => JSON.parse(item));
+        var urls = initial_item.map(item => item[9] ? item[9][0] : item[5]);
+
+        var i = 0;
+        for (const el of qa('div.str-clip-card-space')) {
+            if (el.querySelector('.str-tag-card-images-holder') || el.closest('a.wrapper-anchor')) {
+                console.warn('element will not be wrapped by anchor:', el);
+                continue;
+            }
+            el.parentElement.appendChild(createElement(
+                `<a class="wrapper-anchor" target="_blank" href="${urls[i]}"> ${el.outerHTML} </a>>`)
+            );
+            console.log('replaceGSavesPanelsWithAnchors:', el);
+            el.remove();
+            i++;
+        }
+    }
 }
 
+unsafeWindow.GSaves = GSaves;
 
+function underlineText(el, subStr) {
+    if (!el) {
+        console.error("Element not defined.");
+        return;
+    }
+    var rx = new RegExp(subStr, 'i');
+    if (rx.test(el.innerHTML)) {
+        var oldInnerHTML = el.innerHTML;
+        var newHTML = el.innerHTML.replace(rx, `<span class="underlineChar" style="text-decoration: underline;">${subStr}</span>`);
+        el.innerHTML = newHTML;
+        console.log(
+            'oldInnerHTML=', oldInnerHTML,
+            '\nnewHTML=', newHTML
+        );
+    } else console.error("Element doesn't contain text: ", subStr, el);
+}
+
+/**
+ * @return an object map of menuItem name as the key, and HTMLDivElement as value
+ * {key: menuItemName, value: menuItem HTMLDivElement}
+ * menuItemNames = [ "all", "images", "videos", "news", "maps", "more" ]
+ */
+function getMenuItems() {
+    const menuItems = qa('.hdtb-mitem');
+    const menuItemNames = [
+        "all",
+        "images",
+        "videos",
+        "news",
+        "maps",
+        "more"
+    ];
+    let menuItemsObj = {};
+
+    for (const menuItem of menuItems) {
+        for (const menuItemName of menuItemNames) {
+            if (new RegExp(menuItemName, "i").test(menuItem.innerText)) {
+                menuItemsObj[menuItemName] = menuItem;
+                break;
+            }
+        }
+    }
+    menuItemsObj.selected = q('.hdtb-mitem.hdtb-imb');
+
+    console.log('menuItemsObj=', menuItemsObj);
+    return menuItemsObj;
+}
