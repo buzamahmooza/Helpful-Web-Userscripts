@@ -26,9 +26,9 @@
 
 // noinspection ES6ConvertVarToLetConst
 var debug;
-if(typeof debug === 'undefined') debug = false;
-if(typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;// words in all languages
-const invalidNameCharacters = '@\\*:/"|<>\n\r';
+if (typeof debug === 'undefined') debug = false;
+if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;// words in all languages
+const invalidNameCharacters = '@*:"|<>\\n\\r\?';
 
 try {
     const DELAY_BETWEEN_DOWNLOADS = 300;
@@ -52,31 +52,42 @@ try {
 } catch (declarationException) {
     console.warn("Caught exception in declaration:", declarationException);
 }
-
-if(typeof downloadSet === 'undefined') {
+var downloadSet;
+if (typeof downloadSet === 'undefined') {
     downloadSet = new Set(); // a list containing all the download urls in this session (used for checking if we already downloaded this item).
     unsafeWindow.downloadSet = downloadSet;
 }
 var tempDirectory;
-if(typeof tempDirectory === 'undefined') {
+if (typeof tempDirectory === 'undefined') {
     tempDirectory = "";
 }
 
-var zipDl = new JSZip(),
-    zipTotal = 0,
-    zipCurrent = 0;
+/**abbreviation for querySelectorAll()*/
+function qa(selector) {
+    return document.querySelectorAll(selector);
+}
+/**abbreviation for querySelector()*/
+function q(selector) {
+    return document.querySelector(selector);
+}
 
-window.addEventListener('beforeunload', function (event) {
-    // merge and store the download history
-    storeDownloadHistory();
-    return true;
-});
+if (false)
+    window.addEventListener('beforeunload', function (event) {
+        // merge and store the download history
+        storeDownloadHistory();
+        return true;
+    });
 unsafeWindow.storeDownloadHistory = storeDownloadHistory;
 
 function storeDownloadHistory() {
+    if (downloadSet.size <= 0) return;
     const storedDlH = GM_getValue('downloadHistory', []),
         mergedDlH = Array.from(downloadSet).concat(storedDlH);
-    console.debug('storedDlH:', storedDlH, 'downloadSet: ', downloadSet, '\nmergedDownloadHistory:', mergedDlH);
+    console.debug(
+        'storedDlH:', storedDlH,
+        'downloadSet: ', downloadSet,
+        '\nmergedDownloadHistory:', mergedDlH
+    );
     return GM_setValue('downloadHistory', Array.from(new Set(mergedDlH)));
 }
 
@@ -90,8 +101,6 @@ function storeDownloadHistory() {
  onprogress callback to be executed if the download made some progress
  ontimeout callback to be executed if the download failed due to a timeout
  */
-// console.log("IMG_MIN_WIDTH: " + IMG_MIN_WIDTH + "\nIMG_MIN_HEIGHT: " + IMG_MIN_HEIGHT);
-// console.log('NAME_FILES_BY_NUMBER=', NAME_FILES_BY_NUMBER);
 function setNameFilesByNumber(newValue) {
     NAME_FILES_BY_NUMBER = newValue;
     GM_getValue("NAME_FILES_BY_NUMBER", NAME_FILES_BY_NUMBER);
@@ -127,41 +136,46 @@ function download(fileUrl, fileName, directory, element, paramOnLoad) {
     const namePassed = fileName && fileName.length > 1;
 
     console.log('URL Added to downloads:', fileUrl);
-    if(!fileUrl) {
+    if (!fileUrl) {
+        fileUrl = location.href;
         console.error("input URL is null!");
-        return;
+        // return;
     }
-    if(typeof fileUrl === 'object') {
+    if (typeof fileUrl === 'object') {
         downloadBatch(fileUrl);
         console.warn('The file url passed to be downloaded is an object, trying to download it as multiple urls:', fileUrl);
         return;
     }
 
-    fileUrl = getAbsoluteURI(('' + fileUrl).replace(/['"]/gi, ''));
+    fileUrl = getAbsoluteURI((fileUrl).replace(/["]/gi, ''));
 
-    if(/^data:image\/.{1,5};base64/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
+    if (/^data:image\/.{1,5};base64/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
         console.error("The source is a base64-type, download was prevented:", fileUrl);
         return;
     }
-    if(BLACK_LIST.has(fileUrl)) {
+    if (BLACK_LIST.has(fileUrl)) {
         console.warn("Blacklisted URL:", fileUrl);
         return;
     }
-    if(downloadSet.has(fileUrl) && !ALLOW_DUPES) {
-        console.warn("Request to download duplicate file.", fileUrl);
-        return;
+    if (downloadSet.has(fileUrl) && !ALLOW_DUPES) {
+        throw ("Request to download duplicate file: " + fileUrl);
     }
 
-    fileUrl = "" + getAbsoluteURI(fileUrl); // cast to string
+    fileUrl = getAbsoluteURI(fileUrl);
+    if (getHostname(fileUrl).indexOf('gfycat.com') === 0) {
+        //from: https://gfycat.com/rawharmlesskiwi
+        //to:   https://giant.gfycat.com/RawHarmlessKiwi.webm
+        fileUrl = fileUrl.replace(/gfycat\.com/i, "giant.gfycat.com") + '.webm';
+    }
 
-    if(namePassed) { // if fileName passed
+    if (namePassed) { // if fileName passed
         console.log('Filename passed:', fileName);
         fileName = cleanFileName(fileName);
         console.log('Filename passed (after cleaning):', fileName);
     } else {
-        if(elementPassed) { // element passed
+        if (elementPassed) { // element passed
             const nameAttribute = NAME_ATTRIBUTES[0];
-            if(element.hasAttribute(nameAttribute)) {
+            if (element.hasAttribute(nameAttribute)) {
                 fileName = element.getAttribute(nameAttribute);
                 console.log('Got fileName from element:', fileName, fileUrl);
             }
@@ -169,26 +183,26 @@ function download(fileUrl, fileName, directory, element, paramOnLoad) {
             fileName = nameFile(fileUrl);
         }
     }
-    if(!fileName || fileName.length < 1) {
-        fileName = 'a_' + (cleanGibberish(nameFile(document.title)) || cleanGibberish(nameFile(fileName))) + (fileNumber++);
+    if (!fileName || fileName.length < 1) {
+        fileName = 'a_' + (cleanGibberish(nameFile(document.title)) || cleanGibberish(nameFile(fileName))) + ' ' + (fileNumber++);
     }
-    if(directoryPassed) {// if downloadDirectory passed
+    if (directoryPassed) {// if downloadDirectory passed
         console.log('DownloadDirectory passed:', directory);
-        directory = cleanDirectoryName(directory);
+        directory = cleanFileName(directory, true);
         console.log('DownloadDirectory passed (clean):', directory);
-    } else { // dirctory NOT passed
+    } else { // directory NOT passed
         const split = fileName.split(/\//);
-        if(split.length > 1) {
+        if (split.length > 1) {
             fileName = split.pop();
             directoryName = split.pop();
         } else {
             directory = null;
-            /*cleanDirectoryName(
+            /*cleanFileName(
                 (tempDirectory.length > 1 ? tempDirectory : // use tempDirectory if valid
                     // namePassed && (/[^\/]+\/[^\/]+/).test(fileName) ? // name passed && contains "/" in middle?
                     //     fileName.split(/[\/-]/)[0] : // then, Directory = first part of passed-name
                     document.title)           // last resort: use title
-            );*/
+            ,true);*/
         }
     }
     /*
@@ -275,7 +289,7 @@ function download(fileUrl, fileName, directory, element, paramOnLoad) {
         console.log('Download finished', finalName, "\n" + fileUrl);
         downloadSet.add(fileUrl);
 
-        if(paramOnLoad && paramOnLoad.call) paramOnLoad.call();
+        if (paramOnLoad && paramOnLoad.call) paramOnLoad.call();
     }
 }
 
@@ -290,7 +304,7 @@ function imageUrl2blob(url, callback, callbackParams) {
             try {
                 const ext = getFileExtension(url);
                 var blob = new Blob([res.response], {type: "image/" + ext});
-                if(!!callback) {
+                if (!!callback) {
                     callback(blob, url, callbackParams);
                 } else {
                     saveAs(blob, "untitled." + ext);
@@ -312,7 +326,7 @@ function imageUrl2blob(url, callback, callbackParams) {
 
         onreadystatechange: function (res) {
             console.log("Request state changed to: " + res.readyState);
-            if(res.readyState === 4) {
+            if (res.readyState === 4) {
                 console.log('ret.readyState === 4');
             }
         },
@@ -327,7 +341,7 @@ function imageUrl2blob(url, callback, callbackParams) {
             console.error(msg);
         },
         onprogress: function (res) {
-            if(res.lengthComputable) {
+            if (res.lengthComputable) {
                 console.log("progress:", res.loaded / res.total);
             }
         }
@@ -342,7 +356,7 @@ function retry(fileUrl, finalName, count) {
         url: fileUrl,
         onload: onload,
         onerror: function () {
-            if(count > 0) {
+            if (count > 0) {
                 retry(fileUrl, finalName, --count);
             } else {
                 // noinspection JSUnresolvedFunction
@@ -358,7 +372,7 @@ function retry(fileUrl, finalName, count) {
     });
 
     function onerrorFinal(rr) {
-        if(!isDdgUrl(fileUrl)) {
+        if (!isDdgUrl(fileUrl)) {
             GM_download({
                 name: `${finalName}.${getFileExtension(fileUrl)}`,
                 url: ddgProxy(fileUrl),
@@ -379,87 +393,72 @@ function retry(fileUrl, finalName, count) {
 
 function generateAndDownloadZip(zipName) {
     zipDl.generateAsync({type: "blob"}).then(function (content) {
-            zipName = zipName || (tempDirectory.replace(/\/$/, "") || document.title);
-            saveAs(content, zipName + ".zip");
+            zip.zipName = zip.zipName || (tempDirectory.replace(/\/$/, "") || document.title);
+            saveAs(content, zip.zipName + ".zip");
         }
     );
 }
 
 function downloadBatch(inputUrls, directory, maxDlLimit) { // download batch but with a max count limit
-    if(typeof maxDlLimit === 'undefined') {
-        maxDlLimit = MAX_DOWNLOADS;
-    } else {
-        console.log('maxDownloadCount was passed:', maxDlLimit);
-    }
-    if(!inputUrls) {
-        console.error("input URLs null!");
-        return;
-    }
-    directory = directory || nameBatchDirectory(inputUrls) || document.title;
+    if (typeof maxDlLimit === 'undefined') maxDlLimit = MAX_DOWNLOADS;
+    else console.log('maxDownloadCount was passed:', maxDlLimit);
+    zipImages(inputUrls, `${directory} ${directory}`);
+
+    if (!inputUrls) throw "input URLs null!";
+
+    directory = directory || document.title;
     console.log('MAIN_DIRECTORY:', MAIN_DIRECTORY);
     console.log('sub-tempDirectory:', tempDirectory);
 
-    /*zipTotal = inputUrls.size || inputUrls.length;
-    console.debug("zipTotal", zipTotal);
-    if (!!zipDl) {
-        console.warn("There is already a ZIP object");
-        // return;
-    }*/
-    // zip = zip || new JSZip();
 
     let dlCount = 0;
-    for (let url of inputUrls) {
-        if(Array.isArray(url)) {
-            downloadBatch(url, directory, maxDlLimit);
-            break;
-        }
-        if(++dlCount >= maxDlLimit) { // recursive call in case this element is an array
-            console.log('Exceeded maximum download size.');
-            break;
-        }
-        const zipInsteadOfDownload = false;
-        if(zipInsteadOfDownload) {
-            imageUrl2blob(url, zipImage);
-        } else {
-            download(url, null, directory);
-        } // we used to use download, now we use ZIP
 
-    }
+    let i = 0;
+    var interval = setInterval(() => {
+        if (i < inputUrls.length) {
+            const url = inputUrls[i];
+            // if (Array.isArray(url)) {
+            //     downloadBatch(url, directory, maxDlLimit);
+            //     return;
+            // }
+            // if (++dlCount >= maxDlLimit) { // recursive call in case this element is an array
+            //     console.log('Exceeded maximum download size.');
+            //     return;
+            // }
+            download(url, null, `${location.hostname} - ${document.title}`);
+        } else clearInterval(interval);
+    }, 200);
 
-    function zipImage(blob, url) {
-        zipDl.file(`${nameFile(url)}.${(getFileExtension(url) || "gif")}`, blob, {base64: true});
-        if(zipTotal <= ++zipCurrent) {
-            generateAndDownloadZip();
-        }
-    }
+    // function zipImage(blob, url) {
+    //     zipDl.file(`${nameFile(url)}.${(getFileExtension(url) || "gif")}`, blob, {base64: true});
+    //     if (zip.zipTotal <= ++zip.current) {
+    //         generateAndDownloadZip();
+    //     }
+    // }
 }
 /**@deprecated*/
 function downloadImageBatch(inputUrls, directory) {
-    if(!inputUrls) {
-        console.error("mainImage input URLs null!");
-        return;
-    }
+    if (!inputUrls) throw "mainImage input URLs null!";
+
     console.log('Image batch received:', inputUrls);
-    nameBatchDirectory(inputUrls);
-    let dlCount = 0;
+    const batchName = `${cleanFileName(cleanGibberish(document.title), true)}/`;
+    zipImages(inputUrls, `${directory} ${batchName}`);
+
+    /*let dlCount = 0;
     for (let url of inputUrls) {
-        if(Array.isArray(url)) { // recursive call in case this element is an array
+        if (Array.isArray(url)) { // recursive call in case this element is an array
             downloadImageBatch(url);
             break;
         }
-        if(++dlCount >= MAX_DOWNLOADS) {
-            console.log('Exceeded maximum download size:', dlCount + ' downloads.');
-            break;
-        }
-        if(/\.gif/.test(url)) {
-            download(url, null, directory);
+        if (/\.gif/.test(url)) {
+            download(url, batchName, directory);
         } else {
             downloadImageWithCondition(url);
         }
-    }
+    }*/
 }
 function downloadImageWithCondition(url, width, height, fileName, downloadDirectory, imgEl) {
-    if(url instanceof Set || Array.isArray(url)) {
+    if (url instanceof Set || Array.isArray(url)) {
         downloadImageBatch(url);
         return;
     }
@@ -472,7 +471,7 @@ function downloadImageWithCondition(url, width, height, fileName, downloadDirect
     img.addEventListener("load", function () {
         dim = (this.naturalWidth + 'x' + this.naturalHeight);
         onLoadDim(url, function () {
-            if(dimensionsCondition(dim, width, height)) {
+            if (dimensionsCondition(dim, width, height)) {
                 download(url, fileName, downloadDirectory, imgEl);
             }
         }, imgEl);
@@ -481,62 +480,32 @@ function downloadImageWithCondition(url, width, height, fileName, downloadDirect
     return dim;
 }
 
-function nameBatchDirectory(inputUrls) {
-    let directoryName = document.title;
-    // 'TM_Batch (';
-    /*inputUrls.forEach(function(name, i, array){
-        name = nameFile(inputUrls[i]);
-        if(name){ directoryName += name+')'; return; }
-    });*/
-    tempDirectory = cleanDirectoryName(cleanGibberish(directoryName)) + '/';
-    console.log('Directory name:', tempDirectory);
-    return directoryName;
-}
 function nameFile(fileUrl) {
-    if(NAME_FILES_BY_NUMBER === true) return (" " + fileNumber++);
+    if (NAME_FILES_BY_NUMBER === true) return (` ${fileNumber++}`);
 
     let fileName = 'untitled';
     try {
         fileName = clearUrlGibberish(decodeURIComponent(fileUrl).split('/').pop())
-            .split('.')[0] + ('_' + fileNumber++);
+            .split('.')[0] /*+ (' ' + fileNumber++)*/;
     } catch (e) {
         console.error('Failed to name file', fileUrl, e);
     }
-    fileName = cleanFileName(/^[\w\-. ]+$/.test(fileName) ? fileName : (document.title) + '_');
+    fileName = cleanFileName(new RegExp(`[${invalidNameCharacters}]`).test(fileName) ? (`${document.title} - `) : fileName);
     return fileName;
 }
 function getFileExtension(fileUrl) {
-    const ext = clearUrlGibberish(('' + fileUrl).split('.').pop()) //the string after the last '.'
+    const ext = clearUrlGibberish((`${fileUrl}`).split(/[.]/).pop()) //the string after the last '.'
         .replace(/[^a-zA-Z0-9].+($|\?)/gi, "") // replace everything that is non-alpha, numeric nor a '.'
         .replace(/[^\w]/gi, '');
-    return ext ? ext : 'oops';
+    return !ext ? 'oops' : ext;
 }
 
-function matchGibberish(str) {
-    const matches = str.match(/[\d]{3,}/gi);
-    return matches ? matches : '';
-}
-
-function getGibberishCount(str) {
-    return matchGibberish(str).length;
-}
-
-function cleanFileName(fileName) {
-    const fileCleanerRegex =
-        // new RegExp('[^' + allLanguagesCharSetRegex + '\.]|\r|(\s\s+)', 'gi')
-        new RegExp('[' + invalidNameCharacters + ']|^\\.|(\\s\\s+)', 'gi')
-    ;
+function cleanFileName(fileName, isDirectory) {
+    const fileCleanerRegex = new RegExp(`[${invalidNameCharacters}${isDirectory ? '' : '\\\\/'}]|(^[\\W.]+)|(\\s\\s+)`, 'gi');
     return clearUrlGibberish(decodeURIComponent(fileName)).replace(fileCleanerRegex, ' ').trim();
 }
 function removeDoubleSpaces(str) {
     return str ? str.replace(/(\s\s+)/g, " ") : str;
-}
-function cleanDirectoryName(directoryName) {
-    /*testing*/
-    return cleanFileName(directoryName);
-
-    /*const directoryCleanerRegex = new RegExp('[^' + allLanguagesCharSetRegex + '\\.]|\\r|(\\s\\s+)', 'gi');
-    return clearUrlGibberish(decodeURIComponent("" + directoryName)).replace(directoryCleanerRegex, ' ').trim();*/
 }
 function clearUrlGibberish(str) {
     return removeDoubleSpaces(decodeURIComponent(str).replace(/(^site)|www(\.?)|http(s?):\/\/|proxy\.duckduckgo|&f=1|&reload=on/gi, ""));
@@ -593,73 +562,268 @@ function makeTextFile(text) {
     var data = new Blob([text], {type: 'text/plain'});
     var textFile = null;
     // If we are replacing a previously generated file we need to manually revoke the object URL to avoid memory leaks.
-    if(textFile !== null) window.URL.revokeObjectURL(textFile);
+    if (textFile !== null) window.URL.revokeObjectURL(textFile);
     textFile = window.URL.createObjectURL(data);
     return textFile;
 }
 
-
-function zipFilesExample(imgData) {
-    var zip = new JSZip();
-    zip.file("Hello.txt", "Hello World\n");
-
-    var imgFolder = zip.folder("images");
-    imgFolder.file("smile.gif", imgData, {base64: true});
-
-    const downloadName = "example.zip";
-    zip.generateAsync({type: "blob"}).then(function (content) {
-            saveAs(content, downloadName);
-        }
-    );
-}
-function image2ArrayBuffer(requestURL) {
-    GM_xmlhttpRequest({
-        method: 'GET',
-        url: requestURL,
-        responseType: 'arraybuffer',
-        timeout: (setting['timeout'] !== undefined) ? Number(setting['timeout']) * 1000 : 300000,
-        /*headers: {
-            'Referer': imageList[index]['pageURL'],
-            'X-Alt-Referer': imageList[index]['pageURL']
-        },*/
-        onprogress: function (res) {
-            console.error('GM_xmlhttpRequest onprogress', res);
-        },
-        onload: onload,
-        onerror: function (res) {
-            console.error('GM_xmlhttpRequest error', res);
-        },
-        ontimeout: function (res) {
-            console.warn('GM_xmlhttpRequest timeout', res);
-        }
-    });
-
-    onload = function (res) {
-        // Obtain a blob: URL for the image data.
-        var arrayBufferView = new Uint8Array(res);
-
-        var blob = new Blob([arrayBufferView], {type: "image/jpeg"});
-        var urlCreator = window.URL || window.webkitURL;
-        var imageUrl = urlCreator.createObjectURL(blob);
-    };
-}
-function appendImageToZip(url, callback) {
-
+function zipBeforeUnload(e) {
+    var dialogText = "You still didn't download your zipped files, are you sure you want to exit?";
+    e.returnValue = dialogText;
+    return dialogText;
 }
 
-/** zips one image and downloads it
- * @param zip
- * @param imgData */
-function appendToZip(zip, imgData) {
-    zip = zip || new JSZip();
-    zip.file("smile.gif", imgData, {base64: true});
+unsafeWindow.zipImages = zipImages;
+function zipImages(imgList, zipName) {
+    const zip = new JSZip();
+    zip.current = 0;
+    zip.activeZipThreads = 0;
+    zip.totalSize = 0;
+    zip.totalLoaded = 0;
+    zip.responseBlobs = new Set();
+    zip.zipName = (zipName ? zipName : document.title).replace(/\//g, " ");
+    zip.genZip = function genZip() {
+        this.generateAsync({type: "blob"}).then(function (content) {
+                zip.zipName = (zipName || document.title);
+                saveAs(content, `${zip.zipName} [${Object.keys(zip.files).length}].zip`);
+                unsafeWindow.zipGenerated = true;
 
-    /*
-
-        zip.generateAsync({type: "blob"}).then(function (content) {
-                saveAs(content, (tempDirectory.replace(/\/$/, "") || document.title) + ".zip");
+                window.removeEventListener('beforeunload', zipBeforeUnload);
             }
         );
-    */
+    };
+    zip.progressBar = setupProgressBar();
 
+    const selector = `img.img-big`;
+    const imgs = Array.from(imgList ? imgList : qa(selector)).map(img => {
+        if (!img) return;
+        if (img.slice && img.indexOf) { // if string
+            img = {
+                fileURL: img
+            };
+        }
+        img.fileURL = img.fileURL || img.src || img.href;
+        img.fileName = img.fileName || img.alt || img.title || nameFile(img.fileURL) || "Untitled image";
+        return img;
+    }).filter(img => !!img);
+    zip.zipTotal = Array.from(imgs).length;
+
+    window.addEventListener('beforeunload', zipBeforeUnload);
+    console.log('zipping images:', imgs);
+
+    for (const img of imgs)
+        try {
+            requestAndZipImage(img.fileURL, img.fileName);
+        } catch (r) {
+            console.error(r);
+        }
+
+    /**
+     * Requests the image and adds it to the local zip
+     * @param fileUrl
+     * @param fileName
+     */
+    function requestAndZipImage(fileUrl, fileName) {
+        var fileSize = 0;
+        zip.loadedLast = 0;
+        zip.activeZipThreads++;
+
+        fileName = removeDoubleSpaces(fileName.replace(/\//g, " "));
+
+        if (zip.files.hasOwnProperty(fileName)) {
+            console.log('ZIP already contains the file: ', fileName);
+            return;
+        }
+
+        function onBadResult(res) {
+            console.debug('onBadResult:', 'fileURL:', fileUrl, 'response.finalURL:', res.finalUrl);
+            // if not a proxyUrl, try to use a proxy
+            if (!isDdgUrl(res.finalUrl)) {
+                console.debug(
+                    'retrying with ddgproxy',
+                    '\nddgpURL:', ddgProxy(fileUrl),
+                    '\nfileURL:', fileUrl,
+                    '\nresponse.finalURL:', res.finalUrl
+                );
+                if (/<!DOCTYPE/.test(res.responseText)) {
+                    console.error('Not image data!', res.responseText);
+                    zip.current++;
+                    return;
+                }
+                requestAndZipImage(ddgProxy(fileUrl), fileName);
+            } else { // if is a proxy url and it failed, just give up
+                return true;
+            }
+        }
+
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
+            responseType: 'arraybuffer',
+            binary: true,
+            onload: function (res) {
+                if (zip.files.hasOwnProperty(fileName)) {
+                    console.warn('ZIP already contains the file: ', fileName);
+                    return;
+                }
+                try {
+                    console.debug(
+                        "onload:"
+                        + "\nreadyState:    " + res.readyState
+                        + "\nresponseHeaders: " + res.responseHeaders
+                        + "\nstatus:        " + res.status
+                        + "\nstatusText:    " + res.statusText
+                        + "\nfinalUrl:      " + res.finalUrl
+                        + "\nresponseText:  " + res.responseText.slice(0, 100) + '...'
+                    );
+                } catch (e) {
+                }
+
+                const contentType = res.responseHeaders.match(/content-type: \w+\/\w+/)[0].replace('content-type: ', '');
+                const typeSplit = contentType.split('/');
+                const ext = typeSplit.pop(),
+                    mimeType = typeSplit.pop()
+                ;
+                console.debug(`contentType: ${contentType}`);
+
+                if (/<!DOCTYPE html PUBLIC/.test(res.responseText) || !/image/i.test(mimeType)) {
+                    console.error('Not image data!', res.responseText);
+                    if (onBadResult(res) || /<!DOCTYPE html PUBLIC/.test(res.responseText)) {
+                        return;
+                    }
+                }
+                var blob = new Blob([res.response], {type: contentType});
+
+                zip.file(`${fileName.trim()}_${zip.current + 1}.${ext || contentType.split('/').pop() || "gif"}`, blob);
+                console.log("Added file to zip:", fileName, fileUrl);
+                zip.responseBlobs.add(blob);
+                zip.current++;
+
+                // if finished, stop
+                if (zip.current < zip.zipTotal || zip.zipTotal <= 0) {
+                    return;
+                }
+
+                // Completed!
+                if (zip.current >= zip.zipTotal - 1) {
+                    console.log("Generating ZIP...\nFile count:", Object.keys(zip.files).length);
+                    zip.zipTotal = -1;
+                    if (zip.progressBar.remove)
+                        zip.progressBar.remove();
+                    zip.genZip();
+                }
+                zip.activeZipThreads--;
+            },
+            onreadystatechange: function (res) {
+                console.debug("Request state changed to: " + res.readyState);
+                if (res.readyState === 4) {
+                    console.debug('ret.readyState === 4');
+                }
+            },
+            onerror: function (res) {
+                if (onBadResult(res)) {
+                    return;
+                }
+                console.error(`An error occurred.
+readyState: ${res.readyState}
+responseHeaders: ${res.responseHeaders}
+status: ${res.status}
+statusText: ${res.statusText}
+finalUrl: ${res.finalUrl}
+responseText: ${res.responseText}`
+                );
+                zip.activeZipThreads--;
+            },
+            onprogress: function (res) {
+                if (zip.files.hasOwnProperty(fileName) || zip.current < zip.zipTotal || zip.zipTotal <= 0) {
+                    //TODO: stop the GM_xmlrequest at this point
+                    /*if(res.abort)
+                        res.abort();
+                    else
+                        console.error('res.abort not defined');
+                    if(this.abort)
+                        this.abort();
+                    else
+                        console.error('this.abort not defined');
+                    return;*/
+                }
+
+                if (res.lengthComputable) {
+                    if (fileSize == 0) { // happens once
+                        fileSize = res.total;
+                        zip.totalSize += fileSize;
+                    }
+                    const loadedSoFar = res.loaded;
+                    const justLoaded = loadedSoFar - zip.loadedLast;    // What has been added since the last progress call
+                    const fileprogress = loadedSoFar / res.total;   //
+
+                    zip.totalLoaded += justLoaded;
+                    const totalProgress = zip.totalLoaded / zip.totalSize;
+
+                    if (false) {
+                        console.debug(`
+loadedSoFar = ${res.loaded};
+justLoaded = ${loadedSoFar - zip.loadedLast}
+fileprogress = ${loadedSoFar / res.total}`);
+                    }
+
+                    if (typeof progressBar != 'undefined') {
+                        progressBar.set(totalProgress);
+                        progressBar.setText(`Files in ZIP: (${Object.keys(zip.files).length} / ${zip.zipTotal}) Active threads: ${zip.activeZipThreads}     (${zip.totalLoaded} / ${zip.totalSize})`);
+                    }
+
+                    zip.loadedLast = loadedSoFar;
+                }
+            }
+        });
+    }
+
+    // give access to the zip variable by adding it to the global object
+
+    const varName = `zip-${location.hostname.replace(/\./g, '-')}`;
+    console.log(
+        'zip object reference:  ', varName,
+        `To access, use:    window[\`${varName}\`]\n`, zip
+    );
+    window[varName.toString()] = zip;
+
+    return zip;
+}
+
+
+function setupProgressBar() {
+    // noinspection JSUnresolvedVariable
+    if (typeof(ProgressBar) == 'undefined') {
+        console.warn("ProgressBar is not defined.");
+        return;
+    }
+    if (!q('#progressbar-container'))
+        document.body.firstElementChild.before(createElement(`<header id="progressbar-container" 
+style="
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-height: 30px;
+    padding: 10px 0;
+    background-color: #36465d;
+    box-shadow: 0 0 0 1px hsla(0,0%,100%,.13);
+    z-index: 100;"
+    />`));
+
+    // noinspection JSUnresolvedVariable
+    var progressBar = new ProgressBar.Line('#progressbar-container', {
+        easing: 'easeInOut',
+        color: '#FCB03C',
+        strokeWidth: 1,
+        trailWidth: 1,
+        text: {
+            value: '0'
+        }
+    });
+    progressBar.set(0);
+    const progressbarText = q('.progressbar-text');
+    progressbarText.style.display = "inline";
+    progressbarText.style.position = "relative";
+    return progressBar;
 }
