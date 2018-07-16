@@ -8,8 +8,10 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        unsafeWindow
-// @require      http://code.jquery.com/jquery-latest.js
-// @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @require      http://code.jquery.com/jquery-latest.min.js
+// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
+// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\SuperGoogle.user.js
+// @require      https://raw.githubusercontent.com/kimmobrunfeldt/progressbar.js/master/dist/progressbar.min.js
 // @run-at       document-end
 // ==/UserScript==
 
@@ -18,9 +20,11 @@
 
 
 // To-do list:
-// [] TODO  Migrate all the buttons and extra Google stuff from the DisplayOriginalImages script
-// [] TODO  Make function unionTitles(title1, title2) (has words in both but without duplicates), good for naming images using both description and title
 // [] TODO  work on the saveublsites function to save data as JSON (information such as: ddgp, dimensions, #successes, #dgpSuccesses)
+//[ ]       TODO:   Merge/combine the 3 google mainImage scripts to make this script work on Google images independantly.
+//[ ]       TODO:   (low priority) Add tooltips to the checkboxes with descriptions and include the keyboard shortcuts.
+// [x]      Migrate all the buttons and extra Google stuff from the DisplayOriginalImages script
+// [x]      Make function unionTitles(title1, title2) (has words in both but without duplicates), good for naming images using both description and title
 // [x]      Have a method that injects stuff to the imagePanels (only once at start)
 // [x]      FIX "SearchByImage" button
 // [x]      FIX the image downloading with a limit. Problem: When Images fail to load, they still count towards the download cap.
@@ -44,7 +48,7 @@ var logAnnoyingNetworkErrors = false;
 if (typeof debug === 'undefined') debug = false;
 if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
 
-const Constants = {
+const Consts = {
     GMValues: {
         UBL_SITES: 'unblocked sites of og images',
         UBL_URLS: 'unblocked image URLs',
@@ -53,15 +57,27 @@ const Constants = {
     },
     Selectors: {
         showAllSizes: '#jHnbRc > div.O1id0e > span:nth-child(2) > a',    // The "All sizes" link from the SearchByImage page
-        searchModeDiv: '#hdtb-msb-vis',
-        selectedSearchMode: '#hdtb-msb-vis' + ' div.hdtb-msel',
+        searchModeDiv: 'div#hdtb-msb-vis',
+        selectedSearchMode: 'div#hdtb-msb-vis' + ' div.hdtb-msel',
+        currentImagePanel: "a#irc_cb",     // the panel element containing the current image [data-ved], so if you observe this element, you can get pretty much get all the data you want.
+        searchBox: "#lst-ib"
     }
 };
 
-var AUTO_SAVE_UBL_SITES = GM_getValue(Constants.GMValues.autosaveUblSites, false);
-googleBaseURL = `${location.protocol}//${location.hostname}`;
+const ClassNames = {
+    DISPLAY_ORIGINAL: "display-original-" + "mainImage",
+    DISPLAY_ORIGINAL_GIF: "display-original-" + "-gif",
+    FAILED: "display-original-" + "-failed",
+    FAILED_DDG: "display-original-" + "-ddg-failed",
 
+    BUTTONS: "super-button"
+};
+const HIDE_FAILED_IMAGES_ON_LOAD = GM_getValue("HIDE_FAILED_IMAGES_ON_LOAD", false),
+    AUTO_SAVE_UBL_SITES = GM_getValue(Consts.GMValues.autosaveUblSites, false);
+
+googleBaseURL = `${location.protocol}//${location.hostname}`;
 gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+
 // GM_setValue(Constants.GMValues.UBL_SITES, "");
 // GM_setValue(Constants.GMValues.UBL_URLS, "");
 // GM_setValue(Constants.GMValues.UBL_SITES_MAP, "");
@@ -137,9 +153,7 @@ if (typeof GM === 'undefined') // PRE GM4
     GM.setValue = GM_setValue;
 }
 
-if (typeof unsafeWindow === "undefined") {
-    unsafeWindow = window;
-}
+if (typeof unsafeWindow === "undefined") unsafeWindow = window;
 // prevents duplicates
 if (typeof unsafeWindow.superGoogleScript === 'undefined') {
     unsafeWindow.superGoogleScript = this;
@@ -147,34 +161,43 @@ if (typeof unsafeWindow.superGoogleScript === 'undefined') {
     void(0);
 }
 
+const mimeTypesJSON = $.getJSON(
+    "https://cdn.rawgit.com/jshttp/mime-db/master/db.json",
+    /** (PlainObject data, String textStatus, jqXHR jqXHR) */
+    function (data, textStatus, jqXHR) {
+        console.log("JQuery.getJSON()\ndata, textStatus, jqXHR :", data, textStatus, jqXHR);
+    }
+);
+
 // OPTIONS:
-let LOOP_RELATED_IMAGES = GM_getValue('LOOP_RELATED_IMAGES', false);
 const Settings = {
     invertWheelRelativeImageNavigation: false,
-    defaultAnchorTarget: "_blank"
+    defaultAnchorTarget: "_blank",
+    staticNavbar: false,
+    LOOP_RELATED_IMAGES: GM_getValue('LOOP_RELATED_IMAGES', false)
 };
-const
-    successColor = 'rgb(167, 99, 255)',
+const successColor = 'rgb(167, 99, 255)',
     urlArgs = {
         // "tbs=isz": "lt",//
         // islt: "2mp",    // isLargerThan
         // tbs: "isz:l",   // l=large, m=medium...
-        "hl": "en"
+        // "hl": "en"
     }
 ;
 
-let progressBar,
-    zippingInProgress = false,
-    totalSize = 0,
-    totalLoaded = 0,
 
+let slider_dlLimit,
+    slider_minImgSize,
+
+    controlsContainerId = 'google-controls-container',
+    progressBar,
     searchModeDiv = q('#hdtb-msb-vis'),
     selectedSearchMode = !searchModeDiv ? null : searchModeDiv.querySelector('div.hdtb-msel'),
     onGoogleImages = selectedSearchMode && selectedSearchMode.innerHTML == 'Images'
 ;
+var currentDownloadCount = 0;
 
 
-const staticNavbar = false;
 // language=CSS
 addCss(
     `.hover-click:hover,
@@ -218,20 +241,37 @@ div.rg_bx {
 .irc_asc {
     display: inline-block !important;
 }
+.irc_ris {
+	height: fit-content !important;
+	width: 80% !important;
+}
 
 /**/
 div.text-block {
+    display: block;
     position: absolute;
-	bottom: 20px;
-	right: 20px;
-	color: white;
-	padding: 7px;
-	opacity: 0.4;
-	display: block;
-	height: 15%;
-	width: 10%;
-	top: 0px;
-	left: 0px;
+    color: white;
+    opacity: 0.4;
+    
+    padding: 5px;
+    margin: 2px;
+    
+	min-height: 15px;
+	min-width: 15px;
+	width: fit-content;
+	height: fit-content;
+    top: 0;
+    left: 0;
+    
+    border-radius: 5px;
+    font: normal 11px arial, sans-serif;
+	white-space: nowrap;
+}
+div.text-block.ext-gif {
+    background-color: magenta;
+}
+div.text-block.ext:not(.ext-gif) {
+    background-color: #00cbff;
 }
 
 /**/
@@ -254,7 +294,6 @@ div.text-block {
 
 [type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -270,10 +309,10 @@ div.text-block {
     cursor: pointer;
 }
 
-.fixed-position${staticNavbar ? ', #qbc, #rshdr:not(#sfcnt)' : ''} {
+.fixed-position${Settings.staticNavbar ? ', #qbc, #rshdr:not(#sfcnt)' : ''} {
     position: fixed;
     top: 0;
-    z-index: 16777271;
+    z-index: 1000;
 }
 
 .ubl-site {
@@ -317,10 +356,12 @@ if (urlArgs && Object.keys(urlArgs).length) {
         searchParams = url.searchParams;
 
     for (const key in urlArgs) {
-        if (searchParams.has(key))
-            searchParams.set(key, urlArgs[key]);
-        else
-            searchParams.append(key, urlArgs[key]);
+        if (urlArgs.hasOwnProperty(key)) {
+            if (searchParams.has(key))
+                searchParams.set(key, urlArgs[key]);
+            else
+                searchParams.append(key, urlArgs[key]);
+        }
     }
     console.debug('new location:', url.toString());
 
@@ -343,12 +384,11 @@ if (urlArgs && Object.keys(urlArgs).length) {
     }
 }
 
+// if on google.com/saves, add keyboard shortcuts
 if (/google\..+\/save/.test(location.href)) {
     console.log('beginning of google.com/save site...');
-    // setInterval(wrapGSavesPanelsWithAnchors, 1500);
     window.addEventListener('keydown', function keyDown(e) {
-        const targetElIsInput = targetIsInput(e),
-            k = (window.event) ? e.keyCode : e.which,
+        const k = (window.event) ? e.keyCode : e.which,
             modKeys = getModKeys(e);
         switch (k) {
             case KeyEvent.DOM_VK_GRAVE_ACCENT: // `
@@ -372,10 +412,6 @@ if (/google\..+\/save/.test(location.href)) {
 
 const belowDivClassName = 'below-st-div';
 
-function containsClassName(element, token) {
-    return element.classList.contains(token) || element.querySelector(token);
-}
-
 /**
  * is el1 == el2 OR contains el2?
  * @param element
@@ -388,10 +424,9 @@ function isOrContains(element, el2) {
 }
 
 unsafeWindow.getImgMetaById = getImgMetaById;
-
 function getImgMetaById(id) {
-    for (const metaEl of qa('.rg_meta')) {
-        if ((new RegExp(id, "im")).test(metaEl.innerText)) {
+    for (const metaEl of qa('div.rg_meta')) {
+        if (metaEl.innerText.indexOf(id) > -1) {
             try {
                 return JSON.parse(metaEl.innerText);
             } catch (e) {
@@ -407,14 +442,37 @@ unsafeWindow.gZipImages = gZipImages;
 var zip = new JSZip();
 unsafeWindow.zip = zip;
 unsafeWindow.genZip = genZip;
+JSZip.prototype.generateZipIndexHtml = function generateZipIndexHtml() {
+    let html = "";
+    for (const key in this.files) {
+        try {
+            const file = this.files[key];
+            /**{url, name, page}*/
+            const data = JSON.parse(file.comment ? file.comment : "{}");
+            html += `<div>
+    <a href="${data.url || file.name}">
+        <img src="${file.name}">
+    </a>
+        <div>
+        <a href="${data.page}" target="_blank">${file.name}</a>
+        <h4>${file.name}</h4>
+        <h3>${data.name || file.name}</h3>
+        </div>
+    </div>`;
+        } catch (e) {
+            console.error(e)
+        }
+    }
+    return zip.file("index.html", new Blob([html], {type: 'text/plain'}));
+};
 
 function genZip(zipName) {
+    zip.file("index (online).html", new Blob([getIndexHtml()], {type: 'text/plain'}));
+
+    zip.generateZipIndexHtml(zip);
     zip.generateAsync({type: "blob"}).then(function (content) {
             zipName = (zipName || document.title).replace(/site:|( - Google Search)/gi, '');
-            const infoName = `info_${zipName}.txt`;
-            if (!zip.files.hasOwnProperty(infoName)) {
-                zip.file(infoName, new Blob([getGimgPageInfoText()], {type: 'text/plain'}));
-            }
+
             saveAs(content, `${zipName} [${Object.keys(zip.files).length}].zip`);
             unsafeWindow.zipGenerated = true;
 
@@ -425,16 +483,14 @@ function genZip(zipName) {
 }
 
 unsafeWindow.extractRarbgTorrentURL = extractRarbgTorrentURL;
-
-//  https://rarbg.unblocker.win/download.php?id= kmvf126 &f= <TorrentName>-[rarbg.to].torrent
 /**
  * @param {string} torrentName
  * @param {string} torrentPageURL
  * @returns {string}
+ * https://rarbg.unblocker.win/download.php?id= kmvf126 &f= <TorrentName>-[rarbg.to].torrent
  */
 function extractRarbgTorrentURL(torrentName, torrentPageURL) {
-    var torrentURL;
-    torrentURL = torrentPageURL.replace(/torrent\//i, 'download.php?id=') + "&f=" + torrentName.split(/\s+/)[0] + ".torrent";
+    const torrentURL = `${torrentPageURL.replace(/torrent\//i, 'download.php?id=')}&f=${torrentName.split(/\s+/)[0]}.torrent`;
     console.debug('extracted rarbg torrent URL:', torrentURL);
     return torrentURL;
 }
@@ -486,10 +542,6 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
  */
 
 
-/*
- @info:  #irc_cb     the panel element containing the current image [data-ved], so if you observe this element, you can get pretty much get all the data you want.
- @info:  #lst-ib     search box
- */
 /**
  * ImagePanel class
  * Provides functions for a partner element (one of the 3 panels)
@@ -533,10 +585,10 @@ class ImagePanel {  // ImagePanel class
                  }
      */
     get imageData() {
-        return JSON.parse(getMetaText(this.mainImage));
+        return getMeta(this.mainImage);
     }
     get isFocused() {
-        return new RegExp(`translate3d(0px, 0px, 0px)`, 'i').test(this.el.getAttribute('style'));
+        return this.el.style.transform === 'translate3d(0px, 0px, 0px);';
     }
 
     /** @return {HTMLDivElement} */
@@ -560,7 +612,7 @@ class ImagePanel {  // ImagePanel class
         }
     }
     get descriptionText() {
-        const descr = this.titleAndDescriptionDiv.querySelector('.irc_asc');
+        const descr = this.titleAndDescriptionDiv.querySelector('div.irc_asc');
 
         descr.innerText = (descr.innerText.length < 2) ? this.pTitle_Text : descr.innerText;
         return cleanGibberish(descr.innerText);
@@ -584,7 +636,6 @@ class ImagePanel {  // ImagePanel class
     get sTitle_Text() {
         const secondaryTitle = this.sTitle_Anchor;
         const siteHostName = getHostname(this.sTitle_Anchor.href);
-        // console.log('siteHostName', siteHostName);
         return cleanGibberish(secondaryTitle.outerText.replace(siteHostName, ''));
     }
 
@@ -653,12 +704,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         );
 
         return unionPTitleAndDescrAndSTitle;
-
-        /* const candidate1 = (pTitle.length > sTitle.length ? pTitle : sTitle).trim(); // choose the longer one
-         if (candidate1.length > 5 && description.length > 5)
-         return candidate1 + " " + description;
-         return (candidate1.length > description.length ? candidate1 : description).trim().slice(0, 50);
-         */
     }
     get leftPart() {
         return this.q('.irc_t');
@@ -672,7 +717,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
      * @return {*}
      */
     get sbiUrl() {
-        // if (typeof panel === 'undefined')
         const risFcDiv = this.ris_fc_Div;
         var reverseImgSearchUrl = "#";
         if (!!risFcDiv) {
@@ -754,6 +798,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             };
             p.pTitle_Anchor.before(rarbg_tl);
         })();
+
         //@info .irc_ris    class of the relatedImgsDivContainer
         //@info div#isr_mc  the main container containing all the image boxes, and the panels (only 2 children)
         panelEl.addEventListener("wheel", /**
@@ -810,7 +855,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             }
         });
 
-        // Underlining bound keys
+        // Underlining binded keys
         /* var keymap = new Map([ // Key: selector, Value: character
          ['.i15087', 's'],
          ['.i18192', 'v']
@@ -849,6 +894,8 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         p.update_ImageHost();
         p.update_sbi();
 
+        addImgExtensionBox(panelEl.qa("div.irc_rimask:not(.ext)"));
+
         // rarbg torrent link
         let torrentLink = p.q('.torrent-link'),
             linkIsTorrent = /\/torrent\//gi.test(p.pTitle_Anchor.href);
@@ -864,7 +911,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             console.log('content:', content);
             let doc = document.createElement('html');
             doc.innerHTML = content;
-            const allSizesAnchor = doc.querySelector(Constants.Selectors.showAllSizes);
+            const allSizesAnchor = doc.querySelector(Consts.Selectors.showAllSizes);
             if (allSizesAnchor && allSizesAnchor.href) {
                 fetchUsingProxy(allSizesAnchor.href, function (content2) {
                         let doc2 = document.createElement('html');
@@ -883,15 +930,14 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         console.log('download related images:', relatedImageDivs);
 
         var metaDataStr =
-            "Google images data for related images" +
-            "\nTitle:     " + document.title +
-            "\nURL:     " + location.href +
-            "\nSearch:    " + q('#lst-ib').value
+            `Google images data for related images
+Title:     ${document.title}
+URL:     ${location.href}
+Search:    ${q('#lst-ib').value}`
         ;
         for (const imgDiv of relatedImageDivs) {
             var img = imgDiv.querySelector('img'),
-                dataText = getMetaText(img),
-                metaObj = JSON.parse(dataText),
+                metaObj = getMeta(img),
                 imgTitle
             ;
 
@@ -906,7 +952,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             console.log("Downloading:", href, imgTitle, dir, img);
             download(href, imgTitle, dir, img);
         }
-        anchorClick(makeTextFile(metaDataStr), dir + '/' + 'info.txt');
+        // anchorClick(makeTextFile(metaDataStr), dir + '/' + 'info.txt');
     }
     static downloadCurrentImage() {
         try {
@@ -948,7 +994,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         var dataVed = "";
         const targetEl = this.q('.irc_msc');//this.q('div.irc_ris');
 
-        // if (risContainer && !risContainer.parentNode.classList.contains('download-related')) {
         const buttonHtml = `<a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}" style="padding-right: 5px; padding-left: 5px; text-decoration:none;"> <span>${text}</span></a>`;
         var button = createElement(buttonHtml);
         button.addEventListener('click', function (element) {
@@ -956,8 +1001,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             return false;
         });
         targetEl.after(button);
-        // } else
-        //     console.log('this panel already has downlaod-related buttonParent');
     }
     inject_DownloadImage() {
         const text = 'Download&nbsp;↓';
@@ -965,7 +1008,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             const dataVed = '';
             const className = 'download-image';
 
-            // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
             const buttonHtml = `<td><a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}"> <span>${text}</span></a></td>`;
             const button = createElement(buttonHtml);
             button.addEventListener('click', function handleClick(element) {
@@ -1004,7 +1046,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             const dataVed = '';
             const className = 'view-image';
 
-            // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
             const buttonHtml = `<td><a href="JavaScript:void(0);" target="${"_blank"}" class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}"> <span>${text}</span></a></td>`;
             const link = createElement(buttonHtml);
             var globeIcon = document.querySelector('._RKw._wtf._Ptf');
@@ -1183,6 +1224,17 @@ unsafeWindow.ublMap = ublMap;
 
 go();
 if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of determining whether the page is a Google Image search
+
+    function cleanSearch() {
+        console.log('cleanSearch()');
+        const searchBar = q("input#lst-ib");
+        searchBar.value = cleanDates(searchBar.value).replace(/\s+|[.\-_]+/g, " ");
+    }
+    Mousetrap.bind(["c c"], cleanSearch);
+    Mousetrap.bind(["u"], () => {
+        location.assign(safeSearchOffUrl());
+    });
+
     window.addEventListener("keydown", onKeyDown, true);
     console.log('added super google key listener');
     window.addEventListener("load", function modifyImgsOnLoad() {
@@ -1202,20 +1254,34 @@ if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of det
     })();
 }
 
+// add small text box containing image extension
+function addImgExtensionBox(imageContainers) {
+    for (const imgBox of imageContainers) {
+        if (imgBox.querySelector('.text-block')) continue;
+        const img = imgBox.querySelector('img.rg_ic.rg_i'),
+            meta = getMeta(img),
+            ext = meta ? meta.ity : img.src.match(/\.(jpg|jpeg|tiff|png|gif)($|\?)/i);
+        if (!ext) continue;
+        const textBox = createElement(`<div class="text-block ext ext-${ext}"></div>`);
+        if (!ext.toUpperCase) {
+            console.warn("ext.toUpperCase is not a function:", ext);
+            return;
+        }
+        textBox.innerText = ext.toUpperCase();
+        // textBox.style["background-color"] = (ext == 'gif') ? "magenta" : "#83a3ff";
+        img.after(textBox);
+        img.classList.add('ext', `ext-${ext}`);
+    }
+}
 
 observeDocument(function (mutationTarget, addedNodes) {
-    clickLoadMoreImages(mutationTarget);
 
-    for (const imgbox of document.querySelectorAll("div.rg_bx:not(.ext)")) {
-        if (imgbox.querySelector('.text-block')) return;
-        const img = imgbox.querySelector('img.rg_ic'),
-            ext = getMeta(img).ity;
-        img.classList.add('ext');
-        const color = ext == 'gif' ? "purple" : "blue";
-        img.after(createElement(`<div class="text-block rg_ilmbg" style="background-color: ${color};">
-<h4>${ext}</h4></div>`
-        ));
+    clickLoadMoreImages();
+    const addedImageBoxes = mutationTarget.querySelectorAll(".rg_bx");
+    if (mutationTarget.classList.contains("rg_bx") || addedImageBoxes.length) {
+        onImagesLoading(addedImageBoxes);
     }
+
 
     (function updateDlLimitSliderMax() {
         const dlLimitSlider = q('#dlLimitSlider');
@@ -1226,71 +1292,443 @@ observeDocument(function (mutationTarget, addedNodes) {
 
             const newValue = Math.min(numImages, tmpValue);
             dlLimitSlider.setAttribute('value', newValue);
-            q('#dlLimitSliderValue').setAttribute('value', newValue);
+            const sliderValueEl = q('#dlLimitSliderValue');
+            if (sliderValueEl) sliderValueEl.setAttribute('value', newValue);
         }
     })();
+
 });
 // attach chgMon to document.body
 
 
 function go() {
-    try {
-        // iterating over the stored ubl sites
-        for (const ublHostname of GM_getValue(Constants.GMValues.UBL_SITES, new Set())) ublSitesSet.add(ublHostname);
-        for (const ublURL of GM_getValue(Constants.GMValues.UBL_URLS, new Set())) ublMetas.add(ublURL);
-        for (const [ublHostname, data] of new Map(GM_getValue(Constants.GMValues.UBL_SITES_MAP, new Map()))) ublMap.set(ublHostname, data);
-        if (AUTO_SAVE_UBL_SITES) setInterval(storeUblSitesSet, 5000);
+    if (onGoogleImages) {
+        try {
+            // iterating over the stored ubl sites
+            for (const ublHostname of GM_getValue(Consts.GMValues.UBL_SITES, new Set())) ublSitesSet.add(ublHostname);
+            for (const ublURL of GM_getValue(Consts.GMValues.UBL_URLS, new Set())) ublMetas.add(ublURL);
+            for (const [ublHostname, data] of new Map(GM_getValue(Consts.GMValues.UBL_SITES_MAP, new Map()))) ublMap.set(ublHostname, data);
+            if (AUTO_SAVE_UBL_SITES) setInterval(storeUblSitesSet, 5000);
 
-        // if (new URL(location.href).searchParams.get('allsizes'))
-        {
-            var showAllSizesAnchor = q(Constants.Selectors.showAllSizes);
-            if (!!showAllSizesAnchor) showAllSizesAnchor.click();
-        }
-        const conditionSelector = '#irc_cc > div';
-
-        waitForElement(() => {
-            if (ImagePanel.mainPanelEl && ImagePanel.focP && ImagePanel.focP.mainImage && ImagePanel.focP.buttons) {
-                return qa(conditionSelector);
+            // if (new URL(location.href).searchParams.get('allsizes'))
+            {
+                var showAllSizesAnchor = q(Consts.Selectors.showAllSizes);
+                if (!!showAllSizesAnchor) showAllSizesAnchor.click();
             }
-        }, function startPanelModifications(panelEl) {
-            ImagePanel.modifyP(panelEl);
-            const mutationObserver = new MutationObserver(function (mutations) {
-                mutations.forEach(function (mutation) {
-                    if (!mutation.addedNodes.length) {
-                        return;
-                    }
-                    try {
-                        if (!!ImagePanel.focP) {
-                            ImagePanel.updateP(ImagePanel.focP);
+            const conditionSelector = '#irc_cc > div';
+
+            waitForElement(() => {
+                if (ImagePanel.mainPanelEl && ImagePanel.focP && ImagePanel.focP.mainImage && ImagePanel.focP.buttons) {
+                    return qa(conditionSelector);
+                }
+            }, function startPanelModifications(panelEl) {
+                ImagePanel.modifyP(panelEl);
+                const mutationObserver = new MutationObserver(function (mutations) {
+                    mutations.forEach(function (mutation) {
+                        if (!mutation.addedNodes.length) {
+                            return;
                         }
-                        q('#dlLimitSlider').setAttribute('max', qa('.rg_bx').length);
-                    } catch (e) {
-                        console.warn(e, "Focused panel:", ImagePanel.focP);
+                        try {
+                            if (!!ImagePanel.focP) {
+                                ImagePanel.updateP(ImagePanel.focP);
+                            }
+                            const dlLimitSlider = q('#dlLimitSlider');
+                            if (dlLimitSlider) dlLimitSlider.setAttribute('max', qa('.rg_bx').length);
+                        } catch (e) {
+                            console.warn(e, "Focused panel:", ImagePanel.focP);
+                        }
+                    })
+                });
+
+                const target = ImagePanel.mainPanelEl;
+                // console.debug('Target element to be observed:', target, 'type:', typeof target);
+                mutationObserver.observe(target, {
+                    childList: true, subtree: true,
+                    attributes: false, characterData: true
+                });
+            });
+
+            (function bindKeys() {
+                Mousetrap.bind(["alt+a"], () => {
+                    (!q('#itp_animated').firstElementChild ? q('#itp_').firstElementChild : q('#itp_animated').firstElementChild).click();
+                });
+                Mousetrap.bind(["D"], () => {
+                    q('#downloadBtn').click();
+                });
+                Mousetrap.bind(["h"], () => {
+                    q('#showFailedImagesBox').click();
+                });
+                Mousetrap.bind(["g"], () => {
+                    q('#GIFsOnlyBox').click();
+                });
+            })();
+            // adds a toggleEncryptedGoogle button
+            /*q('#ab_ctls').appendChild(createElement(`<i class="ab_ctl">
+        <a id="toggleEngrypted" href="${toggleEncryptedGoogle(true)}"> ${/www\.google/.test(location.hostname) ? "engrypted.google&nbsp;⇌" : "www.google.com"}</a>
+    </i>`));*/
+        } catch (e) {
+            console.error(e);
+        }
+
+        waitForElement('#hdtb-msb', injectGoogleButtons);
+    } else {
+        const results = qa('div.srg > div');
+        for (let i = 0; i < results.length; i++) {
+            // bind each result to the corresponding number
+            Mousetrap.bind(`${i + 1}`, () => {
+                results[i].querySelector('a').click();
+            });
+            results[i].before(createElement(`<strong style="float: left;">${i + 1}</strong>`));
+        }
+    }
+}
+
+/** @param visibleThumbnailsOnly
+ * @returns {set<HTMLImageElement>} */
+function getThumbnails(visibleThumbnailsOnly) {
+    // language=CSS
+    const selector = 'div.rg_bx > a.rg_l[jsname="hSRGPd"] > img' +
+        (visibleThumbnailsOnly ? ':not([style*=":none;"]):not([visibility="hidden"])' : '')
+    ;
+    return qa(selector);
+}
+// done:    Make a navbar that drops down containing all the buttons and controls
+function updateQualifiedImagesLabel(value) {
+    const qualifiedGImgs = getQualifiedGImgs();
+    value = value || Array.from(qualifiedGImgs).length;
+    const satCondLabel = q("#satCondLabel");
+    if (satCondLabel)
+        satCondLabel.innerHTML = `${value} images satisfying conditions`;
+
+    const dlLimitSlider = q('#dlLimitSlider');
+    if (dlLimitSlider && dlLimitSlider.value < value) {
+        dlLimitSlider.setAttribute('value', value);
+        q("#dlLimitSliderValue").innerText = value;
+    }
+    /*if (q("#OnlyShowQualifiedImages").checked)
+        for (const img of getThumbnails()) {
+            const qualified = img.hasAttribute('qualified-dimensions');
+            setVisible(img, qualified);
+        }
+        */
+}
+/**Modify the navbar and add custom buttons*/
+function injectGoogleButtons() {
+    try {
+        let controlsContainer = createElement(`<div id="${controlsContainerId}"</div>`);
+        const googleButtonsContainer = document.querySelector('#hdtb-msb');
+        /*q('#abar_button_opt').parentNode*/ //The "Settings" button in the google images page
+
+        var callback = function (topnavContentDiv) {
+            const gNavbar = q('#rshdr');
+            topnavContentDiv.before(gNavbar, q('#searchform'));
+            topnavContentDiv.appendChild(controlsContainer);
+        };
+        var navbar = createAndGetNavbar(callback);
+
+        // auto-click on "tools" if on Google Images @google-specific
+        const toolsButton = q(".hdtb-tl");
+        if (!!toolsButton) {
+            if (!toolsButton.classList.contains('hdtb-tl-sel')) { // if the tools bar is not already visible (not already clicked)
+                toolsButton.click();
+            } else console.warn('tools button already activated');
+        } else console.warn('tools button not found');
+
+
+        // var linkAnimated = createElement('<a style="display:" class="hdtb-tl" href="#" onclick="alert("finally"); document.getElementById("itp_animated").firstElementChild.click();">Animated</a>');
+
+
+        /**
+         * @param id    the checkbox element id
+         * @param labelText
+         * @param changeListener    what happens when the text box changes?
+         * @param checked
+         * @returns {HTMLDivElement} this label element contains a checkbox input element
+         */
+        function createGCheckBox(id, labelText, changeListener, checked) {
+            var checkBoxContainerEl;
+
+            checkBoxContainerEl = createElement(
+                `<div class="sg" style="display:inline;">
+<input id="${id}" type="checkbox" ${(checked !== null ? checked : GM_getValue(id)) ? 'checked="checked"' : ""}>
+<label for="${id}">${labelText.replace(/\s/g, '&nbsp;')}</label>
+</div>`);
+            if (!!changeListener) {
+                checkBoxContainerEl.addEventListener('change', () => {
+                    changeListener();
+                });
+            }
+            return checkBoxContainerEl;
+        }
+
+        // Check boxes
+        const cbox_ShowFailedImages = createGCheckBox("showFailedImagesBox", "Show failed images", _sfi, HIDE_FAILED_IMAGES_ON_LOAD);
+        const cbox_GIFsOnly = createGCheckBox("GIFsOnlyBox", "GIFs only", _gifsOnly, false);
+        const cbox_UseDdgProxy = createGCheckBox("useDdgProxyBox", "Try DDGP",
+            () => {
+                GM_setValue("useDdgProxy", q('#useDdgProxyBox').checked);
+                updateQualifiedImagesLabel();
+            },
+            GM_getValue("useDdgProxy", true)
+        );
+
+        // passive checkbox
+        const cbox_GIFsException = createGCheckBox("GIFsExceptionBox", "Always download GIFs",
+            () => GM_setValue("GIFsException", q('#GIFsExceptionBox').checked),
+            GM_getValue("GIFsException", true)
+        );
+        // passive checkbox
+        const cbox_OnlyShowQualifiedImages = createGCheckBox("OnlyShowQualifiedImages", "Only show qualified images",
+            () => GM_setValue("OnlyShowQualifiedImages", this.checked),
+            GM_getValue("OnlyShowQualifiedImages", false)
+        );
+
+        /** Show failed images */
+        function _sfi() {
+            const checked = q("#showFailedImagesBox").checked;
+            setVisibilityForFailedImages(checked);
+            GM_setValue("HIDE_FAILED_IMAGES_ON_LOAD", checked_ShowFailedImages());
+        }
+
+        function _gifsOnly() {
+            _sfi();
+            const checked = q("#GIFsOnlyBox").checked;
+            Array.from(qa(`.rg_bx a.rg_l img`)).forEach(nonGifImg => {
+                if (!/\.gif($|\?)/.test(getMeta(nonGifImg).ou)) {
+                    console.debug('nonGifImg href doesn\'t end with .gif, settings visibility to:', checked, nonGifImg);
+                    setVisible(nonGifImg, checked);
+                }
+            });
+        }
+
+
+        for (const img of getThumbnails(true)) {
+            img.classList.add('blur');
+        }
+
+        //todo: make the image size slider increment discretely, depending on the available dimensions of the images
+        // Sliders
+        const default_slider_minImgSize_value = 250;
+        slider_minImgSize = createElement(`<input id="minImgSizeSlider" type="range" min="0" max="3000" value="${default_slider_minImgSize_value}" step="25">`);
+        var sliderReading_minImgSize = createElement(`<label for="minImgSizeSlider" id="minImgSizeSliderValue">${slider_minImgSize.value}x${slider_minImgSize.value}</label>`);
+        slider_minImgSize.oninput = function () {
+            sliderReading_minImgSize.innerHTML = /*'Min Dimensions<br>' +*/ (`${this.value}x${this.value}`);
+
+            // Highlighting images that will be downloaded
+            // clearAllEffects(); // todo: this is being called too much
+            for (const img of getThumbnails(true)) {
+                var meta = getMeta(img);
+                var width = meta.ow, height = meta.oh,
+                    isBigger = width >= this.value || height >= this.value;
+
+                if (isBigger) {
+                    img.classList.add('qualified-dimensions', 'out');
+                    img.classList.remove('in');
+                } else {
+                    img.classList.add('blur', 'in');
+                    img.classList.remove('qualified-dimensions');
+                }
+            }
+            updateQualifiedImagesLabel(getQualifiedGImgs({
+                ogs: qa('img.rg_ic.rg_i'),
+                exception4smallGifs: null,
+                ignoreDlLimit: true
+            }).size);
+        };
+        slider_minImgSize.onchange = function () {
+            for (const img of qa('.sg-too-small-hide')) {
+                setVisible(img, false);
+            }
+            clearEffectsDelayed();
+            updateQualifiedImagesLabel();
+        };
+
+        slider_dlLimit = createElement(`<input id="dlLimitSlider" type="range" min="1" max="${1000}" value="20">`);
+        var sliderReading_dlLimit = createElement(`<label id="dlLimitSliderValue">${slider_dlLimit.value}</strong>`);
+        slider_dlLimit.oninput = function () {
+            sliderReading_dlLimit.innerHTML = this.value;
+
+            // Highlighting images that will be downloaded
+
+            // blur all
+
+
+            var i = 0;
+            /*
+            for (const qualifiedImgObj of getQualifiedGImgs(null, null, true)) {
+                const img = qualifiedImgObj.img;
+                console.debug('i:', i, 'this.value:', this.value);
+                if(++i <= this.value) {
+                    img.classList.add('drop-shadow', 'out');
+                    img.classList.remove('in');
+                }
+            }
+            */
+
+            for (const img of qa('.rg_bx img.qualified-dimensions')) {
+                if (++i <= this.value) {
+                    img.classList.add('drop-shadow', 'out');
+                    img.classList.remove('in');
+                } else {
+                    img.classList.remove('out');
+                    img.classList.add('blur', 'in');
+                }
+            }
+            // un-blur the remaining images (even though they may not satisfy img dimensions)
+            for (const img of qa('.rg_bx img:not(.qualified-dimensions)')) {
+                if (++i <= this.value) {
+                    img.classList.add('drop-shadow', 'out');
+                    img.classList.remove('in');
+                } else {
+                    img.classList.remove('out');
+                    img.classList.add('blur', 'in');
+                }
+            }
+
+            updateQualifiedImagesLabel();
+        };
+        slider_dlLimit.onchange = function () {
+            clearEffectsDelayed()
+        };
+
+        var satCondLabel = createElement(`<label id="satCondLabel">Images satisfying conditions: 0</label>`);
+
+        var timeOut;
+        function clearEffectsDelayed() {
+            clearTimeout(timeOut);
+            timeOut = setTimeout(function () {
+                clearAllEffects();
+                // updateQualifiedImagesLabel();
+            }, 800);
+        }
+
+        // buttons
+        function createGButton(id, innerText, onClick) {
+            const button = createElement(`<button class="${ClassNames.BUTTONS} sg sbtn hdtb-tl" id="${id}">${innerText.replace(/\s/g, "&nbsp;")}</button>`);
+            if (onClick && typeof(onClick) === "function") button.onclick = function () {
+                onClick()
+            };
+            return button;
+        }
+
+
+        // Display originals
+        const downloadImages = function downloadImages() {
+            const zipBox = q('#zipInsteadOfDownload');
+            if (zipBox && zipBox.checked) {
+                if (!zip || Object.keys(zip.files).length < 1) {
+                    gZipImages();
+                } else {
+                    genZip();
+                }
+            } else {
+                if (currentDownloadCount >= slider_dlLimit.value) {
+                    currentDownloadCount = 0;
+                } else {
+                    console.log('currentDownloadCount >= dlNumSlider.value');
+                }
+                const qualifiedGImgs = Array.from(getQualifiedGImgs());
+                let i = 0;
+                const downloadInterval = setInterval(function () {
+                    if (i < qualifiedGImgs.length) {
+                        download(
+                            qualifiedGImgs[i].fileURL,
+                            qualifiedGImgs[i].fileName,
+                            `${location.hostname} ${document.title}`,
+                            qualifiedGImgs[i]
+                        );
+                        currentDownloadCount++;
+                        i++;
+                    } else {
+                        clearInterval(downloadInterval);
                     }
-                })
+                }, 300);
+            }
+        };
+        var btn_dispOgs = createGButton(`dispOgsBtn`, `Display <u>o</u>riginals`, displayImages),
+            btn_animated = createGButton(`AnimatedBtn`, `<u>A</u>nimated`, function () {
+                q('#itp_animated').firstElementChild.click();
+            }),
+            btn_download = createGButton(`downloadBtn`, `Download ⇓`, downloadImages),
+            btn_preload = createGButton(`preloadBtn`, `Preload images ↻`, function () {
+                const imgLinks = Array.from(qa('a.rg_l[href]'));
+                console.log('imgLinks:', imgLinks);
+
+                for (const a of imgLinks) {
+                    let img = a.querySelector('img'),
+                        dlName = cleanGibberish(getMeta(img)["pt"]);
+
+                    createAndAddAttribute(img, 'download-name', dlName);
+                    img.alt = dlName;
+                    ImageManager.markImageOnLoad(img, a.getAttribute('href'));
+                    console.log('Preloading image:', `"${dlName}"`, !isBase64ImageData(img.src) ? img.src : "Base64ImageData");
+                }
             });
 
-            const target = ImagePanel.mainPanelEl;
-            // console.debug('Target element to be observed:', target, 'type:', typeof target);
-            mutationObserver.observe(target, {
-                childList: true, subtree: true,
-                attributes: false, characterData: true
-            });
-        });
 
-        // adds a toggleEncryptedGoogle button
-        /*q('#ab_ctls').appendChild(createElement(`<i class="ab_ctl">
-    <a id="toggleEngrypted" href="${toggleEncryptedGoogle(true)}"> ${/www\.google/.test(location.hostname) ? "engrypted.google&nbsp;⇌" : "www.google.com"}</a>
-</i>`));*/
-    } catch (e) {
-        console.error(e);
+        btn_download.style.margin = "20px";
+        btn_download.style.border = "20px";
+
+        var cbox_ZIP = createGCheckBox('zipInsteadOfDownload', 'ZIP', function changeZIPBtnText() {
+            const checked = cbox_ZIP.checked;
+            const downloadBtn = q('#downloadBtn');
+            downloadBtn.innerHTML = checked ?
+                (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP&nbsp;images' : 'Download&nbsp;ZIP&nbsp;⇓') :// "zip" or "download zip"
+                'Download&nbsp;⇓';
+            GM_setValue("zipInsteadOfDownload", checked);
+        }, GM_getValue("zipInsteadOfDownload", true));
+        cbox_ZIP.style.padding = "0px";
+
+        var downloadPanel = createElement('<div id="download-panel" style="display: block;"></div>');
+
+        var sliderConstraintsContainer = document.createElement('tb');
+        var tr1 = document.createElement('tr');
+        tr1.appendChild(slider_minImgSize);
+        tr1.appendChild(sliderReading_minImgSize);
+        var tr2 = document.createElement('tr');
+        tr2.appendChild(slider_dlLimit);
+        tr2.appendChild(sliderReading_dlLimit);
+        sliderConstraintsContainer.classList.add('sg');
+        sliderConstraintsContainer.appendChild(tr1);
+        sliderConstraintsContainer.appendChild(tr2);
+
+        // Appending the buttons
+        for (const el of [cbox_ZIP, btn_download, btn_preload, sliderConstraintsContainer]) {
+            downloadPanel.appendChild(el);
+        }
+
+        // don't use this function, BAD // var dlCondition = function (element) {return (element.hasAttribute('img-w') && element.getAttribute('img-w') > minImgSizeSlider.value);};
+
+        // automatically display originals if searching for a site:
+        if (/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
+            displayImages();
+        }
+
+        const divider = document.createElement('div');
+        controlsContainer.appendChild(divider);
+        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, downloadPanel);
+        sliderConstraintsContainer.after(satCondLabel);
+        downloadPanel.appendChild(createElement(`<div id="progressbar-container"></div>`));
+
+        btn_download.innerHTML = cbox_ZIP.checked ? 'ZIP&nbsp;images' : `Download&nbsp;⇓`;
+    } catch (r) {
+        console.error(r);
+    }
+}
+function clearAllEffects() { // remove highlighting of elements
+    console.warn('clearAllEffects()');
+    for (const effectClassName of ['highlight', 'drop-shadow', 'transparent', 'sg-too-small', /*'qualified-dimensions',*/ 'sg-too-small-hide', 'in']) {
+        for (const el of qa('.' + effectClassName)) {
+            el.classList.remove(effectClassName);
+            el.classList.add('out');
+        }
     }
 }
 
 function getQualifiedUblImgMetas() {
     let qualifiedUblImgMetas = new Set();
-    for (const img of qa(`.${Tokens.DISPLAY_ORIGINAL}, img[loaded="true"]`)) {
-        if (img.classList.contains(Tokens.FAILED) || img.classList.contains(Tokens.FAILED_DDG))
+    for (const img of qa(`.${ClassNames.DISPLAY_ORIGINAL}, img[loaded="true"]`)) {
+        if (img.classList.contains(ClassNames.FAILED) || img.classList.contains(ClassNames.FAILED_DDG))
             continue;
         let meta = getMeta(img);
         if (meta && Math.max(meta.ow, meta.oh) < 120) continue;
@@ -1301,12 +1739,68 @@ function getQualifiedUblImgMetas() {
     }
     return qualifiedUblImgMetas;
 }
+unsafeWindow.getQualifiedGImgs = getQualifiedGImgs;
+/**
+ * @returns {Set<{fileURL: string, fileName: string, img: HTMLImageElement}>}
+ * to get images that only satisfy the dimensions condition:    getQualifiedGImgs(null, null, true)
+ * @param ogs
+ * @param exception4smallGifs
+ * @param ignoreDlLimit
+ */
+function getQualifiedGImgs(ogs, exception4smallGifs, ignoreDlLimit) {
+    if (typeof ogs === "object" && ogs.ogs) {
+        ogs = ogs.ogs;
+        exception4smallGifs = ogs.exception4smallGifs;
+        ignoreDlLimit = ogs.ignoreDlLimit;
+    }
+    ogs = !ogs ? qa('img.rg_ic.rg_i') : ogs;
+
+    const minImgSizeSlider = q('#minImgSizeSlider'),
+        dlLimitSlider = q('#dlLimitSlider');
+
+    const minImgSize = minImgSizeSlider ? minImgSizeSlider.value : 0,
+        dlLimit = dlLimitSlider ? dlLimitSlider.value : 0,
+        qualImgs = new Set();
+
+    for (const img of ogs) {
+        try {
+            const fileName = img.getAttribute('download-name') || img.alt;
+
+            if (zip.file(fileName))
+                continue;
+
+            const meta = getMeta(img),
+                fileURL = meta.ou,
+                w = parseInt(meta.ow),
+                h = parseInt(meta.oh)
+            ;
+
+            // adding new property names to the img object
+            img["fileURL"] = fileURL;
+            img["fileName"] = fileName;
+            img["meta"] = meta;
+
+            const isBig = w >= minImgSize || h >= minImgSize,
+                qualDim = isBig || exception4smallGifs && /\.gif\?|$/i.test(fileURL),
+                underDlLimit = qualImgs.size < dlLimit;
+
+            if (qualDim && (ignoreDlLimit || underDlLimit)) {
+                qualImgs.add(img);
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+    console.debug('qualified img objects list:', qualImgs);
+    return qualImgs;
+}
+
 
 unsafeWindow.storeUblMap = storeUblMap;
 
 function storeUblSitesSet() {
     for (const imgMeta of getQualifiedUblImgMetas()) {
-        let hostname = "" + getHostname(imgMeta.src);
+        let hostname = getHostname(imgMeta.src);
         if (/tumblr\.com/.test(hostname)) hostname = hostname.replace(/^\d+?\./, "");
         if (/google|gstatic/i.test(hostname)) {
             hostname = getHostname(imgMeta.anchor.href);
@@ -1316,13 +1810,15 @@ function storeUblSitesSet() {
         }
         ublSitesSet.add(hostname);
     }
-    const merged = new Set();
-    const stored = GM_getValue(Constants.GMValues.UBL_SITES);
-    addToSet(merged, ublSitesSet);
-    addToSet(merged, stored);
+    const stored = GM_getValue(Consts.GMValues.UBL_SITES);
+    const merged = new Set(
+        Array.from(stored)
+            .concat(Array.from(ublSitesSet))
+    );
+
 
     const diff = Array.from(ublSitesSet).filter(x => Array.from(stored).indexOf(x) < 0);
-    GM_setValue(Constants.GMValues.UBL_SITES, Array.from(merged));
+    GM_setValue(Consts.GMValues.UBL_SITES, Array.from(merged));
 
     console.log("Found new unblocked sites:", diff);
     return ublSitesSet;
@@ -1336,7 +1832,7 @@ function storeUblMetas() {
         ublMetas.add(imgMeta);
     }
 
-    const stored = new Set(GM_getValue(Constants.GMValues.UBL_URLS, new Set()));
+    const stored = new Set(GM_getValue(Consts.GMValues.UBL_URLS, new Set()));
     for (const meta of stored) {
         ublMetas.add(meta);
     }
@@ -1345,7 +1841,7 @@ function storeUblMetas() {
         '\nnew ublURLs:', ublMetas
     );
 
-    GM_setValue(Constants.GMValues.UBL_URLS, Array.from(ublMetas).map(ublMeta => {
+    GM_setValue(Consts.GMValues.UBL_URLS, Array.from(ublMetas).map(ublMeta => {
         if (!ublMeta || Array.isArray(ublMeta)) {
             ublMetas.delete(ublMeta);
             return;
@@ -1376,7 +1872,7 @@ function storeUblMap() {
         });
     }
 
-    const stored = new Map(GM_getValue(Constants.GMValues.UBL_SITES_MAP, new Map()));
+    const stored = new Map(GM_getValue(Consts.GMValues.UBL_SITES_MAP, new Map()));
     for (const [k, v] of stored) {
         ublMap.addURL(k, v);
     }
@@ -1385,7 +1881,7 @@ function storeUblMap() {
         '\nnew ublMap:', ublMap
     );
 
-    GM_setValue(Constants.GMValues.UBL_SITES_MAP, Array.from(ublMap.entries()));
+    GM_setValue(Consts.GMValues.UBL_SITES_MAP, Array.from(ublMap.entries()));
     return ublMap;
 }
 
@@ -1400,43 +1896,24 @@ function q(selector) {
     return document.querySelector(selector);
 }
 
-function clickLoadMoreImages(mutationNode) {
+function clickLoadMoreImages() {
     // click "Load more images"
     let el = q("#smb");
     if (el) {
         el.click();
     }
 }
-
-
-/**
- * @param imgN
- * @return {string}
- */
-function getMetaText(imgN) {
-    let data = "Not a main mainImage, No data text available";
+function onImagesLoading(addedImageBoxes) {
+    addImgExtensionBox(addedImageBoxes);
     try {
-        data = getMetaEl(imgN).innerText;
+        updateQualifiedImagesLabel();
     } catch (e) {
-        console.error('Caught:', e);
+        console.error(e);
     }
-    // console.log('Data text:', data);
-
-    //[Google.com images]
-    /**
-     * @deprecated just use getMeta() instead
-     * @param thumbnail
-     * @return {HTMLDivElement }
-     */
-    function getMetaEl(thumbnail) {
-        // return thumbnail.parentNode.closest('.rg_meta');
-        return thumbnail.parentNode.parentNode.querySelector('div.rg_meta');
-        // return thumbnail.closest('.rg_bx').querySelector('.rg_meta');
-    }
-
-    return data;
 }
+
 /**
+ * @deprecated just use getMeta(img)["pt"]
  * @param {HTMLImageElement} imgEl
  * @return {string}
  */
@@ -1444,15 +1921,14 @@ function getGimgDescription(imgEl) {
     let meta = getMeta(imgEl);
     let title = meta.pt,
         desc = meta.s;
-    return title + "_" + desc;
-    // desc.length > 1 ? desc : title; // choosing one of them (prioratizing the description over the title)
+    return `${title}_${desc}`; // choosing one of them (prioratizing the description over the title)
 }
 function getGimgTitle(imgN) {
-    return getGImgMetaAttribute(imgN, 'pt');
+    return getMeta(imgN)['pt'];
 }
-
-
 unsafeWindow.getMeta = getMeta;
+
+
 /**
  * @param imageElement image element, either <img class="rg_ic rg_i" ....> in .rg_bx
  * todo: make this function detect if the image is a thumbnail or inside the panel, also make it work by getting the "id" and finding the meta through that
@@ -1469,47 +1945,40 @@ unsafeWindow.getMeta = getMeta;
  * }
  */
 function getMeta(imageElement) {
-    var metaObj;
-    try {
-        metaObj = JSON.parse(getMetaText(imageElement));
+    var metaObj = {};
+    if (!imageElement)
+        return metaObj;
 
-        delete metaObj.clt;
-        delete metaObj.cl;
-        delete metaObj.cb;
-        delete metaObj.cr;
-        delete metaObj.sc;
-        delete metaObj.tu;
-        delete metaObj.th;
-        delete metaObj.tw;
-        delete metaObj.rh;
-        delete metaObj.rid;
-        delete metaObj.rt;
-        delete metaObj.itg;
+    try {
+        metaObj = JSON.parse(_getMetaText(imageElement));
+
+        // removing useless properties
+        for (const propertyName of ["clt", "cl", "cb", "cr", "sc", "tu", "th", "tw", "rh", "rid", "rt", "itg"])
+            delete metaObj[propertyName];
 
         metaObj.src = imageElement.src;
     } catch (e) {
-        console.warn(e);
+        console.warn(e, imageElement);
+    }
+
+    /** @param img
+     * @return {string} */
+    function _getMetaText(img) {
+        //[Google.com images]
+        /** @param thumbnail
+         * @return {HTMLDivElement } */
+        const _getMetaEl = thumbnail => thumbnail.closest('div.rg_bx.rg_di.rg_el').querySelector('div.rg_meta');
+
+        let data = "{}";
+        try {
+            data = _getMetaEl(img).innerText;
+        } catch (e) {
+            console.error('Caught:', e, img);
+        }
+
+        return data;
     }
     return metaObj;
-}
-/**
- * @deprecated just use getMeta()
- * @param imgN {HTMLImageElement}
- * @param {string} key [ "clt", "id", "isu", "itg", "ity", "oh", "ou", "ow", "pt", "rid", "rmt", "rt", "ru", "s", "st", "th", "tu", "tw" ]
- * @return {string}
- */
-function getGImgMetaAttribute(imgN, key) {
-    if (!key) {
-        console.error(`Key ${key} is null`);
-        return;
-    }
-    const dataObj = getMeta(imgN);
-    if (dataObj.hasOwnProperty(key)) {
-        return dataObj[key];
-    } else {
-        console.error(`Key "${key}" not found in data:`, dataObj);
-        return false;
-    }
 }
 
 /*window.onbeforeunload = function (e) { // on tab exit
@@ -1559,7 +2028,6 @@ function getGImgMetaAttribute(imgN, key) {
  }
  */
 
-unsafeWindow.extractImgData = getGImgMetaAttribute;
 unsafeWindow.getGimgTitle = getGimgTitle;
 unsafeWindow.getGimgDescription = getGimgDescription;
 
@@ -1572,26 +2040,6 @@ unsafeWindow.saveUblSites = saveUblSites;
 function saveUblSites() {
     storeUblSitesSet();
     console.log('Site links of unblocked images:', Array.from(ublSitesSet));
-}
-/**
- * @param {Set} mainSet
- * @param {Set} otherSet
- * @return {*}
- */
-function addToSet(mainSet, otherSet) {
-    if (typeof mainSet === 'undefined' || typeof otherSet === 'undefined') return;
-    try {
-        // if(isIterable(otherSet) && isIterable(mainSet))
-        otherSet.forEach(function (elt) {
-            if (typeof elt === 'string') {
-                mainSet.add(elt);
-            }
-        });
-    } catch (ex) {
-        console.warn(ex);
-    }
-    console.log('merged sets:', Array.from(mainSet));
-    return mainSet;
 }
 
 /* Understanding Google Images
@@ -1775,7 +2223,7 @@ function prevRelImg() {
 
         if (!!previousElementSibling) {
             previousElementSibling.click();
-        } else if (LOOP_RELATED_IMAGES) {
+        } else if (Settings.LOOP_RELATED_IMAGES) {
             const relImgsOnly = Array.from(panel.ris_Divs);// List of relImgs without that last "View More".
 
             const endRis = relImgsOnly.pop();
@@ -1814,24 +2262,13 @@ function nextRelImg() {
         let nextElSibling = ris_fc_Div.nextElementSibling;
         if (nextElSibling && !nextElSibling.classList.contains('irc_rismo')) {
             nextElSibling.click();
-        } else if (LOOP_RELATED_IMAGES) {
+        } else if (Settings.LOOP_RELATED_IMAGES) {
             Array.from(panel.ris_DivsAll)[0].click();
             console.debug("clicking first irc_irs to loop, cuz there isn't any on the right", panel.ris_DivsAll[0]);
         } else {
             ImagePanel.nextImage();
         }
 
-        /*// if the image hasn't loaded (doesn't appear), then just go to the one after it
-        try {
-            const sibblingImg = panel.ris_fc_Div.querySelector('img');
-            const attr_loaded = sibblingImg.getAttribute('loaded');
-            console.debug('sibblingImg.loaded = ', attr_loaded, '\ntype:', typeof(attr_loaded));
-            if (sibblingImg && attr_loaded == 'undefined') {
-                console.debug('sibblingImg.loaded = ', attr_loaded);
-                return nextRelImg()
-            }
-        } catch (e) {
-        }*/
         return true;
     } catch (e) {
         console.warn(e);
@@ -1843,7 +2280,6 @@ function toggleEncryptedGoogle(doNotChangeLocation) {
     const onEncrGoogle = new RegExp("encrypted\\.google\\.com").test(location.hostname);
 
     var targetURL;
-    // targetURL=safeSearchOffUrl(); if (targetURL) location.assign(targetURL);
 
     targetURL = location.href;
     targetURL = !onEncrGoogle ?
@@ -1880,24 +2316,8 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
     const targetElIsInput = targetIsInput(e);
     const k = (window.event) ? e.keyCode : e.which;
     const modKeys = getModKeys(e);
-    /*if(e.ctrlKey && a == KeyEvent.DOM_VK_S)
-     {
-     if(i)
-     {
-     a = protected_createElement("a");
-     a.href = i.src;
-     a.download = ""; // HTML5
-     document.body.appendChild(a);
-     a.click();
-     document.body.removeChild(a);
-     }
-     return;
-     }*/
-    /*if (e.altKey || e.metaKey /!*|| (e.ctrlKey && a !== KeyEvent.DOM_VK_SPACE && a !== KeyEvent.DOM_VK_F5 && a !== KeyEvent.DOM_VK_R)*!/) {
-     return;
-     }*/
 
-    // keys that don't need focusedPanel and all those other variables
+    // keys that don't need a focusedPanel and all those other variables
     switch (k) {
         case KeyEvent.DOM_VK_R:
             if (targetElIsInput) break;
@@ -1923,7 +2343,6 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
     }
 
     if (targetElIsInput) {
-        // console.debug('TargetElIsInput', e.target);
         return false;
     }
 
@@ -1975,9 +2394,9 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
             break;
         case KeyEvent.DOM_VK_SINGLE_QUOTE: // '
             if (!modKeys.NONE) { //    toggle "loop-relImgs" option on/off
-                LOOP_RELATED_IMAGES = !LOOP_RELATED_IMAGES;
-                GM_setValue('LOOP_RELATED_IMAGES', LOOP_RELATED_IMAGES);
-                console.log('LOOP_RELATED_IMAGES toggled to:', LOOP_RELATED_IMAGES);
+                Settings.LOOP_RELATED_IMAGES = !Settings.LOOP_RELATED_IMAGES;
+                GM_setValue('LOOP_RELATED_IMAGES', Settings.LOOP_RELATED_IMAGES);
+                console.log('LOOP_RELATED_IMAGES toggled to:', Settings.LOOP_RELATED_IMAGES);
             }
             break;
         case KeyEvent.DOM_VK_T: // T (for torrent)
@@ -2115,7 +2534,6 @@ function openInTab(url, target) {
     window.open(url, target || "_blank");
 }
 function cleanDates(str) {
-    // return str;
     return !str ? str : removeDoubleSpaces(str.replace(/\d+([.\-])(\d+)([.\-])\d*/g, ' '));
 }
 function cleanSymbols(str) {
@@ -2135,26 +2553,20 @@ function getImgAnchors() {
  */
 function getResultsData() {
     let anchors = getImgAnchors();
-    // let map = new Map();
     let set = new Set();
     for (let a of anchors) {
         var img,
-            metaDataObj,
-            metaDataJSONText;
+            metaDataObj = {};
         try {
             img = a.querySelector('img');
             metaDataObj = getMeta(img);
-            metaDataJSONText = getMetaText(img);
-            JSON.parse(metaDataJSONText);
-
             metaDataObj.loaded = img.getAttribute('loaded');
-            metaDataObj.imgSrc = img.src;
         } catch (e) {
             console.warn(e);
         }
-        set.add(JSON.stringify(metaDataObj) || metaDataJSONText);
+        set.add(JSON.stringify(metaDataObj));
     }
-    console.log('set:', set);
+    console.log('resultsData set:', set);
     return set;
 }
 function stringifyIterable(iterable) {
@@ -2169,7 +2581,21 @@ function stringifyIterable(iterable) {
 function downloadImageData() {
     let text = stringifyIterable(getResultsData());
     let name = 'GImg data_' + document.title;
-    anchorClick(makeTextFile(text), name + '.txt');
+    anchorClick(makeTextFile(text), `${name}.json`);
+}
+
+function getIndexHtml() {
+    return Array.from(qa('.rg_bx')).map(bx => {
+        const meta = getMeta(bx);
+        return `<div>
+<img src="${meta.ou}">
+	<div>
+    <a href="${meta.ru}" target="_blank">${meta.ru}</a>
+    <h3>${meta.pt} ${meta.st}</h3>
+    <h4>${meta.s}</h4>
+	</div>
+</div>`;
+    }).join('\n');
 }
 
 /**
@@ -2184,7 +2610,6 @@ function markImageOnLoad(imgEl, imgUrl) {
     if (!imgEl) return;
     imgUrl = !!imgUrl ? imgUrl : imgEl.src;
     if (imgEl.hasAttribute('loaded')) {
-        // console.log('Img already has "loaded" attr:', imgEl);
         return;
     }
     var imgObj = new Image();
@@ -2208,8 +2633,8 @@ function markImageOnLoad(imgEl, imgUrl) {
  * @deprecated
  */
 function safeSearchOffUrl() {
-    var safeSearchButton = document.getElementById("ss-bimodal-default");
-    return !safeSearchButton ? false : safeSearchButton.href;
+    var safeSearchButton = q("#ss-bimodal-default");
+    if (safeSearchButton) return safeSearchButton.href;
 }
 
 const responseBlobs = new Set();
@@ -2218,25 +2643,8 @@ const responseBlobs = new Set();
  * @returns {string}
  */
 function getGimgPageInfoText() {
-    return `${document.title}:\t${location.href}
-    
-${stringifyIterable(getResultsData())}
-`;
+    return `${document.title}:\t${location.href}\n    \n${stringifyIterable(getResultsData())}\n`;
 }
-
-/*function setupProgressBar() {
-    progressBar = progressBar || new ProgressBar.Line('#progressbar-container', {
-        easing: 'easeInOut',
-        color: '#FCB03C',
-        strokeWidth: 1,
-        trailWidth: 1,
-        text: {
-            value: '0'
-        }
-    });
-    progressBar.set(0);
-    q('.progressbar-text').style = "position: relative;display: inline;";
-}*/
 
 function setupProgressBar() {
     // noinspection JSUnresolvedVariable
@@ -2259,6 +2667,7 @@ style="
     />`));
 
     // noinspection JSUnresolvedVariable
+    // noinspection ES6ModulesDependencies
     var progressBar = new ProgressBar.Line('#progressbar-container', {
         easing: 'easeInOut',
         color: '#FCB03C',
@@ -2268,6 +2677,7 @@ style="
             value: '0'
         }
     });
+    console.log('progressBar:', progressBar);
     progressBar.set(0);
     const progressbarText = q('.progressbar-text');
     progressbarText.style.display = "inline";
@@ -2275,63 +2685,17 @@ style="
     return progressBar;
 }
 
-unsafeWindow.getQualifiedGImgs = getQualifiedGImgs;
-/**
- * @param ogs
- * @param minSizeExceptionForGIFs
- * @param ignoreDlLimit
- * @returns {Set<{fileURL: string, fileName: string, img: HTMLImageElement}>}
- * to get images that only satisfy the dimensions condition:    getQualifiedGImgs(null, null, true)
- */
-function getQualifiedGImgs(ogs, minSizeExceptionForGIFs, ignoreDlLimit) {
-    ogs = !ogs ? qa('img.rg_ic.rg_i') : ogs;
-    const minImgSize = q('#minImgSizeSlider').value,
-        dlLimit = q('#dlLimitSlider').value,
-        qualifiedImgsExtended = new Set();
-
-    for (const og of ogs) {
-        try {
-            let img = og;
-            const fileName = img.getAttribute('download-name') || img.alt;
-            if (zip.files.hasOwnProperty(fileName)) continue;
-
-            const meta = getMeta(img),
-                fileURL = meta.ou, //img.src;
-                w = parseInt(meta.ow),
-                h = parseInt(meta.oh)
-            ;
-
-            // adding new property names to the img object
-            img["fileURL"] = fileURL;
-            img["fileName"] = fileName;
-            img["meta"] = meta;
-
-            const bigEnough = w >= minImgSize || h >= minImgSize,
-                qualifiedDimensions = bigEnough || minSizeExceptionForGIFs && /\.gif\?|$/i.test(fileURL),
-                underDlLimit = qualifiedImgsExtended.size < dlLimit;
-            if (qualifiedDimensions && (ignoreDlLimit || underDlLimit)) {
-                qualifiedImgsExtended.add(img);
-            }
-            createAndAddAttribute(img, "image-qualified", bigEnough && underDlLimit);
-
-        } catch (e) {
-            console.warn(e);
-        }
-    }
-    console.debug('qualified img objects list:', qualifiedImgsExtended);
-    return qualifiedImgsExtended;
-}
-
 function zipBeforeUnload(e) {
     var dialogText = "You still didn't download your zipped files, are you sure you want to exit?";
     e.returnValue = dialogText;
     return dialogText;
 }
-function gZipImages(zipName) {
-    var zipCurrent = 0;
+function gZipImages() {
     zip = zip || new JSZip();
+    zip.current = 0;
+    zip.totalSize = 0;
+    zip.file("info.txt", new Blob([getGimgPageInfoText()], {type: 'text/plain'}));
 
-    zipName = (zipName || document.title).replace(/\//g, " ");
     window.addEventListener('beforeunload', zipBeforeUnload);
     window.onunload = genZip;
     const selector = `img.rg_ic.rg_i`
@@ -2342,31 +2706,49 @@ function gZipImages(zipName) {
     const ogs = qa(selector);
 
 
-    const qualifiedImages = getQualifiedGImgs(null, q('#GIFsExceptionBox').checked);
-    zip.zipTotal = qualifiedImages.size;
+    const qualImgs = getQualifiedGImgs(ogs, null, q('#GIFsExceptionBox').checked);
+    zip.zipTotal = qualImgs.size;
 
     progressBar = setupProgressBar();
 
     console.debug('Original images to be downloaded:', ogs);
-    totalSize = 0;
-    totalLoaded = 0;
+    zip.totalSize = 0;
+    zip.totalLoaded = 0;
     var activeZipThreads = 0;
 
-    for (const qualifiedImgArgs of qualifiedImages)
+    for (const qualifiedImgArgs of qualImgs)
         requestAndZipImage(qualifiedImgArgs.fileURL, qualifiedImgArgs.fileName, qualifiedImgArgs.img);
+    /**
+     * Takes a name and returns the same name and iterates it if it already exists in the zip
+     * @param fname
+     * @return {string}
+     */
+    function getValidIteratedName(fname) {
+        if (!zip.file(fname)) {
+            return fname;
+        } else {
+            var numberStr = (fname).match(/\d+/g);
+            var newName = fname;
+            if (numberStr) {
+                numberStr = numberStr.pop();
+                var number = parseInt(numberStr);
+                newName = fname.replace(numberStr, ++number)
+            } else {
+                var split = newName.split('.');
+                newName = split.slice(0, -1).join('.') + (" 1.") + split.slice(-1);
+            }
+            return getValidIteratedName(newName);
+        }
+    }
 
     function requestAndZipImage(fileUrl, fileName, img) {
         let fileSize = 0,
             loadedLast = 0
         ;
         activeZipThreads++;
-        zippingInProgress = true; // todo: destroy this variable
-        fileName = removeDoubleSpaces(fileName.replace(/\//g, " "));
+        const meta = getMeta(img);
 
-        if (zip.files.hasOwnProperty(fileName)) {
-            console.log('ZIP already contains the file: ', fileName);
-            return;
-        }
+        fileName = getValidIteratedName(removeDoubleSpaces(fileName.replace(/\//g, " ")));
 
         function onBadResult(res) {
             console.debug('onBadResult:', 'fileURL:', fileUrl, 'response.finalURL:', res.finalUrl);
@@ -2379,7 +2761,7 @@ function gZipImages(zipName) {
                 );
                 if (/<!DOCTYPE/.test(res.responseText)) {
                     console.error('Not image data!', res.responseText);
-                    zipCurrent++;
+                    zip.current++;
                     return;
                 }
                 requestAndZipImage(ddgProxy(fileUrl), fileName, img);
@@ -2393,69 +2775,91 @@ function gZipImages(zipName) {
             url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
             responseType: 'arraybuffer',
             binary: true,
-            onload: function (res) {
-                if (zip.files.hasOwnProperty(fileName)) {
+            onload: res => {
+                if (zip.file(fileName)) {
                     return;
                 }
                 try {
-                    console.debug("onload:"
-                        + "\nreadyState: " + res.readyState
-                        + "\nresponseHeaders: " + res.responseHeaders
-                        + "\nstatus: " + res.status
-                        + "\nstatusText: " + res.statusText
-                        + "\nfinalUrl: " + res.finalUrl
-                        + "\nresponseText: " + res.responseText.slice(0, 100) + '...'
+                    console.debug(
+                        `onload:
+readyState: ${res.readyState}
+respHeaders: ${res.responseHeaders}
+status:     ${res.status}
+statusText: ${res.statusText}
+finalUrl:   ${res.finalUrl}
+respText:   ${res.responseText.slice(0, 100)}...`
                     );
                 } catch (e) {
                 }
 
-                var contentType = res.responseHeaders.match(/content-type: \w+\/\w+/)[0].replace('content-type: ', '');
-                const typeSplit = contentType.split('/');
-                var ext = typeSplit.pop(),
-                    mimeType = typeSplit.pop()
-                ;
-                console.debug('contentType: ' + contentType);
+                const [fullMatch, mimeType1, mimeType2] = res.responseHeaders.match(/(?:content-type: )([\w]+)\/([\w\-]+)/);
+                const contentType = [mimeType1, mimeType2].join('/');
+                let ext = mimeTypesJSON.hasOwnProperty(contentType) && mimeTypesJSON[contentType] ?
+                    mimeTypesJSON[contentType].extensions[0] :
+                    mimeType2;
+                console.debug(fullMatch);
+                const wrongMime = !/image/i.test(mimeType1),
+                    isDoctype = /<!DOCTYPE html PUBLIC/.test(res.responseText);
 
-                if (/<!DOCTYPE html PUBLIC/.test(res.responseText) || !/image/i.test(mimeType)) {
-                    console.error('Not image data!', res.responseText);
-                    if (onBadResult(res) || /<!DOCTYPE html PUBLIC/.test(res.responseText)) {
+                if (wrongMime) {
+                    console.log('wrongMime type but continueing to download it:', contentType);
+                    ext = "gif";
+                }
+                if (isDoctype) {
+                    console.error(
+                        'Not image data!: ',
+                        isDoctype ?
+                            'matches "<!DOCTYPE html PUBLIC"' :
+                            wrongMime ? `Wrong mime: ${contentType}` :
+                                "idk",
+                        "\n" + fileUrl,
+                        `${res.responseText.slice(0, 100)}...`
+                    );
+                    if (onBadResult(res) || isDoctype) {
                         return;
                     }
                 }
                 var blob = new Blob([res.response], {type: contentType});
 
                 responseBlobs.add(blob);
-                zip.file(`${fileName}.${ext || "image/gif"}`, blob);
+                zip.file(`${fileName}.${ext || "image/gif"}`, blob, {
+                        comment: JSON.stringify({
+                            url: fileUrl,
+                            name: `${meta.pt} ${meta.st}`,
+                            page: meta.ru
+                        })
+                    }
+                );
                 console.log("Added file to zip:", fileName, fileUrl);
-                zipCurrent++;
+                zip.current++;
 
                 // fixing the download button text
                 const downloadBtn = q('#downloadBtn');
                 downloadBtn.classList.add('genzip-possible');
                 downloadBtn.innerHTML = q('#zipInsteadOfDownload').checked ?
-                    (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP' : 'Download&nbsp;ZIP&nbsp;⇓') :
+                    (!downloadBtn.classList.contains('genzip-possible') ? 'ZIP' : 'Download&nbsp;ZIP&nbsp;⇓') : // "zip" or "download zip"
                     'Download&nbsp;⇓';
 
 
-                if (zipCurrent < zip.zipTotal || zip.zipTotal <= 0) {
+                if (zip.current < zip.zipTotal || zip.zipTotal <= 0) {
                     return;
                 }
 
-                if (zipCurrent >= zip.zipTotal) {
+                if (zip.current >= zip.zipTotal - 1) {
                     console.log("Generating ZIP...", "\nFile count:", Object.keys(zip.files).length);
                     zip.zipTotal = 0;
-                    progressBar.remove();
+                    progressBar.destroy();
                     genZip();
                 }
                 activeZipThreads--;
             },
-            onreadystatechange: function (res) {
+            onreadystatechange: res => {
                 console.debug("Request state changed to: " + res.readyState);
                 if (res.readyState === 4) {
                     console.debug('ret.readyState === 4');
                 }
             },
-            onerror: function (res) {
+            onerror: res => {
                 if (onBadResult(res)) {
                     return;
                 }
@@ -2467,47 +2871,42 @@ function gZipImages(zipName) {
                     + "\nfinalUrl: " + res.finalUrl
                     + "\nresponseText: " + res.responseText
                 );
-                // else {
-                //     //zipCurrent++;
-                // }
                 activeZipThreads--;
             },
-            onprogress: function (res) {
-                if (zip.files.hasOwnProperty(fileName) || zipCurrent < zip.zipTotal || zip.zipTotal <= 0) {
+            onprogress: res => {
+                if (zip.file(fileName) || zip.current < zip.zipTotal || zip.zipTotal <= 0) {
                     //TODO: stop the GM_xmlrequest at this point
 
-                    // if(res.abort)
-                    //     res.abort();
-                    // else
-                    //     console.error('res.abort not defined');
-                    // if(this.abort)
-                    //     this.abort();
-                    // else
-                    //     console.error('this.abort not defined');
-                    // return;
+                    /*if(res.abort)
+                        res.abort();
+                    else
+                        console.error('res.abort not defined');
+                    if(this.abort)
+                        this.abort();
+                    else
+                        console.error('this.abort not defined');
+                    return;*/
                 }
 
                 if (res.lengthComputable) {
                     if (fileSize == 0) { // happens once
                         fileSize = res.total;
-                        totalSize += fileSize;
+                        zip.totalSize += fileSize;
                     }
                     const loadedSoFar = res.loaded;
                     const justLoaded = loadedSoFar - loadedLast;    // What has been added since the last progress call
-                    const fileprogress = loadedSoFar / res.total;   //
+                    const fileprogress = loadedSoFar / res.total;
 
-                    totalLoaded += justLoaded;
-                    const totalProgress = totalLoaded / totalSize;
+                    zip.totalLoaded += justLoaded;
+                    const totalProgress = zip.totalLoaded / zip.totalSize;
 
                     if (false) {
-                        console.debug(`
-loadedSoFar = ${res.loaded};
-justLoaded = ${loadedSoFar - loadedLast}
-fileprogress = ${loadedSoFar / res.total}`);
+                        console.debug(`loadedSoFar = ${res.loaded}\njustLoaded = ${loadedSoFar - loadedLast}\nfileprogress = ${loadedSoFar / res.total}`);
                     }
-
-                    progressBar.set(totalProgress);
-                    progressBar.setText(`Files in ZIP: (${Object.keys(zip.files).length} / ${zip.zipTotal}) Active threads: ${activeZipThreads}     (${totalLoaded} / ${totalSize})`);
+                    if (progressBar) {
+                        progressBar.set(totalProgress);
+                        progressBar.setText(`Files in ZIP: (${Object.keys(zip.files).length} / ${zip.zipTotal}) Active threads: ${activeZipThreads}     (${zip.totalLoaded} / ${zip.totalSize})`);
+                    }
 
                     loadedLast = loadedSoFar;
                 }
@@ -2549,26 +2948,48 @@ function unionStrings(str1, str2) {
     return resultWords.join(' ');
 }
 
-/** @deprecated stupid function, use "google.pmc.colmob.initial_item" instead
- * @returns the innerHTML of the script containing the saves data on saves.google */
-function getGSavesScriptHTML() {
-    const scriptElements = document.querySelectorAll('script[nonce]'),
-        scripts = Array.from(scriptElements).map(script => script.innerHTML);
-    /** This string should always exist in the metadata script, just test if it's there
-     * @type {string} */
-    const TEST_STRING = `(function () {\n    var c = {`;
-    for (const scriptStr of scripts) {
-        if (/^\(function\s*\(\)\s*{[\W]*var c/.test(scriptStr)) {
-            return scriptStr.slice("(function(){".length, -"})();".length);
-        }
+
+function setVisibilityForFailedImages(visibility) {
+
+// language=CSS
+    /*
+    const css = visibility ? '' :
+        ` /!*Failed images selector*!/
+    div.rg_bx > a.rg_l > img.${Tokens.FAILED_DDG},
+    div.rg_bx > a.rg_l > img.${Tokens.FAILED} {
+        display: none !important;
     }
+`;
+    const id = 'hide-failed-images-style';
+    const styleEl = q('#' + id);
+    if (!styleEl) {
+        addCss(css, id);
+    } else {
+        styleEl.innerHTML = css;
+    }
+    */
+
+    let bxs = qa(`div.rg_bx > a.rg_l > img.${ClassNames.FAILED_DDG}, div.rg_bx > a.rg_l > img.${ClassNames.FAILED}`);
+    if (!bxs.length) return;
+
+    let count = 0;
+    for (const imageBox of bxs) {
+        setVisible(imageBox, visibility);
+        count++;
+    }
+    console.log(`Set visibility of ${count} images to`, visibility);
 }
+function setVisible(node, visible) {
+    if (!node) return;
+    if (onGoogleImages) {
+        node = node.parentNode.parentNode;
+    }
 
-
-/** reloads and a function will be called once reloading is done */
-function reloadP() {
-    sessionStorage.setItem("reloading", "true");
-    document.location.reload();
+    if (visible) {
+        node.classList.remove('hide-img');
+    } else {
+        node.classList.add('hide-img');
+    }
 }
 
 class GSaves {
@@ -2646,13 +3067,18 @@ class GSaves {
         }
 
         // language=CSS
-        addCss(`.str-wide-card {
-            cursor: default !important;
-        }
+        addCss(
+                `.str-wide-card {
+                    cursor: default !important;
+                }
 
-        .str-wide-card-title, .str-wide-card-text-holder {
-            display: -webkit-inline-box !important;
-        }`);
+                .str-wide-card-title, .str-wide-card-text-holder {
+                    display: -webkit-inline-box !important;
+                }
+
+                .str-wide-card.expandable:not(.expanded) {
+                    height: 100%;
+                }`);
     }
     static slipAnchorUnderElement(element, href) {
         var tempInnerHTML = element.innerHTML;
@@ -2741,4 +3167,76 @@ function getMenuItems() {
 
     console.log('menuItemsObj=', menuItemsObj);
     return menuItemsObj;
+}
+
+/** @return {Array} returns an array of words with the most common word in the first index */
+function getSortedWords() {
+    const rx = /[\s\W,.\/\\\\-_]+/g;
+    /*this is an array containing all the words of all titles and all images*/
+    const wordList = Array.from(qa('.rg_bx')).map(bx => {
+        const meta = getMeta(bx);
+        try {
+            return (meta.pt ? meta.pt.split(rx) : [])
+                .concat(meta.st ? meta.st.split(rx) : [])
+                .concat(meta.s ? meta.s.split(rx) : []);
+        } catch (e) {
+            console.error(e);
+        }
+    }).reduce((occumulator, currentValue) => occumulator.concat(currentValue))
+        .filter(word => word && word.length > 2);
+
+    return sortByFrequency(wordList);
+}
+
+//todo: make these functions in a utility class
+/** https://stackoverflow.com/a/3579651/7771202 */
+function sortByFrequency(array) {
+    var frequency = {};
+
+    array.forEach(function (value) {
+        frequency[value] = 0;
+    });
+
+    var uniques = array.filter(function (value) {
+        return ++frequency[value] == 1;
+    });
+
+    return uniques.sort(function (a, b) {
+        return frequency[b] - frequency[a];
+    });
+}
+/** https://stackoverflow.com/a/3579651/7771202 */
+function sortByFrequencyAndRemoveDuplicates(array) {
+    var frequency = {}, value;
+
+    // compute frequencies of each value
+    for (var i = 0; i < array.length; i++) {
+        value = array[i];
+        if (value in frequency) {
+            frequency[value]++;
+        }
+        else {
+            frequency[value] = 1;
+        }
+    }
+
+    // make array from the frequency object to de-duplicate
+    var uniques = [];
+    for (value in frequency) {
+        uniques.push(value);
+    }
+
+    // sort the uniques array in descending order by frequency
+    function compareFrequency(a, b) {
+        return frequency[b] - frequency[a];
+    }
+
+    return uniques.sort(compareFrequency);
+}
+function object2Map(obj) {
+    const map = new Map();
+    for (const key in obj) {
+        map.set(key, obj[key]);
+    }
+    return map;
 }
