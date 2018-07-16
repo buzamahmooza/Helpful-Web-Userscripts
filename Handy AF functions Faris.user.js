@@ -31,9 +31,11 @@ IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?\\.(jpg|png|j
 VID_URL_REGEX = /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(mov|webm|mp4|wmv|&f=1)/gim;
 
 var useEncryptedGoogle = /encrypted.google.com/.test(location.hostname);
-var googleBaseURL = "https://" + (useEncryptedGoogle ? "encrypted" : "www") + ".google.com";
-gImgSearchURL = googleBaseURL + "/search?&hl=en&tbm=isch&q=";
-gImgReverseSearchURL = googleBaseURL + "/searchbyimage?&image_url=";
+var googleBaseURL = `https://${/google\./.test(location.hostname) ? location.hostname :
+    ((useEncryptedGoogle ? "encrypted" : "www") + ".google.com")}`;
+
+gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+GIMG_REVERSE_SEARCH_URL = `${googleBaseURL}/searchbyimage?&image_url=`;
 
 if (typeof GM_setClipboard !== 'undefined') {
     unsafeWindow.setClipboard = GM_setClipboard;
@@ -104,12 +106,17 @@ unsafeWindow.URL_REGEX_STR = URL_REGEX_STR;
 unsafeWindow.VID_URL_REGEX = VID_URL_REGEX;
 unsafeWindow.IMAGE_URL_REGEX = IMAGE_URL_REGEX;
 unsafeWindow.gImgSearchURL = gImgSearchURL;
-unsafeWindow.gImgReverseSearchURL = gImgReverseSearchURL;
+unsafeWindow.GIMG_REVERSE_SEARCH_URL = GIMG_REVERSE_SEARCH_URL;
 unsafeWindow.log = log;
 unsafeWindow.setLog = newDebugState => debug = (typeof newDebugState === "boolean") ? newDebugState : debug;
 unsafeWindow.matchSite = matchSite;
 unsafeWindow.createElement = createElement;
 unsafeWindow.loadScript = loadScript;
+unsafeWindow.Proxy = {
+    fileStack: url => (`https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/${encodeURIComponent(url.trim())}`),
+    steemitimages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? (`https://steemitimages.com/0x0/${url.trim()}`) : url,
+    ddg: ddgProxy
+};
 unsafeWindow.ddgProxy = ddgProxy;
 unsafeWindow.getOGZscalarUrl = getOGZscalarUrl;
 unsafeWindow.reverseDdgProxy = reverseDdgProxy;
@@ -140,8 +147,8 @@ unsafeWindow.openAllLinks = function () {
 };
 
 /**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
-function ddgProxy(url) {
-    return isDdgUrl(url) || /^(javascript)/i.test(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
+function ddgProxy(href) {
+    return isDdgUrl(href) || /^(javascript)/i.test(href) ? href : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(href)}&f=1`);
 }
 
 /**Opens the url via fetch(), then performs a callback giving it the document element*/
@@ -150,6 +157,13 @@ unsafeWindow.fetchElement = fetchElement;
 unsafeWindow.xmlRequestElement = xmlRequestElement;
 unsafeWindow.onLoadDim = onLoadDim;
 unsafeWindow.addCss = addCss;
+unsafeWindow.addJs = function addJs(js, id) {
+    const jsScript = document.createElement('script');
+    jsScript.appendChild(document.createTextNode(js));
+    if (!!id) jsScript.id = id;
+    jsScript.classList.add('addJs');
+    return document.getElementsByTagName('head')[0].appendChild(jsScript);
+};
 unsafeWindow.observe = observe;
 unsafeWindow.gfycatPage2GifUrl = function (gfycatPageUrl) {
     if (!/https:\/\/gfycat\.com\/gifs\/detail\/.+/.test(gfycatPageUrl)) {
@@ -159,20 +173,133 @@ unsafeWindow.gfycatPage2GifUrl = function (gfycatPageUrl) {
 };
 unsafeWindow.preloader = preloader;
 unsafeWindow.waitForElement = waitForElement;
-unsafeWindow.includeJS = includeJS;
-
-function addCss(css, id) {
+unsafeWindow.includeJs = includeJs;
+/**
+ * Appends a style element to the head of the document containing the given cssStr text
+ * @param cssStr
+ * @param id
+ * @return {HTMLStyleElement}
+ */
+function addCss(cssStr, id) {
     const style = document.createElement('style');
     if (style.styleSheet) {
-        style.styleSheet.cssText = css;
+        style.styleSheet.cssText = cssStr;
     } else {
-        style.appendChild(document.createTextNode(css));
+        style.appendChild(document.createTextNode(cssStr));
     }
     if (!!id) style.id = id;
     style.classList.add('addCss');
     return document.getElementsByTagName('head')[0].appendChild(style);
 }
+unsafeWindow.disableStyles = disableStyles;
+function disableStyles(enable) {
+    console.log('Disabling styles');
+    for (const styleEl of document.querySelectorAll('style, link')) {
+        styleEl.disabled = !enable
+    }
+}
 
+unsafeWindow.createAndGetNavbar = createAndGetNavbar;
+/**
+ * Creates a static navbar at the top of the page.
+ * Useful for adding buttons and controls to it
+ * @param callback  this callback should be used when instantly adding content to the navbar,
+ *  do NOT just take the returned value and start adding elements.
+ *  @return {HTMLDivElement} returns the parent navbar element
+ */
+function createAndGetNavbar(callback) {
+    // Settings up the navbar
+    // language=CSS
+    addCss(`
+        div#topnav {
+            position: fixed;
+            z-index: 1000;
+            min-height: 50px;
+            top: 0;
+            right: 0;
+            left: 0;
+            background: #525252;
+            font-size: 14px;
+        }
+
+        div#topnav-content {
+            margin-left: 115px;
+            padding: 10px;
+            font-family: inherit;
+            font-stretch: extra-condensed;
+            font-size: 20px;
+        }`, "navbar-css");
+
+    function adjustTopMargin() {
+        document.body.style.top = `${q('#topnav').offsetHeight}px`;
+    }
+
+    const navbar = document.createElement(`div`);
+    navbar.id = "topnav";
+    const navbarContentDiv = document.createElement('div');
+    navbarContentDiv.id = "topnav-content";
+
+    navbar.appendChild(navbarContentDiv);
+
+    document.body.firstElementChild.before(navbar);
+
+    window.addEventListener('resize', adjustTopMargin);
+
+    document.body.style.position = "relative";
+
+    // keep trying to use the callback, works when the navbarContentDiv is finally added
+    var interval = setInterval(function () {
+        const topnavContentDiv = q('#topnav-content');
+        if (topnavContentDiv) {
+            clearInterval(interval);
+            if (callback)
+                callback(topnavContentDiv);
+            adjustTopMargin();
+        }
+    }, 100);
+    return navbar;
+}
+
+
+unsafeWindow.setStyleInHTML = setStyleInHTML;
+/**
+ * This will set the style of an element by force, by manipulating the style HTML attribute.
+ * This gives you more control, you can set the exact text you want in the HTML element (like giving a style priority via "!important").
+ * Example calls:
+ *  setStyleByHTML(el, "background-image", "url(http://www.example.com/cool.png)")
+ *  setStyleByHTML(el, "{ background-image : url(http://www.example.com/cool.png) }")
+ * @param {HTMLElement} el
+ * @param {String} styleProperty
+ * @param {String} styleValue
+ * @return el
+ */
+function setStyleInHTML(el, styleProperty, styleValue) {
+    styleProperty = styleProperty.trim().replace(/^.*{|}.*$/g, '');
+
+    const split = styleProperty.split(':');
+    if (!styleValue && split.length > 1) {
+        styleValue = split.pop();
+        styleProperty = split.pop();
+    }
+
+    if (el.hasAttribute('style')) {
+        const styleText = el.getAttribute('style');
+        const styleArgument = `${styleProperty}: ${styleValue};`;
+
+        let newStyle = new RegExp(styleProperty, 'i').test(styleText) ?
+            styleText.replace(new RegExp(`${styleProperty}:.+?;`, 'im'), styleArgument) :
+            `${styleText} ${styleArgument}`;
+
+        el.setAttribute('style', newStyle);
+
+        log(
+            'adding to style ', `"${styleArgument}"`,
+            '\nnewStyle:', `"${newStyle}"`,
+            '\nelement:', el
+        );
+    }
+    return el;
+}
 
 /**
  * @param targetElement
@@ -203,28 +330,32 @@ function observe(targetElement, callback, options) {
 }
 
 function getGImgReverseSearchURL(url) {
-    return url ? gImgReverseSearchURL + encodeURIComponent(url.trim()) : "";
+    // console.debug('gImgReverseSearchURL=', gImgReverseSearchURL);
+    return url ? GIMG_REVERSE_SEARCH_URL + encodeURIComponent(url.trim()) : "";
 }
 
-/**Returns the url wrapped with proxy.DuckDuckGo.com */
-function reverseDdgProxy(url) {
-    var s = url;
-    if (isZscalarUrl(url)) s = getOGZscalarUrl(url); // extra functionality:
-    // var s = url.substring("https://proxy.duckduckgo.com/iu/?u=", url.indexOf("&f=1") > -1 ? url.indexOf("&f=1") : (url.length - 1));
-    if (isDdgUrl(url)) {
+/**Returns the href wrapped with proxy.DuckDuckGo.com */
+function reverseDdgProxy(href) {
+    var s = href;
+    var url = new URL(href);
+    if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
+    if (isDdgUrl(href)) {
         s = s.trim().match(/(?<=(https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=))(.+?)(?=(&f=1|$))/i);
     }
-    // https://proxy\.duckduckgo\.com/iu/\?u=
+    // https://proxy.duckduckgo.com/iu/?u=
     if (s && s[0]) {
         return decodeURIComponent(s[0]);
     } else {
         console.log('Was unable to reverseDDGProxy for URL:', url);
         return s;
     }
+
+    // todo: make this function use the URL object
+    // return url.searchParams.get('u');
 }
 
-unsafeWindow.regexBetween = function (preceedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
-    return new RegExp(`(?<=(${preceedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions)
+unsafeWindow.regexBetween = function (precedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
+    return new RegExp(`(?<=(${precedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions);
 };
 unsafeWindow.extend = typeof($) == 'undefined' ? null : $.extend;
 
@@ -244,14 +375,15 @@ function preloader(imgUrls) {
 }
 
 // http://code.jquery.com/jquery.js
-function includeJS(src) {
-    const s = document.createElement('script');
-    s.setAttribute('src', src);
-    document.getElementsByTagName('body')[0].appendChild(s);
+function includeJs(src) {
+    const script = document.createElement('script');
+    script.setAttribute('src', src);
+    document.getElementsByTagName('head')[0].appendChild(script);
+    return script;
 }
 
-//TODO:
-/**
+//TODO: fix and test it
+/**@WIP
  * @param {function} elementGetter a function to get the wanted element (or event a condition function)
  * that will be called to test if the element has appeared yet. (should return true only when the element appears)
  * @param callback  the elementGetter will be passed as the first argument
@@ -315,12 +447,17 @@ function elementUnderMouse(wheelEvent) {
 /** Create an element by typing it's inner HTML.
  For example:   var myAnchor = createElement('<a href="https://example.com">Go to example.com</a>');
  * @param html
- * @return {Node}
+ * @param callback optional callback, invoked once the element is created, the element is passed.
+ * @return {HTMLElement}
  */
-function createElement(html) {
+function createElement(html, callback) {
     const div = document.createElement('div');
     div.innerHTML = (html).trim();
-    return div.childNodes[0];
+    const element = div.firstElementChild;
+    if (!!callback && callback.call)
+        callback.call(null, element);
+
+    return element;
 }
 /* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
@@ -343,30 +480,48 @@ function q(selector) {
     return document.querySelector(selector);
 }
 
-unsafeWindow.incrementURL = incrementURL;
-function incrementURL(up) {
-    (function () {
-        var e, s;
-        IB = !!up ? 1 : -1;
+unsafeWindow.getIncrementedUrl = getIncrementedUrl;
+/** Returns a modified url as a string, either incremented(++) or decremented(--)
+ * @param {string} href  the input url you want to modify
+ * @param {number} incrAmount (optional) the amount to increment.
+ *  Default:  increment by 1 (++).
+ *  If the result in the url becomes negative, it will be overridden to 0.
+ * @return {string} incremented/decremented url string */
+function getIncrementedUrl(href, incrAmount) {
+    var e, s;
+    let IB = incrAmount ? incrAmount : 1;
 
-        function isDigit(c) {
-            return ("0" <= c && c <= "9")
-        }
-        var match = location.href.match(/&f=1$/);
-        var tip = !!match ? match[0] : "";
-        L = location.href.replace(tip, "");
-        LL = L.length;
-        for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
-            for (s = e - 1; s >= 0; --s) if (!isDigit(L.charAt(s))) break;
-            break;
-        }
-        ++s;
-        if (e < 0) return;
-        oldNum = L.substring(s, e + 1);
-        newNum = "" + (parseInt(oldNum, 10) + IB);
-        while (newNum.length < oldNum.length) newNum = "0" + newNum;
-        location.href = L.substring(0, s) + newNum + L.slice(e + 1) + tip;
-    })();
+    function isDigit(c) {
+        return ("0" <= c && c <= "9")
+    }
+    var match = href.match(/&f=1$/);
+    var tip = !!match ? match[0] : "";
+    let L = href.replace(tip, "");
+    let LL = L.length;
+    for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
+        for (s = e - 1; s >= 0; --s) if (!isDigit(L.charAt(s))) break;
+        break;
+    }
+    ++s;
+    if (e < 0) return;
+    let oldNum = L.substring(s, e + 1);
+    let newNum = (parseInt(oldNum, 10) + IB);
+    if (newNum < 0) newNum = 0;
+    let newNumStr = "" + newNum;
+    while (newNumStr.length < oldNum.length)
+        newNumStr = "0" + newNumStr;
+
+    return (L.substring(0, s) + "" + newNumStr + "" + L.slice(e + 1) + "" + tip);
+}
+
+unsafeWindow.printElementTextAttributes = printElementTextAttributes;
+function printElementTextAttributes(el) {
+    console.log(
+        'innerText:', el.innerText,
+        '\nOuterText:', el.outerText,
+        '\nInnerHTML:', el.innerHTML,
+        '\nouterHTML:', el.outerHTML
+    );
 }
 function isZscalarUrl(zscalarUrl) {
     return /https:\/\/zscaler\.kfupm\.edu\.sa\/Default\.aspx\?url=/.test(zscalarUrl);
@@ -425,11 +580,50 @@ function loadScript(url, callback, type) {
 }
 
 unsafeWindow.loadModule = loadModule;
+unsafeWindow.getElementsWithText = getElementsWithText;
+window.document.getElementsWithText = getElementsWithText;
+/**
+ * Iterates through all HTMLElements and returns the ones that contains innerText matching the given regex/substr
+ * @param textRegex
+ * @param preliminarySelector   a node selector to narrow down the search from the start
+ * @return {[]}
+ */
+function getElementsWithText(textRegex, preliminarySelector) {
+    if (!textRegex) {
+        console.error('must have an input value');
+        return;
+    }
+    const matchingEls = [];
+    const useSubstring = (typeof textRegex === 'string');
+    function elementContainsText(element, regex) {
+        return !(regex && element && element.innerText) ? false :
+            (useSubstring ? element.innerText.indexOf(regex) > -1 : element.innerText.match(textRegex));
+    }
+
+    for (const el of document.querySelectorAll(preliminarySelector || '*')) {
+        if (elementContainsText(el, textRegex)) {
+            var nothingContainsEl = true;
+            for (var i = 0; i < matchingEls.length; i++)
+                if (matchingEls[i] && matchingEls[i].contains(el) && !Object.is(matchingEls[i], el)) {
+                    matchingEls[i] = null; // that old parentEl is now gone, we only want the deepest node
+                    nothingContainsEl = false;
+                }
+            matchingEls.push(el);
+        }
+    }
+    return matchingEls.filter(el => el != null);
+}
 
 function loadModule(url, callback) {
     return loadScript(url, callback, 'module');
 }
-
+/**
+ * Creates and adds an attributeNode to the element (if the element doesn't have that attribute)
+ * sets the attribute value
+ * @param node
+ * @param attributeName
+ * @param attributeValue
+ */
 function createAndAddAttribute(node, attributeName, attributeValue) {
     if (!node) {
         console.error('Node is null, cannot add attribute.');
@@ -448,10 +642,15 @@ function createAndAddAttribute(node, attributeName, attributeValue) {
 
 /** Deal with relative URIs (URIs starting with "/" or "//") */
 function getAbsoluteURI(inputUrl) {
-    return inputUrl
-        .replace(new RegExp(`^//`), (location.protocol + "//"))        // If string starts with "//", replace with protocal
-        .replace(new RegExp(`^/`), getHostname(location.href) + "/") // convert relative uri (preceed with hostname if URI starts with "/")
-        ;
+    let reconstructedUri = inputUrl
+        .replace(new RegExp(`^//`), `${location.protocol}//`)        // If string starts with "//", replace with protocol
+        .replace(new RegExp(`^/`), `${getHostname(location.href)}/`);// convert relative uri (precede with hostname if URI starts with "/")
+
+    // add protocol if one is not found
+    if (!/^https?/.test(reconstructedUri))
+        reconstructedUri = `https://${reconstructedUri}`;
+
+    return reconstructedUri;
 }
 
 /**
@@ -515,7 +714,20 @@ function xmlRequestElement(url, callback) {
         }
     };
 }
-
+unsafeWindow.fetchDoc = fetchDoc;
+function fetchDoc(url, callback) {
+    fetch(url, {
+            mode: 'no-cors',
+            method: 'get'
+        }
+    ).then((res) => res.text())
+        .then((text) => {
+            var doc = document.createElement('html');
+            doc.innerHTML = text;
+            if (callback && typeof callback === 'function')
+                callback(doc);
+        });
+}
 /**Opens the url, then performs a callback giving it the document element
  * @param {string} url
  * @param {function} callback   passes: (doc, url, args) to the callback function when the response is complete
@@ -533,11 +745,11 @@ function fetchElement(url, callback, args) {
             doc.open();
             doc.write(html);
             doc.close();
-            // doc.location = new window.location(url); //TODO: fix
             try {
                 return callback(doc, url, args);
             } catch (e) {
                 console.error(e);
+                return (html);
             }
         }
     );
@@ -547,41 +759,212 @@ function isDdgUrl(url) {
     return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
 }
 
+function unicodeToChar(text) {
+    return text.replace(/\\u[\dA-F]{4}/gim,
+        match => String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16)));
+}
+
+
+// don't make public because it conflicts with DDGP Unblocker script
+
+/** A class containing static functions to manipulate the srcset attribute */
+unsafeWindow.SrcSet = class SrcSet {
+    /**
+     * @author https://github.com/sindresorhus/srcset/
+     * @param arr
+     * @return {*}
+     */
+    static deepUnique(arr) {
+        return arr.sort().filter(function (el, i) {
+            return JSON.stringify(el) !== JSON.stringify(arr[i - 1]);
+        });
+    }
+    /**
+     * @author https://github.com/sindresorhus/srcset/
+     * @param str
+     * @return {*}
+     */
+    static parse(str) {
+        return this.deepUnique(str.split(',').map(function (el) {
+            var ret = {};
+
+            el.trim().split(/\s+/).forEach(function (el, i) {
+                if (i === 0) {
+                    return ret.url = el;
+                }
+
+                var value = el.substring(0, el.length - 1);
+                var postfix = el[el.length - 1];
+                var intVal = parseInt(value, 10);
+                var floatVal = parseFloat(value);
+
+                if (postfix === 'w' && /^[\d]+$/.test(value)) {
+                    ret.width = intVal;
+                } else if (postfix === 'h' && /^[\d]+$/.test(value)) {
+                    ret.height = intVal;
+                } else if (postfix === 'x' && !isNaN(floatVal)) {
+                    ret.density = floatVal;
+                } else {
+                    throw new Error('Invalid srcset descriptor: ' + el + '.');
+                }
+            });
+
+            return ret;
+        }));
+    }
+    static stringify(arr) {
+        return (arr.map(function (el) {
+            if (!el.url) {
+                throw new Error('URL is required.');
+            }
+
+            var ret = [el.url];
+
+            if (el.width) {
+                ret.push(el.width + 'w');
+            }
+
+            if (el.height) {
+                ret.push(el.height + 'h');
+            }
+
+            if (el.density) {
+                ret.push(el.density + 'x');
+            }
+
+            return ret.join(' ');
+        })).join(', ');
+    }
+};
+
+unsafeWindow.url2location = url2location;
 /**
- * @param href
+ * Retrieves an object with parsed URL data
+ * @param url
+ * @return  {
+ * {port: string,
+ * protocol: string,
+ * href: string,
+ * origin: string,
+ * pathname: string,
+ * hash: string,
+ * search: string}
+ * }
+ */
+function url2location(url) {
+    const a = document.createElement("a");
+    a.href = url;
+    return {
+        port: a.port,
+        protocol: a.protocol,
+        href: a.href,
+        origin: a.origin,
+        pathname: a.pathname,
+        hash: a.hash,
+        search: a.search
+    }
+}
+/** @param href
  * @param keepPrefix    defaults to false
  *        www.example.com
  *        if true:      example.com
  *        if false:     www.example.com
- * @returns {string} Returns the hostname of the site URL
- */
+ * @returns {string} Returns the hostname of the site URL */
 function getHostname(href, keepPrefix) {
-    const l = document.createElement("a");
-    l.href =
-        // (keepPrefixAndProtocol ? (l.protocol.length ? l.protocol : "https://") : "") +
-        href;
-    if (keepPrefix) console.debug("getHostname href =", href);
-    return l.hostname;
+    const a = document.createElement("a");
+    a.href = href;
+    // if (keepPrefix) console.debug("getHostname href =", href);
+    return a.hostname;
 }
+/** Inclomplete
+ * @type {boolean} */
+unsafeWindow.freezeGif = freezeGif;
+function freezeGif(img, unfreeze) {
+    function createElementAndCallback(type, callback) {
+        const element = document.createElement(type);
+        callback(element);
+        return element;
+    }
+    var width = img.width,
+        height = img.height,
+        canvas = createElementAndCallback('canvas', function (clone) {
+            clone.width = width;
+            clone.height = height;
+        }),
+        attr,
+        i = 0;
 
+    var freeze = function () {
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        for (i = 0; i < img.attributes.length; i++) {
+            attr = img.attributes[i];
+
+            if (attr.name !== '"') { // test for invalid attributes
+                canvas.setAttribute(attr.name, attr.value);
+            }
+        }
+        canvas.classList.add('freeze-gif');
+        canvas.style.position = 'absolute';
+
+        img.parentNode.insertBefore(canvas, img);
+        img.style.visibility = 'hidden';
+        // img.style.opacity = 0;
+    };
+
+    var unfreezeGif = function () {
+        console.log('unfreezing', img);
+        const freezeCanvas = img.closest('.freeze-gif');
+
+        if (!freezeCanvas) {
+            console.error('Couldn\'t find freezeCanvas while unfreezing this gif:', img);
+        } else {
+            freezeCanvas.style.visibility = 'hidden';
+        }
+        // img.style.opacity = 100;
+        img.style.visibility = 'visible';
+    };
+
+    if (unfreeze) {
+        unfreezeGif();
+    } else {
+        if (img.complete) {
+            freeze();
+        } else {
+            img.addEventListener('load', freeze, true);
+        }
+    }
+}
 function getIframeDoc(iframe) {
     return iframe.contentDocument || iframe.contentWindow ? iframe.contentWindow.document : null;
 }
 
+unsafeWindow.removeClickListeners = removeClickListeners;
+function removeClickListeners(selector) {
+    if (!!unsafeWindow.$) {
+        unsafeWindow.$(!selector ? "*" : selector)
+            .unbind("click")
+            .off("click")
+            .removeAttr("onclick");
+    } else {
+        console.warn('unsafeWindow.$ is not defined');
+    }
+}
 /**
- * Under construction! TODO:
+ * @WIP TODO: Complete this function
  */
 function removeEventListeners(eventTarget) {
-
-    eventType = "click";
+    var eventType = "click";
     eventTarget = window;
 
-    for (var eventType in window.getEventListeners(eventTarget)) {
-        for (let o of getEventListeners(eventTarget)[eventType]) {
-            console.log('before:', o);
-            o.listener = null;
-            console.log('after:', o);
-        }
+    for (const eventType in window.getEventListeners(eventTarget)) {
+        const eventListeners = getEventListeners(eventTarget);
+        if (eventListeners.hasOwnProperty(eventType))
+            for (const o of eventListeners[eventType]) {
+                console.log('before:', o);
+                o.listener = null;
+                console.log('after:', o);
+            }
     }
 
 
@@ -598,6 +981,22 @@ unsafeWindow.cleanGibberish = cleanGibberish;
 unsafeWindow.isBase64ImageData = isBase64ImageData;
 unsafeWindow.cleanDates = cleanDates;
 
+unsafeWindow.downloadScripts = function downloadScripts() {
+    var scriptUrls = Array.from(document.querySelectorAll('script'))
+        .map(script => script.src ? script.src : window.URL.createObjectURL(new Blob([script.innerHTML], {type: 'text/plain'}))
+        );
+    zipFiles(scriptUrls);
+};
+
+unsafeWindow.escapeEncodedChars = escapeEncodedChars;
+/** Escapes Unicode chars, and anything starting with \x, \u,
+ * @param text
+ * @return {*} */
+function escapeEncodedChars(text) {
+    return text
+        .replace(/\\[u][\dA-F]{4}/gim, match => String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16)))
+        .replace(/\\[x][\dA-F]{2}/gim, match => String.fromCharCode(parseInt(match.replace(/\\x/g, ''), 16)));
+}
 /**
  * Returns true if the string is an image data string
  * @param str
@@ -607,41 +1006,64 @@ function isBase64ImageData(str) {
     return /^data:image\/.{1,5};base64/.test(str);
 }
 function removeDoubleSpaces(str) {
-    return !!str ? str.replace(/(\s\s+)/g, " ") : str;
+    return !!str ? str.replace(/(\s{2,})/g, " ") : str;
 }
 
 function cleanDates(str) {
     return !!str ? removeDoubleSpaces(str.replace(/\d*\.([^.]+)\.\d*/g, ' ')) : str;
 }
-function cleanGibberish(str, gibberishRatioThreshold) {
+function cleanGibberish(str, minWgr) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
-        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " "));
+        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " ")),
+            /**
+             * The minimum word2gibberish ratio to exit the loop
+             * @type {number|*}
+             */
+            minWgr = 0.4 || minWgr;
         if (noGibberish.length < 3) return str;
-        gibberishRatioThreshold = 0.4 | gibberishRatioThreshold;
         /**
          * WGR: Word to Gibberish Ratio (between 0 and 1)
          * 0:   No gibberish    (Good)
          * 1:   100% Gibberish  (Bad)
          * @type {number}
          */
-        let wGratio = (str.length - noGibberish.length) / str.length;
+        let wgr = (str.length - noGibberish.length) / str.length;
         log(
             'cleanGibberish(' + str + ')' +
             '\nOriginal:', str,
             '\nNoGibberish:', noGibberish,
-            '\nRatio:', wGratio
+            '\nRatio:', wgr
         );
 
-        return wGratio > gibberishRatioThreshold ?
-            cleanGibberish(noGibberish, gibberishRatioThreshold) :
+        return wgr > minWgr ?
+            cleanGibberish(noGibberish, minWgr) :
             (str.length > 3 ? str : "");
     }
     return "";
 }
+var getCssImage = (element) => !element ? null : element.style["background-image"].replace(/(['"]?\)$)|(^url\(["']?)/g, '');
+unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*="background-image"]')).map(getCssImage);
 
-unsafeWindow.observeIframe = observeIframe;
-function observeIframe(iframe, observerInit, observerOptions, args) {
+unsafeWindow.observeDocument = function observeDocument(callback, options) {
+    callback(document.body);
+    new MutationObserver(
+        /** @param mutations */
+        function mutationCallback(mutations) {
+            for (var mutation of mutations) {
+                if (!mutation.addedNodes.length) continue;
+                callback(mutation.target);
+            }
+        }
+    ).observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            characterData: false
+        }
+    );
+};
+unsafeWindow.observeIframe = function observeIframe(iframe, observerInit, observerOptions, args) {
     // older browsers don't get responsive iframe height, for now
     if (!window.MutationObserver) return;
     console.debug('Attaching an iframe observer...', iframe, '\n\n');
@@ -666,7 +1088,28 @@ function observeIframe(iframe, observerInit, observerOptions, args) {
             clearInterval(interval);
         }
     }, 100);
-}
+};
+
+unsafeWindow.observeAllFrames = function observeAllFrames(callback) {
+    callback(document.body);
+    callback(document);
+    let mutationObserver = new MutationObserver(function (mutations) {
+        for (const mutation of mutations) {
+            if (mutation.addedNodes.length) {
+                callback(mutation.target);
+            }
+        }
+    });
+    const mutationOptions = {
+        childList: true, subtree: true,
+        attributes: true, characterData: true
+    };
+    mutationObserver.observe(document, mutationOptions);
+    for (const iframe of document.querySelectorAll('iframe')) {
+        callback(iframe.body);
+        mutationObserver.observe(iframe, mutationOptions);
+    }
+};
 
 /**
  * @param {function} condition
@@ -784,6 +1227,26 @@ function downloadUsingXmlhttpRequest(url, opts) {
     }
 }
 
+unsafeWindow.iterateOverURLPattern = function iterateOverURLPattern(inputURL) {
+    inputURL = inputURL || '';
+
+    var bracketsContent = inputURL.match(/\[.+]/);
+    if (bracketsContent.length)
+        var [start, end] = bracketsContent[0].replace(/[\[\]]/g, '').split('-');
+
+    console.debug(
+        'text in brackets:', bracketsContent,
+        '\nstart, end:', `["${start}", "${end}"]`
+    );
+
+    let urls = [];
+    for (var i = start; i <= end; i++) {
+        var newNum = "" + i;
+        while (newNum.length < start.length) newNum = "0" + newNum;
+        urls.push(inputURL.replace(/\[.+]/, newNum));
+    }
+    return urls;
+};
 
 /*
     CSS for top navbars:
@@ -994,8 +1457,1120 @@ if (typeof module !== "undefined" && module.exports) {
  *   saveAs(blob, "hello world.txt");
  */
 unsafeWindow.saveAs = saveAs;
-unsafeWindow.fetchUsingProxy = fetchUsingProxy;
 
+
+/* mousetrap v1.6.2 craig.is/killing/mice */
+/*global define:false */
+/**
+ * Copyright 2012-2017 Craig Campbell
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Mousetrap is a simple keyboard shortcut library for Javascript with
+ * no external dependencies
+ *
+ * @version 1.6.2
+ * @url craig.is/killing/mice
+ */
+(function (window, document, undefined) {
+
+    // Check if mousetrap is used inside browser, if not, return
+    if (!window) {
+        return;
+    }
+
+    /**
+     * mapping of special keycodes to their corresponding keys
+     *
+     * everything in this dictionary cannot use keypress events
+     * so it has to be here to map to the correct keycodes for
+     * keyup/keydown events
+     *
+     * @type {Object}
+     */
+    var _MAP = {
+        8: 'backspace',
+        9: 'tab',
+        13: 'enter',
+        16: 'shift',
+        17: 'ctrl',
+        18: 'alt',
+        20: 'capslock',
+        27: 'esc',
+        32: 'space',
+        33: 'pageup',
+        34: 'pagedown',
+        35: 'end',
+        36: 'home',
+        37: 'left',
+        38: 'up',
+        39: 'right',
+        40: 'down',
+        45: 'ins',
+        46: 'del',
+        91: 'meta',
+        93: 'meta',
+        224: 'meta'
+    };
+
+    /**
+     * mapping for special characters so they can support
+     *
+     * this dictionary is only used incase you want to bind a
+     * keyup or keydown event to one of these keys
+     *
+     * @type {Object}
+     */
+    var _KEYCODE_MAP = {
+        106: '*',
+        107: '+',
+        109: '-',
+        110: '.',
+        111: '/',
+        186: ';',
+        187: '=',
+        188: ',',
+        189: '-',
+        190: '.',
+        191: '/',
+        192: '`',
+        219: '[',
+        220: '\\',
+        221: ']',
+        222: '\''
+    };
+
+    /**
+     * this is a mapping of keys that require shift on a US keypad
+     * back to the non shift equivelents
+     *
+     * this is so you can use keyup events with these keys
+     *
+     * note that this will only work reliably on US keyboards
+     *
+     * @type {Object}
+     */
+    var _SHIFT_MAP = {
+        '~': '`',
+        '!': '1',
+        '@': '2',
+        '#': '3',
+        '$': '4',
+        '%': '5',
+        '^': '6',
+        '&': '7',
+        '*': '8',
+        '(': '9',
+        ')': '0',
+        '_': '-',
+        '+': '=',
+        ':': ';',
+        '\"': '\'',
+        '<': ',',
+        '>': '.',
+        '?': '/',
+        '|': '\\'
+    };
+
+    /**
+     * this is a list of special strings you can use to map
+     * to modifier keys when you specify your keyboard shortcuts
+     *
+     * @type {Object}
+     */
+    var _SPECIAL_ALIASES = {
+        'option': 'alt',
+        'command': 'meta',
+        'return': 'enter',
+        'escape': 'esc',
+        'plus': '+',
+        'mod': /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl'
+    };
+
+    /**
+     * variable to store the flipped version of _MAP from above
+     * needed to check if we should use keypress or not when no action
+     * is specified
+     *
+     * @type {Object|undefined}
+     */
+    var _REVERSE_MAP;
+
+    /**
+     * loop through the f keys, f1 to f19 and add them to the map
+     * programatically
+     */
+    for (var i = 1; i < 20; ++i) {
+        _MAP[111 + i] = 'f' + i;
+    }
+
+    /**
+     * loop through to map numbers on the numeric keypad
+     */
+    for (i = 0; i <= 9; ++i) {
+
+        // This needs to use a string cause otherwise since 0 is falsey
+        // mousetrap will never fire for numpad 0 pressed as part of a keydown
+        // event.
+        //
+        // @see https://github.com/ccampbell/mousetrap/pull/258
+        _MAP[i + 96] = i.toString();
+    }
+
+    /**
+     * cross browser add event method
+     *
+     * @param {Element|HTMLDocument} object
+     * @param {string} type
+     * @param {Function} callback
+     * @returns void
+     */
+    function _addEvent(object, type, callback) {
+        if (object.addEventListener) {
+            object.addEventListener(type, callback, false);
+            return;
+        }
+
+        try {
+            object.attachEvent('on' + type, callback);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    /**
+     * takes the event and returns the key character
+     *
+     * @param {Event} e
+     * @return {string}
+     */
+    function _characterFromEvent(e) {
+
+        // for keypress events we should return the character as is
+        if (e.type == 'keypress') {
+            var character = String.fromCharCode(e.which);
+
+            // if the shift key is not pressed then it is safe to assume
+            // that we want the character to be lowercase.  this means if
+            // you accidentally have caps lock on then your key bindings
+            // will continue to work
+            //
+            // the only side effect that might not be desired is if you
+            // bind something like 'A' cause you want to trigger an
+            // event when capital A is pressed caps lock will no longer
+            // trigger the event.  shift+a will though.
+            if (!e.shiftKey) {
+                character = character.toLowerCase();
+            }
+
+            return character;
+        }
+
+        // for non keypress events the special maps are needed
+        if (_MAP[e.which]) {
+            return _MAP[e.which];
+        }
+
+        if (_KEYCODE_MAP[e.which]) {
+            return _KEYCODE_MAP[e.which];
+        }
+
+        // if it is not in the special map
+
+        // with keydown and keyup events the character seems to always
+        // come in as an uppercase character whether you are pressing shift
+        // or not.  we should make sure it is always lowercase for comparisons
+        return String.fromCharCode(e.which).toLowerCase();
+    }
+
+    /**
+     * checks if two arrays are equal
+     *
+     * @param {Array} modifiers1
+     * @param {Array} modifiers2
+     * @returns {boolean}
+     */
+    function _modifiersMatch(modifiers1, modifiers2) {
+        return modifiers1.sort().join(',') === modifiers2.sort().join(',');
+    }
+
+    /**
+     * takes a key event and figures out what the modifiers are
+     *
+     * @param {Event} e
+     * @returns {Array}
+     */
+    function _eventModifiers(e) {
+        var modifiers = [];
+
+        if (e.shiftKey) {
+            modifiers.push('shift');
+        }
+
+        if (e.altKey) {
+            modifiers.push('alt');
+        }
+
+        if (e.ctrlKey) {
+            modifiers.push('ctrl');
+        }
+
+        if (e.metaKey) {
+            modifiers.push('meta');
+        }
+
+        return modifiers;
+    }
+
+    /**
+     * prevents default for this event
+     *
+     * @param {Event} e
+     * @returns void
+     */
+    function _preventDefault(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+            return;
+        }
+
+        e.returnValue = false;
+    }
+
+    /**
+     * stops propogation for this event
+     *
+     * @param {Event} e
+     * @returns void
+     */
+    function _stopPropagation(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+            return;
+        }
+
+        e.cancelBubble = true;
+    }
+
+    /**
+     * determines if the keycode specified is a modifier key or not
+     *
+     * @param {string} key
+     * @returns {boolean}
+     */
+    function _isModifier(key) {
+        return key == 'shift' || key == 'ctrl' || key == 'alt' || key == 'meta';
+    }
+
+    /**
+     * reverses the map lookup so that we can look for specific keys
+     * to see what can and can't use keypress
+     *
+     * @return {Object}
+     */
+    function _getReverseMap() {
+        if (!_REVERSE_MAP) {
+            _REVERSE_MAP = {};
+            for (var key in _MAP) {
+
+                // pull out the numeric keypad from here cause keypress should
+                // be able to detect the keys from the character
+                if (key > 95 && key < 112) {
+                    continue;
+                }
+
+                if (_MAP.hasOwnProperty(key)) {
+                    _REVERSE_MAP[_MAP[key]] = key;
+                }
+            }
+        }
+        return _REVERSE_MAP;
+    }
+
+    /**
+     * picks the best action based on the key combination
+     *
+     * @param {string} key - character for key
+     * @param {Array} modifiers
+     * @param {string=} action passed in
+     */
+    function _pickBestAction(key, modifiers, action) {
+
+        // if no action was picked in we should try to pick the one
+        // that we think would work best for this key
+        if (!action) {
+            action = _getReverseMap()[key] ? 'keydown' : 'keypress';
+        }
+
+        // modifier keys don't work as expected with keypress,
+        // switch to keydown
+        if (action == 'keypress' && modifiers.length) {
+            action = 'keydown';
+        }
+
+        return action;
+    }
+
+    /**
+     * Converts from a string key combination to an array
+     *
+     * @param  {string} combination like "command+shift+l"
+     * @return {Array}
+     */
+    function _keysFromString(combination) {
+        if (combination === '+') {
+            return ['+'];
+        }
+
+        combination = combination.replace(/\+{2}/g, '+plus');
+        return combination.split('+');
+    }
+
+    /**
+     * Gets info for a specific key combination
+     *
+     * @param  {string} combination key combination ("command+s" or "a" or "*")
+     * @param  {string=} action
+     * @returns {Object}
+     */
+    function _getKeyInfo(combination, action) {
+        var keys;
+        var key;
+        var i;
+        var modifiers = [];
+
+        // take the keys from this pattern and figure out what the actual
+        // pattern is all about
+        keys = _keysFromString(combination);
+
+        for (i = 0; i < keys.length; ++i) {
+            key = keys[i];
+
+            // normalize key names
+            if (_SPECIAL_ALIASES[key]) {
+                key = _SPECIAL_ALIASES[key];
+            }
+
+            // if this is not a keypress event then we should
+            // be smart about using shift keys
+            // this will only work for US keyboards however
+            if (action && action != 'keypress' && _SHIFT_MAP[key]) {
+                key = _SHIFT_MAP[key];
+                modifiers.push('shift');
+            }
+
+            // if this key is a modifier then add it to the list of modifiers
+            if (_isModifier(key)) {
+                modifiers.push(key);
+            }
+        }
+
+        // depending on what the key combination is
+        // we will try to pick the best event for it
+        action = _pickBestAction(key, modifiers, action);
+
+        return {
+            key: key,
+            modifiers: modifiers,
+            action: action
+        };
+    }
+
+    function _belongsTo(element, ancestor) {
+        if (element === null || element === document) {
+            return false;
+        }
+
+        if (element === ancestor) {
+            return true;
+        }
+
+        return _belongsTo(element.parentNode, ancestor);
+    }
+
+    function Mousetrap(targetElement) {
+        var self = this;
+
+        targetElement = targetElement || document;
+
+        if (!(self instanceof Mousetrap)) {
+            return new Mousetrap(targetElement);
+        }
+
+        /**
+         * element to attach key events to
+         *
+         * @type {Element}
+         */
+        self.target = targetElement;
+
+        /**
+         * a list of all the callbacks setup via Mousetrap.bind()
+         *
+         * @type {Object}
+         */
+        self._callbacks = {};
+
+        /**
+         * direct map of string combinations to callbacks used for trigger()
+         *
+         * @type {Object}
+         */
+        self._directMap = {};
+
+        /**
+         * keeps track of what level each sequence is at since multiple
+         * sequences can start out with the same sequence
+         *
+         * @type {Object}
+         */
+        var _sequenceLevels = {};
+
+        /**
+         * variable to store the setTimeout call
+         *
+         * @type {null|number}
+         */
+        var _resetTimer;
+
+        /**
+         * temporary state where we will ignore the next keyup
+         *
+         * @type {boolean|string}
+         */
+        var _ignoreNextKeyup = false;
+
+        /**
+         * temporary state where we will ignore the next keypress
+         *
+         * @type {boolean}
+         */
+        var _ignoreNextKeypress = false;
+
+        /**
+         * are we currently inside of a sequence?
+         * type of action ("keyup" or "keydown" or "keypress") or false
+         *
+         * @type {boolean|string}
+         */
+        var _nextExpectedAction = false;
+
+        /**
+         * resets all sequence counters except for the ones passed in
+         *
+         * @param {Object} doNotReset
+         * @returns void
+         */
+        function _resetSequences(doNotReset) {
+            doNotReset = doNotReset || {};
+
+            var activeSequences = false,
+                key;
+
+            for (key in _sequenceLevels) {
+                if (doNotReset[key]) {
+                    activeSequences = true;
+                    continue;
+                }
+                _sequenceLevels[key] = 0;
+            }
+
+            if (!activeSequences) {
+                _nextExpectedAction = false;
+            }
+        }
+
+        /**
+         * finds all callbacks that match based on the keycode, modifiers,
+         * and action
+         *
+         * @param {string} character
+         * @param {Array} modifiers
+         * @param {Event|Object} e
+         * @param {string=} sequenceName - name of the sequence we are looking for
+         * @param {string=} combination
+         * @param {number=} level
+         * @returns {Array}
+         */
+        function _getMatches(character, modifiers, e, sequenceName, combination, level) {
+            var i;
+            var callback;
+            var matches = [];
+            var action = e.type;
+
+            // if there are no events related to this keycode
+            if (!self._callbacks[character]) {
+                return [];
+            }
+
+            // if a modifier key is coming up on its own we should allow it
+            if (action == 'keyup' && _isModifier(character)) {
+                modifiers = [character];
+            }
+
+            // loop through all callbacks for the key that was pressed
+            // and see if any of them match
+            for (i = 0; i < self._callbacks[character].length; ++i) {
+                callback = self._callbacks[character][i];
+
+                // if a sequence name is not specified, but this is a sequence at
+                // the wrong level then move onto the next match
+                if (!sequenceName && callback.seq && _sequenceLevels[callback.seq] != callback.level) {
+                    continue;
+                }
+
+                // if the action we are looking for doesn't match the action we got
+                // then we should keep going
+                if (action != callback.action) {
+                    continue;
+                }
+
+                // if this is a keypress event and the meta key and control key
+                // are not pressed that means that we need to only look at the
+                // character, otherwise check the modifiers as well
+                //
+                // chrome will not fire a keypress if meta or control is down
+                // safari will fire a keypress if meta or meta+shift is down
+                // firefox will fire a keypress if meta or control is down
+                if ((action == 'keypress' && !e.metaKey && !e.ctrlKey) || _modifiersMatch(modifiers, callback.modifiers)) {
+
+                    // when you bind a combination or sequence a second time it
+                    // should overwrite the first one.  if a sequenceName or
+                    // combination is specified in this call it does just that
+                    //
+                    // @todo make deleting its own method?
+                    var deleteCombo = !sequenceName && callback.combo == combination;
+                    var deleteSequence = sequenceName && callback.seq == sequenceName && callback.level == level;
+                    if (deleteCombo || deleteSequence) {
+                        self._callbacks[character].splice(i, 1);
+                    }
+
+                    matches.push(callback);
+                }
+            }
+
+            return matches;
+        }
+
+        /**
+         * actually calls the callback function
+         *
+         * if your callback function returns false this will use the jquery
+         * convention - prevent default and stop propogation on the event
+         *
+         * @param {Function} callback
+         * @param {Event} e
+         * @returns void
+         */
+        function _fireCallback(callback, e, combo, sequence) {
+
+            // if this event should not happen stop here
+            if (self.stopCallback(e, e.target || e.srcElement, combo, sequence)) {
+                return;
+            }
+
+            if (callback(e, combo) === false) {
+                _preventDefault(e);
+                _stopPropagation(e);
+            }
+        }
+
+        /**
+         * handles a character key event
+         *
+         * @param {string} character
+         * @param {Array} modifiers
+         * @param {Event} e
+         * @returns void
+         */
+        self._handleKey = function (character, modifiers, e) {
+            var callbacks = _getMatches(character, modifiers, e);
+            var i;
+            var doNotReset = {};
+            var maxLevel = 0;
+            var processedSequenceCallback = false;
+
+            // Calculate the maxLevel for sequences so we can only execute the longest callback sequence
+            for (i = 0; i < callbacks.length; ++i) {
+                if (callbacks[i].seq) {
+                    maxLevel = Math.max(maxLevel, callbacks[i].level);
+                }
+            }
+
+            // loop through matching callbacks for this key event
+            for (i = 0; i < callbacks.length; ++i) {
+
+                // fire for all sequence callbacks
+                // this is because if for example you have multiple sequences
+                // bound such as "g i" and "g t" they both need to fire the
+                // callback for matching g cause otherwise you can only ever
+                // match the first one
+                if (callbacks[i].seq) {
+
+                    // only fire callbacks for the maxLevel to prevent
+                    // subsequences from also firing
+                    //
+                    // for example 'a option b' should not cause 'option b' to fire
+                    // even though 'option b' is part of the other sequence
+                    //
+                    // any sequences that do not match here will be discarded
+                    // below by the _resetSequences call
+                    if (callbacks[i].level != maxLevel) {
+                        continue;
+                    }
+
+                    processedSequenceCallback = true;
+
+                    // keep a list of which sequences were matches for later
+                    doNotReset[callbacks[i].seq] = 1;
+                    _fireCallback(callbacks[i].callback, e, callbacks[i].combo, callbacks[i].seq);
+                    continue;
+                }
+
+                // if there were no sequence matches but we are still here
+                // that means this is a regular match so we should fire that
+                if (!processedSequenceCallback) {
+                    _fireCallback(callbacks[i].callback, e, callbacks[i].combo);
+                }
+            }
+
+            // if the key you pressed matches the type of sequence without
+            // being a modifier (ie "keyup" or "keypress") then we should
+            // reset all sequences that were not matched by this event
+            //
+            // this is so, for example, if you have the sequence "h a t" and you
+            // type "h e a r t" it does not match.  in this case the "e" will
+            // cause the sequence to reset
+            //
+            // modifier keys are ignored because you can have a sequence
+            // that contains modifiers such as "enter ctrl+space" and in most
+            // cases the modifier key will be pressed before the next key
+            //
+            // also if you have a sequence such as "ctrl+b a" then pressing the
+            // "b" key will trigger a "keypress" and a "keydown"
+            //
+            // the "keydown" is expected when there is a modifier, but the
+            // "keypress" ends up matching the _nextExpectedAction since it occurs
+            // after and that causes the sequence to reset
+            //
+            // we ignore keypresses in a sequence that directly follow a keydown
+            // for the same character
+            var ignoreThisKeypress = e.type == 'keypress' && _ignoreNextKeypress;
+            if (e.type == _nextExpectedAction && !_isModifier(character) && !ignoreThisKeypress) {
+                _resetSequences(doNotReset);
+            }
+
+            _ignoreNextKeypress = processedSequenceCallback && e.type == 'keydown';
+        };
+
+        /**
+         * handles a keydown event
+         *
+         * @param {Event} e
+         * @returns void
+         */
+        function _handleKeyEvent(e) {
+
+            // normalize e.which for key events
+            // @see http://stackoverflow.com/questions/4285627/javascript-keycode-vs-charcode-utter-confusion
+            if (typeof e.which !== 'number') {
+                e.which = e.keyCode;
+            }
+
+            var character = _characterFromEvent(e);
+
+            // no character found then stop
+            if (!character) {
+                return;
+            }
+
+            // need to use === for the character check because the character can be 0
+            if (e.type == 'keyup' && _ignoreNextKeyup === character) {
+                _ignoreNextKeyup = false;
+                return;
+            }
+
+            self.handleKey(character, _eventModifiers(e), e);
+        }
+
+        /**
+         * called to set a 1 second timeout on the specified sequence
+         *
+         * this is so after each key press in the sequence you have 1 second
+         * to press the next key before you have to start over
+         *
+         * @returns void
+         */
+        function _resetSequenceTimer() {
+            clearTimeout(_resetTimer);
+            _resetTimer = setTimeout(_resetSequences, 1000);
+        }
+
+        /**
+         * binds a key sequence to an event
+         *
+         * @param {string} combo - combo specified in bind call
+         * @param {Array} keys
+         * @param {Function} callback
+         * @param {string=} action
+         * @returns void
+         */
+        function _bindSequence(combo, keys, callback, action) {
+
+            // start off by adding a sequence level record for this combination
+            // and setting the level to 0
+            _sequenceLevels[combo] = 0;
+
+            /**
+             * callback to increase the sequence level for this sequence and reset
+             * all other sequences that were active
+             *
+             * @param {string} nextAction
+             * @returns {Function}
+             */
+            function _increaseSequence(nextAction) {
+                return function () {
+                    _nextExpectedAction = nextAction;
+                    ++_sequenceLevels[combo];
+                    _resetSequenceTimer();
+                };
+            }
+
+            /**
+             * wraps the specified callback inside of another function in order
+             * to reset all sequence counters as soon as this sequence is done
+             *
+             * @param {Event} e
+             * @returns void
+             */
+            function _callbackAndReset(e) {
+                _fireCallback(callback, e, combo);
+
+                // we should ignore the next key up if the action is key down
+                // or keypress.  this is so if you finish a sequence and
+                // release the key the final key will not trigger a keyup
+                if (action !== 'keyup') {
+                    _ignoreNextKeyup = _characterFromEvent(e);
+                }
+
+                // weird race condition if a sequence ends with the key
+                // another sequence begins with
+                setTimeout(_resetSequences, 10);
+            }
+
+            // loop through keys one at a time and bind the appropriate callback
+            // function.  for any key leading up to the final one it should
+            // increase the sequence. after the final, it should reset all sequences
+            //
+            // if an action is specified in the original bind call then that will
+            // be used throughout.  otherwise we will pass the action that the
+            // next key in the sequence should match.  this allows a sequence
+            // to mix and match keypress and keydown events depending on which
+            // ones are better suited to the key provided
+            for (var i = 0; i < keys.length; ++i) {
+                var isFinal = i + 1 === keys.length;
+                var wrappedCallback = isFinal ? _callbackAndReset : _increaseSequence(action || _getKeyInfo(keys[i + 1]).action);
+                _bindSingle(keys[i], wrappedCallback, action, combo, i);
+            }
+        }
+
+        /**
+         * binds a single keyboard combination
+         *
+         * @param {string} combination
+         * @param {Function} callback
+         * @param {string=} action
+         * @param {string=} sequenceName - name of sequence if part of sequence
+         * @param {number=} level - what part of the sequence the command is
+         * @returns void
+         */
+        function _bindSingle(combination, callback, action, sequenceName, level) {
+
+            // store a direct mapped reference for use with Mousetrap.trigger
+            self._directMap[combination + ':' + action] = callback;
+
+            // make sure multiple spaces in a row become a single space
+            combination = combination.replace(/\s+/g, ' ');
+
+            var sequence = combination.split(' ');
+            var info;
+
+            // if this pattern is a sequence of keys then run through this method
+            // to reprocess each pattern one key at a time
+            if (sequence.length > 1) {
+                _bindSequence(combination, sequence, callback, action);
+                return;
+            }
+
+            info = _getKeyInfo(combination, action);
+
+            // make sure to initialize array if this is the first time
+            // a callback is added for this key
+            self._callbacks[info.key] = self._callbacks[info.key] || [];
+
+            // remove an existing match if there is one
+            _getMatches(info.key, info.modifiers, {type: info.action}, sequenceName, combination, level);
+
+            // add this call back to the array
+            // if it is a sequence put it at the beginning
+            // if not put it at the end
+            //
+            // this is important because the way these are processed expects
+            // the sequence ones to come first
+            self._callbacks[info.key][sequenceName ? 'unshift' : 'push']({
+                callback: callback,
+                modifiers: info.modifiers,
+                action: info.action,
+                seq: sequenceName,
+                level: level,
+                combo: combination
+            });
+        }
+
+        /**
+         * binds multiple combinations to the same callback
+         *
+         * @param {Array} combinations
+         * @param {Function} callback
+         * @param {string|undefined} action
+         * @returns void
+         */
+        self._bindMultiple = function (combinations, callback, action) {
+            for (var i = 0; i < combinations.length; ++i) {
+                _bindSingle(combinations[i], callback, action);
+            }
+        };
+
+        // start!
+        _addEvent(targetElement, 'keypress', _handleKeyEvent);
+        _addEvent(targetElement, 'keydown', _handleKeyEvent);
+        _addEvent(targetElement, 'keyup', _handleKeyEvent);
+    }
+
+    /**
+     * binds an event to mousetrap
+     *
+     * can be a single key, a combination of keys separated with +,
+     * an array of keys, or a sequence of keys separated by spaces
+     *
+     * be sure to list the modifier keys first to make sure that the
+     * correct key ends up getting bound (the last key in the pattern)
+     *
+     * @param {string|Array} keys
+     * @param {Function} callback
+     * @param {string=} action - 'keypress', 'keydown', or 'keyup'
+     * @returns void
+     */
+    Mousetrap.prototype.bind = function (keys, callback, action) {
+        var self = this;
+        keys = keys instanceof Array ? keys : [keys];
+        self._bindMultiple.call(self, keys, callback, action);
+        return self;
+    };
+
+    /**
+     * unbinds an event to mousetrap
+     *
+     * the unbinding sets the callback function of the specified key combo
+     * to an empty function and deletes the corresponding key in the
+     * _directMap dict.
+     *
+     * TODO: actually remove this from the _callbacks dictionary instead
+     * of binding an empty function
+     *
+     * the keycombo+action has to be exactly the same as
+     * it was defined in the bind method
+     *
+     * @param {string|Array} keys
+     * @param {string} action
+     * @returns void
+     */
+    Mousetrap.prototype.unbind = function (keys, action) {
+        var self = this;
+        return self.bind.call(self, keys, function () {
+        }, action);
+    };
+
+    /**
+     * triggers an event that has already been bound
+     *
+     * @param {string} keys
+     * @param {string=} action
+     * @returns void
+     */
+    Mousetrap.prototype.trigger = function (keys, action) {
+        var self = this;
+        if (self._directMap[keys + ':' + action]) {
+            self._directMap[keys + ':' + action]({}, keys);
+        }
+        return self;
+    };
+
+    /**
+     * resets the library back to its initial state.  this is useful
+     * if you want to clear out the current keyboard shortcuts and bind
+     * new ones - for example if you switch to another page
+     *
+     * @returns void
+     */
+    Mousetrap.prototype.reset = function () {
+        var self = this;
+        self._callbacks = {};
+        self._directMap = {};
+        return self;
+    };
+
+    /**
+     * should we stop this event before firing off callbacks
+     *
+     * @param {Event} e
+     * @param {Element} element
+     * @return {boolean}
+     */
+    Mousetrap.prototype.stopCallback = function (e, element) {
+        var self = this;
+
+        // if the element has the class "mousetrap" then no need to stop
+        if ((' ' + element.className + ' ').indexOf(' mousetrap ') > -1) {
+            return false;
+        }
+
+        if (_belongsTo(element, self.target)) {
+            return false;
+        }
+
+        // stop for input, select, and textarea
+        return element.tagName == 'INPUT' || element.tagName == 'SELECT' || element.tagName == 'TEXTAREA' || element.isContentEditable;
+    };
+
+    /**
+     * exposes _handleKey publicly so it can be overwritten by extensions
+     */
+    Mousetrap.prototype.handleKey = function () {
+        var self = this;
+        return self._handleKey.apply(self, arguments);
+    };
+
+    /**
+     * allow custom key mappings
+     */
+    Mousetrap.addKeycodes = function (object) {
+        for (var key in object) {
+            if (object.hasOwnProperty(key)) {
+                _MAP[key] = object[key];
+            }
+        }
+        _REVERSE_MAP = null;
+    };
+
+    /**
+     * Init the global mousetrap functions
+     *
+     * This method is needed to allow the global mousetrap functions to work
+     * now that mousetrap is a constructor function.
+     */
+    Mousetrap.init = function () {
+        var documentMousetrap = Mousetrap(document);
+        for (var method in documentMousetrap) {
+            if (method.charAt(0) !== '_') {
+                Mousetrap[method] = (function (method) {
+                    return function () {
+                        return documentMousetrap[method].apply(documentMousetrap, arguments);
+                    };
+                }(method));
+            }
+        }
+    };
+
+    Mousetrap.init();
+
+    // expose mousetrap to the global object
+    window.Mousetrap = Mousetrap;
+
+    // expose as a common js module
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = Mousetrap;
+    }
+
+    // expose mousetrap as an AMD module
+    if (typeof define === 'function' && define.amd) {
+        define(function () {
+            return Mousetrap;
+        });
+    }
+})(typeof window !== 'undefined' ? window : null, typeof  window !== 'undefined' ? document : null);
+unsafeWindow.Mousetrap = Mousetrap;
+
+unsafeWindow.fetchSimilarHeaders = fetchSimilarHeaders;
+function fetchSimilarHeaders(callback) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function () {
+        if (request.readyState === 4) {
+            //
+            // The following headers may often be similar
+            // to those of the original page request...
+            //
+            if (callback && typeof callback === 'function') {
+                callback(request.getAllResponseHeaders());
+            }
+        }
+    };
+
+    //
+    // Re-request the same page (document.location)
+    // We hope to get the same or similar response headers to those which 
+    // came with the current page, but we have no guarantee.
+    // Since we are only after the headers, a HEAD request may be sufficient.
+    //
+    request.open('HEAD', document.location, true);
+    request.send(null);
+}
+
+String.prototype.escapeSpecialChars = function () {
+    return this.replace(/\\n/g, "\\n")
+        .replace(/\\'/g, "\\'")
+        .replace(/\\"/g, '\\"')
+        .replace(/\\&/g, "\\&")
+        .replace(/\\r/g, "\\r")
+        .replace(/\\t/g, "\\t")
+        .replace(/\\b/g, "\\b")
+        .replace(/\\f/g, "\\f");
+};
+function headers2Object(headers) {
+    if (!headers) return {};
+    const jsonParseEscape = function (str) {
+        return str.replace(/\n/g, "\\n")
+            .replace(/\'/g, "\\'")
+            .replace(/\"/g, '\\"')
+            .replace(/\&/g, "\\&")
+            .replace(/\r/g, "\\r")
+            .replace(/\t/g, "\\t")
+            .replace(/\f/g, "\\f");
+    };
+    var jsonStr = '{\n' +
+        headers.trim().split("\n").filter(line => line.length > 2)
+            .map(
+                line => "   " + [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
+                    .map(part => '"' + jsonParseEscape(part.trim()) + '"').join(':')
+            )
+            .join(",\n") +
+        '\n}';
+    console.log('jsonStr:', jsonStr);
+    return JSON.parse(jsonStr);
+}
+
+
+unsafeWindow.fetchUsingProxy = fetchUsingProxy;
 /**
  * @param url
  * Found from:    https://stackoverflow.com/questions/43871637/no-access-control-allow-origin-header-is-present-on-the-requested-resource-whe
@@ -1004,14 +2579,14 @@ unsafeWindow.fetchUsingProxy = fetchUsingProxy;
  */
 function fetchUsingProxy(url, callback) {
     const proxyurl = "https://cors-anywhere.herokuapp.com/";
-    callback = callback | (contents => console.log(contents));
+    callback = callback || (contents => console.log(contents));
     fetch(proxyurl + url) // https://cors-anywhere.herokuapp.com/https://example.com
         .then(response => response.text())
         .then(callback)
         .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
 }
 
-unsafeWindow.getModifierKeys = getModifierKeys;
+unsafeWindow.getModKeys = getModifierKeys;
 unsafeWindow.KeyEvent = {
     DOM_VK_BACKSPACE: 8,
     DOM_VK_TAB: 9,
@@ -1111,7 +2686,7 @@ unsafeWindow.KeyEvent = {
     DOM_VK_GRAVE_ACCENT: 192,
     DOM_VK_OPEN_BRACKET: 219,
     DOM_VK_BACK_SLASH: 220,
-    DOM_VK_CLOSE_BRAKET: 221,
+    DOM_VK_CLOSE_BRACKET: 221,
     DOM_VK_SINGLE_QUOTE: 222
 };
 /**
@@ -1124,14 +2699,67 @@ function getModifierKeys(keyEvent) {
     return {
         CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        SHIFT_ALT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_SHIFT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        CTRL_SHIFT_ALT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT_SHIFT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
 
         SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
         ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
         META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
 
-        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey
+        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey,
+
+        targetIsInput: (function targetIsInput() {
+            const ignores = document.getElementsByTagName('input');
+            const target = keyEvent.target;
+            for (let ignore of ignores)
+                if (target === ignore || ignore.contains(target)) {
+                    // console.log('The target recieving the keycode is of type "input", so it will not recieve your keystroke', target);
+                    return true;
+                }
+            return false;
+        })()
     };
+}
+
+function publicizeSymbols(...parameters) {
+    for (const parameter of parameters) {
+        unsafeWindow[parameter] = parameter;
+    }
+}
+
+function mapObject(o) {
+    var map = new Map();
+    for (const key in (o)) {
+        if (o.hasOwnProperty(key))
+            map.set(key, o[key]);
+    }
+    return map;
+}
+function getObjOfType(targetInstance, parentObj) {
+    var list = [];
+    for (const o in parentObj) if (o instanceof targetInstance) {
+        return o;
+    }
+    return list;
+}
+function getNestedMembers(parentObject, targetType, list) {
+    if (!parentObject) {
+        console.error("parentObject is not defined:", parent);
+        return;
+    }
+    list = list || [];
+    for (const member in parentObject) {
+
+        const typeofObj = typeof member;
+
+        if (typeofObj === "object") {
+            getNestedMembers(member, targetType, list);
+        } else if (typeofObj !== 'undefined') {
+            if (targetType && typeofObj !== targetType)
+                continue;
+            list.push(member);
+        }
+    }
+    return list;
 }
