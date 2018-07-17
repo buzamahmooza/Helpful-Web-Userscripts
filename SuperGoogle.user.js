@@ -266,6 +266,11 @@ div.text-block {
     border-radius: 5px;
     font: normal 11px arial, sans-serif;
 	white-space: nowrap;
+	transition: 0.2s;
+}
+div.text-block.download-block:hover {
+	transform: scale(1.5);
+	opacity: 1;
 }
 div.text-block.ext-gif {
     background-color: magenta;
@@ -497,47 +502,47 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
 
 
 /*Image boxes:
- classNames:
+classNames:
 
 
- WITH SCRIPTS ON:
+WITH SCRIPTS ON:
 
- <div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
- <a jsname="hSRGPd"
- href="OG URL"
- jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noreferrer"
- referrerpolicy="no-referrer">
- <div class="Q98I0e" jsaction="IbE0S"></div>
- <img class="rg_ic rg_i"
- data-src="Thumbnail URL"
- name="The_ID"
- jsaction="load:str.tbn"
- onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
- src="Thumbnail URL">
- <div class="rg_ilmbg"><a rel="noreferrer" referrerpolicy="no-referrer" href="The site URL" class="x_source_link">
- 610&nbsp;×&nbsp;340 - gameinformer.com </a></div>
- </a>
- <div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
- </div>
+<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
+<a jsname="hSRGPd"
+   href="OG URL"
+   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noreferrer"
+   referrerpolicy="no-referrer">
+    <div class="Q98I0e" jsaction="IbE0S"></div>
+    <img class="rg_ic rg_i"
+         data-src="Thumbnail URL"
+         name="The_ID"
+         jsaction="load:str.tbn"
+         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
+         src="Thumbnail URL">
+    <div class="rg_ilmbg"><a rel="noreferrer" referrerpolicy="no-referrer" href="The site URL" class="x_source_link">
+        610&nbsp;×&nbsp;340 - gameinformer.com </a></div>
+</a>
+<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
+</div>
 
- WITH SCRIPTS OF:
- <div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
- <a jsname="hSRGPd"
- href="Takes you to some weird google images panel page for a single image"
- jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noopener"
- referrerpolicy="no-referrer">
- <div class="Q98I0e" jsaction="IbE0S"></div>
- <img class="rg_ic rg_i"
- data-src="Thumbnail URL"
- name="The_ID:" jsaction="load:str.tbn"
- onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
- src="Thumbnail URL">
- <div class="rg_ilmbg">
- 610&nbsp;×&nbsp;340 - gameinformer.com
- </div>
- </a>
- <div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
- </div>
+WITH SCRIPTS OF:
+<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
+<a jsname="hSRGPd"
+   href="Takes you to some weird google images panel page for a single image"
+   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noopener"
+   referrerpolicy="no-referrer">
+    <div class="Q98I0e" jsaction="IbE0S"></div>
+    <img class="rg_ic rg_i"
+         data-src="Thumbnail URL"
+         name="The_ID:" jsaction="load:str.tbn"
+         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
+         src="Thumbnail URL">
+    <div class="rg_ilmbg">
+        610&nbsp;×&nbsp;340 - gameinformer.com
+    </div>
+</a>
+<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
+</div>
 
  */
 
@@ -545,10 +550,14 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
 /**
  * ImagePanel class
  * Provides functions for a partner element (one of the 3 panels)
+ * ## Injecting:
+ *  Injecting elements to the panels works with 2 steps:
+ *      1- An inject function: this will create the element and put it in the right place (also checks if it already exists or not)
+ *      2- An update function: this will be called everytime the panels are changed
  * Abbreviations:
- * ris: related image search
- * fc:  focused
- * sbi: search by image
+ *  ris: related image search
+ *  fc:  focused
+ *  sbi: search by image
  */
 class ImagePanel {  // ImagePanel class
     constructor(element) {
@@ -668,8 +677,8 @@ class ImagePanel {  // ImagePanel class
      * Share:       a.i17628
      */
     get buttons() {
-        var buttonsContaier = this.q('.irc_but_r > tbody > tr');
-        var buttons = this.qa('.irc_but_r > tbody > tr a:first-child');
+        const buttonsContaier = this.q('.irc_but_r > tbody > tr');
+        const buttons = this.qa('.irc_but_r > tbody > tr a:first-child');
 
         buttons.Visit = buttonsContaier.querySelector('a.i3599.irc_vpl.irc_lth');
         buttons.Save = buttonsContaier.querySelector('a.i15087');
@@ -728,6 +737,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         }
         return reverseImgSearchUrl;
     }
+
     /**Goes to the previous (Left) main mainImage*/
     static previousImage() {
         const previousImageArrow = q('a[id^="irc-la"]');  // id that starts with "irc-la"
@@ -737,7 +747,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         if (!x) console.log("prev arrow doesn't exist");
         return x;
     }
-
     /**Goes to the next (Right) main mainImage*/
     static nextImage() {
         const nextImageArrow = q('a[id^="irc-ra"]');  // id that starts with "irc-ra"
@@ -747,6 +756,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         if (!x) console.log("next arrow doesn't exist");
         return x;
     }
+
     static modifyP(panelEl) {
         console.log('Modifying panelEl:', panelEl);
         let p = new ImagePanel(panelEl);
@@ -756,10 +766,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             classList.add('scroll-nav');
         }
 
-        // if(!!p.buttons.Save) underlineText(p.buttons.Save.querySelector('span'), 's');
-        // if(!!p.buttons.ViewSaved) underlineText(p.buttons.ViewSaved.querySelector('span'), 'v');
-
-        // p.makeDescriptionClickable();
         /// belowDivClassName
         p.sTitle_Anchor.parentNode.after(createElement(`<div class="${belowDivClassName} _r3" style="padding-right: 5px; text-decoration:none;"/></div>`));
 
@@ -770,9 +776,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
 
         p.inject_sbi();
 
-        /*waitForElement(() => IP.focusedPanel.relatedImage_Container, () => {
-         p.inject_DownloadRelatedImages();
-         });*/
+        // waitForElement(() => IP.focusedPanel.relatedImage_Container, () => { p.inject_DownloadRelatedImages(); });
         p.inject_Download_ris();
         p.inject_ImageHost();
 
@@ -786,7 +790,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         if (copyrightEl) copyrightEl.remove();
 
         // injecting rarbg torrent link button
-        (function () {
+        (function injectRarbgButton() {
             const rarbg_tl = createElement(`<a class="_r3 hover-click o5rIVb torrent-link"
    style=" float: left; padding: 4px; display: inline-block; font-size: 10px; color: white;">
     <img src="https://rarbg.unblocker.win/cdn/static/20/img/16x16/download.png" alt="Rarbg torrent link" border="0"
@@ -801,59 +805,59 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
 
         //@info .irc_ris    class of the relatedImgsDivContainer
         //@info div#isr_mc  the main container containing all the image boxes, and the panels (only 2 children)
-        panelEl.addEventListener("wheel", /**
-         * @param {WheelEvent} wheelEvent
-         * @return {boolean}
-         */
-        function handleScroll(wheelEvent) {
-            if (!wheelEvent.ctrlKey && !wheelEvent.metaKey && !wheelEvent.shiftKey && !wheelEvent.altKey) {
-                let elUnderMouse = elementUnderMouse(wheelEvent);
-                if (ImagePanel.mainPanelEl.contains(elUnderMouse)) {
-                    try {
-                        // Listen for scroll events
-                        /** @type {DOMRect} */
-                            // var rect = IP.mainPanelEl.getBoundingClientRect();
-                            // console.log(rect.top, rect.right, rect.bottom, rect.left);
+        panelEl.addEventListener(
+            "wheel",
+            /**
+             * @param {WheelEvent} wheelEvent
+             * @return {boolean}
+             */
+            function handleScroll(wheelEvent) {
+                if (!wheelEvent.ctrlKey && !wheelEvent.metaKey && !wheelEvent.shiftKey && !wheelEvent.altKey) {
+                    const elUnderMouse = elementUnderMouse(wheelEvent);
+                    if (ImagePanel.mainPanelEl.contains(elUnderMouse)) {
+                        try {
+                            // Listen for scroll events
+                            const leftPart = ImagePanel.focP.leftPart,
+                                rightPart = ImagePanel.focP.rightPart, // this is NOT the entire RIGHT part
+                                irc_ris = ImagePanel.focP.q('.irc_ris'), // the relative images panel
+                                onLeftSide = isOrContains(leftPart, elUnderMouse), //containsClassName(elUnderMouse, '.irc_t');// on left half of panel
+                                onRightPart = isOrContains(rightPart, elUnderMouse), // on RIGHT half of panel
+                                delta = getWheelDelta(wheelEvent);
 
-                        const leftPart = ImagePanel.focP.leftPart;
-                        const rightPart = ImagePanel.focP.rightPart; // this is NOT the entire RIGHT part
-                        const irc_ris = ImagePanel.focP.q('.irc_ris');
-                        const onLeftSide = isOrContains(leftPart, elUnderMouse); //containsClassName(elUnderMouse, '.irc_t');// on left half of panel
-                        const onRightPart = isOrContains(rightPart, elUnderMouse); // on RIGHT half of panel
-                        const delta = getWheelDelta(wheelEvent);
-                        if (Math.abs(delta) < 0.1) { // Do nothing if didn't scroll
-                            log("Mousewheel didn't move");
+                            if (Math.abs(delta) < 0.1) { // Do nothing if didn't scroll
+                                log("Mousewheel didn't move");
+                                return false;
+                            }
+                            /// Wheel definetely moved at this point
+                            let wheelUp = Settings.invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
+                            if (!onLeftSide) {   // If the mouse is under the RIGHT side of the image panel
+                                if (isOrContains(elUnderMouse, leftPart)) {
+                                    if (wheelUp) {
+                                        ImagePanel.nextImage();
+                                    } else {
+                                        ImagePanel.previousImage();
+                                    }
+                                }
+                                if (onRightPart || isOrContains(irc_ris, elUnderMouse) || (elUnderMouse.classList.contains('irc_mut'))) {
+                                    // console.log('elUnderMouse:', elUnderMouse);
+                                    if (wheelUp) {
+                                        nextRelImg();
+                                    } else {
+                                        prevRelImg();
+                                    }
+                                } else {
+                                    console.debug('Mouse wheel did NOT scroll while over a container element.\nelUnderMouse:', elUnderMouse);
+                                }
+                                wheelEvent.preventDefault();
+                            }
                             return false;
+                        } catch (e) {
+                            console.warn(e)
                         }
-                        /// Wheel definetely moved at this point
-                        let wheelUp = Settings.invertWheelRelativeImageNavigation ? (delta > 0.1) : (delta < 0.1);
-                        if (!onLeftSide) {   // If the mouse is under the RIGHT side of the image panel
-                            if (isOrContains(elUnderMouse, leftPart)) {
-                                if (wheelUp) {
-                                    ImagePanel.nextImage();
-                                } else {
-                                    ImagePanel.previousImage();
-                                }
-                            }
-                            if (onRightPart || isOrContains(irc_ris, elUnderMouse) || (elUnderMouse.classList.contains('irc_mut'))) {
-                                // console.log('elUnderMouse:', elUnderMouse);
-                                if (wheelUp) {
-                                    nextRelImg();
-                                } else {
-                                    prevRelImg();
-                                }
-                            } else {
-                                console.debug('Mouse wheel did NOT scroll while over a container element.\nelUnderMouse:', elUnderMouse);
-                            }
-                            wheelEvent.preventDefault();
-                        }
-                        return false;
-                    } catch (e) {
-                        console.warn(e)
                     }
                 }
             }
-        });
+        );
 
         // Underlining binded keys
         /* var keymap = new Map([ // Key: selector, Value: character
@@ -876,6 +880,11 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
 
         ImagePanel.updateP(p);
     }
+    /**
+     * Called once everytime the panel is changed
+     * @param panelEl
+     * @return {boolean}
+     */
     static updateP(panelEl) {
         // console.debug('Updating panel');
         if (!panelEl) {
@@ -1021,7 +1030,7 @@ Search:    ${q('#lst-ib').value}`
     }
 
     /** Inject the SearchByImage anchor
-     * @return {*} */
+     * @return {Node} */
     inject_sbi() {
         const href = '#'; //getGImgReverseSearchURL(this.imageUrl);
         const dataVed = ''; //()=>this.sTitleAnchor.getAttribute('data-ved'); // classes:    _ZR irc_hol i3724 irc_lth
@@ -1254,7 +1263,10 @@ if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of det
     })();
 }
 
-// add small text box containing image extension
+/**
+ * Add small text box containing image extension
+ * @param imageContainers
+ */
 function addImgExtensionBox(imageContainers) {
     for (const imgBox of imageContainers) {
         if (imgBox.querySelector('.text-block')) continue;
@@ -1273,15 +1285,40 @@ function addImgExtensionBox(imageContainers) {
         img.classList.add('ext', `ext-${ext}`);
     }
 }
+function addImgDownloadButton(imageContainers) {
+    for (const imgBox of imageContainers) {
+        if (imgBox.querySelector('.download-block'))
+            continue;
+        const img = imgBox.querySelector('img.rg_ic.rg_i'),
+            meta = getMeta(img),
+            src = meta ? meta.ou : img.src;
+        const downloadButton = createElement(`<div class="text-block download-block"
+ href="JavaScript:void(0);" 
+style="background-color: dodgerblue; margin-left: 35px;">[⇓]</div>`);
+        downloadButton.onclick = function (e) {
+            download(src, unionTitleAndDescr(meta.s, unionTitleAndDescr(meta.pt, meta.st)));
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+        };
+
+        img.after(downloadButton);
+        img.classList.add('has-dl');
+    }
+}
+/**
+ * @param meta
+ */
+function downloadImageFromMeta(meta) {
+    download(meta.ou,);
+}
 
 observeDocument(function (mutationTarget, addedNodes) {
-
     clickLoadMoreImages();
     const addedImageBoxes = mutationTarget.querySelectorAll(".rg_bx");
     if (mutationTarget.classList.contains("rg_bx") || addedImageBoxes.length) {
         onImagesLoading(addedImageBoxes);
     }
-
 
     (function updateDlLimitSliderMax() {
         const dlLimitSlider = q('#dlLimitSlider');
@@ -1905,6 +1942,26 @@ function clickLoadMoreImages() {
 }
 function onImagesLoading(addedImageBoxes) {
     addImgExtensionBox(addedImageBoxes);
+    addImgDownloadButton(addedImageBoxes);
+
+    /**
+     * Adds a mouseover listener so the image will be replaced with it's original if you hover over an image for a moment
+     */
+    (function addHoverListener() {
+        for (const bx of addedImageBoxes) {
+            let timeout = null;
+            const handle = (e) => {
+                replaceImgSrc(bx.querySelector('img'), bx.querySelector('a'));
+            };
+            bx.addEventListener('mouseover', (e) => {
+                timeout = setTimeout(() => handle(e), 600);
+            });
+            bx.addEventListener('mouseout', (e) => {
+                clearTimeout(timeout);
+            });
+        }
+    })();
+
     try {
         updateQualifiedImagesLabel();
     } catch (e) {
@@ -2549,7 +2606,7 @@ function getImgAnchors() {
 }
 
 /**
- * @returns {Set<any>}
+ * @returns {Set}
  */
 function getResultsData() {
     let anchors = getImgAnchors();
