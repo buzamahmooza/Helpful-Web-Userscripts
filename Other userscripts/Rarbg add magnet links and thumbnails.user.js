@@ -193,7 +193,7 @@ var addedColumnHeader = false,
 
 const onLoad = function () {
     if (/rarbg.+threat_defence/i.test(location.href) && document.querySelector('#solve_string')) {
-        console.log('rarbg thread defence page');
+        console.log('rarbg threat defence page');
         solveCaptcha();
     }
     document.body.onclick = null;
@@ -276,6 +276,10 @@ function fixCss() {
     text-align: center;
     max-width: ${maxwidth}
     max-height: ${maxheight};
+}
+a.torrent-ml, a.torrent-dl{
+	display: table-cell;	
+	padding: 5px;
 }
 
 a.gs:link {
@@ -383,7 +387,7 @@ function dealWithTorrents(node) {
         // cell.insertAdjacentElement("beforebegin", magnetLink);
         cell.appendChild(magnetLink);
 
-        console.log("magnetLink", magnetLink);
+        if (DBG) console.log("thumbnail Link:", magnetLink);
         // thumbnail
         magnetImg.classList.add('preview-image');
         magnetImg.classList.add('zoom');
@@ -415,7 +419,7 @@ function dealWithTorrents(node) {
         }
         minutes = Math.round(minutes);
 
-        console.log('column_Added:', column_Added);
+        if (DBG) console.log('column_Added:', column_Added);
         column_Added.innerHTML =
             column_Added.innerHTML + '<br>\n' + ((hours ? (hours + 'h') : '') + minutes ? (minutes + 'min') : '') + '&nbsp' + 'ago';
 
@@ -438,10 +442,9 @@ function setThumbnail(magnetImg) {
     if (!magnetImg.src) {
         magnetImg.src = magnetImg.getAttribute('smallSrc');
     }
-    console.log('set thumbnail:', magnetImg);
 }
 function toggleThumbnailSize() {
-    console.log('toggleThumbnailSize()inf');
+    console.log('toggleThumbnailSize()');
     usingSmallThumbnails = !usingSmallThumbnails;
     GM_setValue('usingSmallThumbnails', usingSmallThumbnails);
     document.querySelectorAll('.preview-image').forEach(setThumbnail);
@@ -492,7 +495,6 @@ function getMouseoverThumbnail(node) {
     } catch (r) {
         thb = magnetImgData;
         if (DBG) console.error('getMouseoverThumbnail error:', r);
-        // console.log("node with error:\t"+node);
     }
     return thb;
 }
@@ -659,8 +661,8 @@ window.onkeyup = function (e) {
                     const a = row.querySelector('a[onmouseover]');
                     text += 'Title: ' + (a.title || a.innerText) +
                         'Torrent page:\t' + a.href +
-                        'Torrent link:\t' + row.querySelector('.torrent_dl').href +
-                        'Magnet link:\t' + row.querySelector('.torrent_ml').href +
+                        'Torrent link:\t' + row.querySelector('.torrent-dl').href +
+                        'Magnet link:\t' + row.querySelector('.torrent-ml').href +
                         '\n\n'
                     ;
                 }
@@ -680,7 +682,7 @@ function createElement(html) {
 unsafeWindow.dlTorrents = dlTorrents;
 function dlTorrents() {
     console.log('dlTorrents');
-    const dlAnchors = document.querySelectorAll(".torrent_dl");
+    const dlAnchors = document.querySelectorAll(".torrent-dl");
     if (confirm(`Would you like to download all the torrents on the page? (${dlAnchors.length})`)) {
         dlAnchors.forEach(e => {
             e.click();
@@ -722,7 +724,8 @@ function appendColumn() {
     }
 
     // the rest cells of the new column
-    document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td:nth-child(3)').forEach(fixCellCss);
+    document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td:nth-child(3)')
+        .forEach(fixCellCss);
     var oldColumn = Array.from(document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td a[href^="/torrent/"]'))
         .map(a => a.parentElement);		// torrent links row
     // populate the cells in the new column with DL and ML links
@@ -744,20 +747,28 @@ function fixCellCss(cell) {
 function addDlAndMl(torrentAnchor, cellNode) {
     // language=HTML
     torrentAnchor.appendChild(createElement(
-        `<a href="${getTorrentDownloadLink(cellNode)}" class="torrent_dl" target="_blank" ><img src="${TORRENT_DL_ICO}"></a>`
+        `<a href="${getTorrentDownloadLink(cellNode)}" class="torrent-dl" target="_blank" ><img src="${TORRENT_DL_ICO}"></a>`
     )); // torrent download
 
     // matches anything containing "over/*.jpg" *: anything
-    var hash = (/over\/(.*)\.jpg\\/).test(cellNode.firstChild.outerHTML) ? cellNode.firstChild.outerHTML.match(/over\/(.*)\.jpg\\/)[1] : undefined;
+    const anchorOuterHTML = cellNode.firstChild.outerHTML;
+    const hash = (/over\/(.*)\.jpg\\/).test(anchorOuterHTML) ?
+        anchorOuterHTML.match(/over\/(.*)\.jpg\\/)[1] :
+        undefined;
 
     let title = cellNode.firstChild.innerText;
-    torrentAnchor.appendChild(createElement(
-        hash !== undefined ?
-            (`&nbsp;<a class="torrent_ml" href="magnet:?xt=urn:btih:${hash}&dn=${title}&tr=${trackers} "><img src="${MAGNET_ICO}""></>`) :
-            '&nbsp;&nbsp;&nbsp;&nbsp;')
-    ); // magnet ink
 
-    return (`magnet:?xt=urn:btih:${hash}&dn=${title}&tr=${trackers}`);
+    const magnetUriStr = `magnet:?xt=urn:btih:${hash}&dn=${title}&tr=${trackers}`;
+    console.log('magnetUri:', magnetUriStr);
+    const ml = createElement(
+        hash !== undefined ?
+            (`<a class="torrent-ml" href="${magnetUriStr}"><img src="${MAGNET_ICO}"></a>`) :
+            '&nbsp;&nbsp;&nbsp;&nbsp;'
+    );
+    console.log('magnetLink button:', ml);
+    torrentAnchor.appendChild(ml); // magnet ink
+
+    return magnetUriStr;
 }
 
 function getTorrentDownloadLink(oldColumn) {
@@ -806,8 +817,7 @@ function matchSite(siteRegex) {
 function loadBigPics() {
     fixCss();
     // Advised not to use as it uses XML requests and will get you banned form the site if you use it for a few pages.
-    for (const previewImage of document.querySelectorAll('.preview-image'))
-        tryBigImage(previewImage);
+    document.querySelectorAll('.preview-image').forEach(tryBigImage);
 }
 
 function removeDoubleSpaces(str) {
@@ -1046,7 +1056,6 @@ var saveAs = saveAs || (function (view) {
         };
     }
 
-    // todo: detect chrome extensions & packaged apps
     //save_link.target = "_blank";
 
     FS_proto.abort = function () {
