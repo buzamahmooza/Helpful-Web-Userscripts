@@ -36,53 +36,70 @@
 // [x]      Add image dimensions next to sTitle
 // [] TOD
 
+
 /** Just for the stupid IDE to shut up */
 if (typeof GM_getValue === "undefined") GM_getValue = params => params;
 if (typeof GM_setValue === "undefined") GM_setValue = params => params;
 
+if (typeof GM === 'undefined') // PRE GM4
+{
+    GM = {};
+    GM.getValue = GM_getValue;
+    GM.setValue = GM_setValue;
+}
+
+if (typeof unsafeWindow === "undefined") unsafeWindow = window;
+// prevents duplicates
+if (typeof unsafeWindow.superGoogleScript === 'undefined') {
+    unsafeWindow.superGoogleScript = this;
+} else {
+    void(0);
+}
 console.debug('SuperGoogleScript running');
 
-// noinspection ES6ConvertVarToLetConst
 var debug = true;
-var logAnnoyingNetworkErrors = false;
 if (typeof debug === 'undefined') debug = false;
 if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
+
 
 const Consts = {
     GMValues: {
         UBL_SITES: 'unblocked sites of og images',
         UBL_URLS: 'unblocked image URLs',
         UBL_SITES_MAP: 'UBL sites map',
-        autosaveUblSites: 'AUTO_SAVE_UBL_SITES'
+        autosaveUblSites: 'AUTO_SAVE_UBL_SITES',
+        hideFailedImagesOnLoad: "HIDE_FAILED_IMAGES_ON_LOAD"
     },
     Selectors: {
-        showAllSizes: '#jHnbRc > div.O1id0e > span:nth-child(2) > a',    // The "All sizes" link from the SearchByImage page
+        /** The "All sizes" link from the SearchByImage page*/
+        showAllSizes: '#jHnbRc > div.O1id0e > span:nth-child(2) > a',
         searchModeDiv: 'div#hdtb-msb-vis',
         selectedSearchMode: 'div#hdtb-msb-vis' + ' div.hdtb-msel',
-        currentImagePanel: "a#irc_cb",     // the panel element containing the current image [data-ved], so if you observe this element, you can get pretty much get all the data you want.
+        /** the panel element containing the current image [data-ved], so if you observe this element, you can get pretty much get all the data you want.*/
+        currentImagePanel: "a#irc_cb",
         searchBox: "#lst-ib"
+    },
+    ClassNames: {
+        DISPLAY_ORIGINAL: "display-original-" + "mainThumbnail",
+        DISPLAY_ORIGINAL_GIF: "display-original-" + "-gif",
+        FAILED: "display-original-" + "-failed",
+        FAILED_DDG: "display-original-" + "-ddg-failed",
+
+        BUTTONS: "super-button",
+        belowDiv: 'below-st-div'
     }
 };
-
-const ClassNames = {
-    DISPLAY_ORIGINAL: "display-original-" + "mainImage",
-    DISPLAY_ORIGINAL_GIF: "display-original-" + "-gif",
-    FAILED: "display-original-" + "-failed",
-    FAILED_DDG: "display-original-" + "-ddg-failed",
-
-    BUTTONS: "super-button"
-};
-const HIDE_FAILED_IMAGES_ON_LOAD = GM_getValue("HIDE_FAILED_IMAGES_ON_LOAD", false),
+const HIDE_FAILED_IMAGES_ON_LOAD = GM_getValue(Consts.GMValues.hideFailedImagesOnLoad, true),
     AUTO_SAVE_UBL_SITES = GM_getValue(Consts.GMValues.autosaveUblSites, false);
 
-googleBaseURL = `${location.protocol}//${location.hostname}`;
-gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+var googleBaseURL = `${location.protocol}//${location.hostname}`,
+    gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
 
 // GM_setValue(Constants.GMValues.UBL_SITES, "");
 // GM_setValue(Constants.GMValues.UBL_URLS, "");
 // GM_setValue(Constants.GMValues.UBL_SITES_MAP, "");
 
-let ublSitesSet = new Set(),
+const ublSitesSet = new Set(),
     ublMetas = new Set();
 
 /** Contains the ubl data of a single domain name */
@@ -146,20 +163,6 @@ let ublMap = $.extend(new Map(), {
     }
 });
 
-if (typeof GM === 'undefined') // PRE GM4
-{
-    GM = {};
-    GM.getValue = GM_getValue;
-    GM.setValue = GM_setValue;
-}
-
-if (typeof unsafeWindow === "undefined") unsafeWindow = window;
-// prevents duplicates
-if (typeof unsafeWindow.superGoogleScript === 'undefined') {
-    unsafeWindow.superGoogleScript = this;
-} else {
-    void(0);
-}
 
 const mimeTypesJSON = $.getJSON(
     "https://cdn.rawgit.com/jshttp/mime-db/master/db.json",
@@ -174,17 +177,40 @@ const Settings = {
     invertWheelRelativeImageNavigation: false,
     defaultAnchorTarget: "_blank",
     staticNavbar: false,
-    LOOP_RELATED_IMAGES: GM_getValue('LOOP_RELATED_IMAGES', false)
-};
-const successColor = 'rgb(167, 99, 255)',
-    urlArgs = {
+    LOOP_RELATED_IMAGES: GM_getValue('LOOP_RELATED_IMAGES', false),
+    successColor: 'rgb(167, 99, 255)',
+    customUrlArgs: {
         // "tbs=isz": "lt",//
         // islt: "2mp",    // isLargerThan
         // tbs: "isz:l",   // l=large, m=medium...
         // "hl": "en"
     }
-;
+};
 
+var zip = new JSZip();
+JSZip.prototype.generateIndexHtml = function generateZipIndexHtml() {
+    let html = "";
+    for (const key in this.files) {
+        try {
+            const file = this.files[key];
+            /**{url, name, page}*/
+            const data = JSON.parse(file.comment ? file.comment : "{}");
+            html += `<div>
+    <a href="${data.url || file.name}">
+        <img src="${file.name}">
+    </a>
+        <div>
+        <a href="${data.page}" target="_blank">${file.name}</a>
+        <h4>${file.name}</h4>
+        <h3>${data.name || file.name}</h3>
+        </div>
+    </div>`;
+        } catch (e) {
+            console.error(e)
+        }
+    }
+    return zip.file("index.html", new Blob([html], {type: 'text/plain'}));
+};
 
 let slider_dlLimit,
     slider_minImgSize,
@@ -193,143 +219,112 @@ let slider_dlLimit,
     progressBar,
     searchModeDiv = q('#hdtb-msb-vis'),
     selectedSearchMode = !searchModeDiv ? null : searchModeDiv.querySelector('div.hdtb-msel'),
-    onGoogleImages = selectedSearchMode && selectedSearchMode.innerHTML == 'Images'
-;
-var currentDownloadCount = 0;
+    onGoogleImages = selectedSearchMode && selectedSearchMode.innerHTML == 'Images',
+    currentDownloadCount = 0;
 
+class GSaves {
+    static get initialItem() {
+        return google.pmc.colmob.initial_item.map(item => JSON.parse(item));
+    }
+    /**
+     * @return {{
+     * imageUrl:{string},
+     * url:{string},
+     * title:{string},
+     * faviconUrl:{string},
+     * redirectUrl:{string},
+     * realUrl:{string}
+     * }}
+     */
+    static get initialItemObjectList() {
+        function item2Obj(item) {
+            var itemObj = {};
+            try {
+                itemObj.imageUrl = item[9] ? item[9][0] : null; // img url
+                itemObj.url = item[5];
+                itemObj.title = item[6];
+                itemObj.faviconUrl = item[17];
+                itemObj.redirectUrl = item[18];
 
-// language=CSS
-addCss(
-    `.hover-click:hover,
-.hover-click:focus {
-    color: #999;
-    text-decoration: none;
-    cursor: pointer;
-}
+                const searchParams = new URL(itemObj.redirectUrl, 'https://www.google.com').searchParams;
+                console.log('searchParams for:', item, searchParams);
 
-.sg { /*sg=SuperGoogle, this is padding for the buttons and controls*/
-    margin: 8px;
-}
+                var q = searchParams.get("q");
+                var qUrl = new URL(q, "https://google.com");
 
-input[type="range"] + label { /*The label elements displaying the slider readings*/
-    padding: 6px;
-}
+                const imgrefurl = qUrl.searchParams.get("imgrefurl") ? qUrl.searchParams.get("imgrefurl") : q;
 
-a.irc_mutl, a.irc_mi {
-    display: contents !important;
-}
+                itemObj.realUrl = imgrefurl ? imgrefurl : q;
+            } catch (e) {
+                console.error(e);
+            }
 
-/*The right upper part of the image panel (containing description and title and stuff)*/
-div.irc_hd * {
-    margin-right: 3px;
-    margin-bottom: 2px;
-}
+            return itemObj;
+        }
+        return this.initialItem.map(item2Obj);
+    }
+    static get containers() {
+        return qa('div.str-clip-card-space:not(.modified)');
+    }
+    static removeClickListeners(container) {
+        container.parentNode.appendChild(createElement(container.outerHTML));
+        container.remove();
+    }
+    static wrapPanels() {
 
-/*keeps the bar at a fixed position when scrolling*/
-/*.rshdr, .jsrp{position:fixed; height:100%; width:100%; left:0; top:0; z-index:2;}
-#rcnt{position:relative; z-index:1; margin:100% 0 0;}*/
-div#extrares {
-    display: none !important;
-}
+        var iio = this.initialItemObjectList;
 
-/*bigger space between image boxes*/
-div.rg_bx {
-    margin: 10px;
-}
+        for (const container of this.containers) {
+            this.removeClickListeners(container);
+        }
 
-/*fixes the selection area of main image anchors*/
-.irc_asc {
-    display: inline-block !important;
-}
-.irc_ris {
-	height: fit-content !important;
-	width: 80% !important;
-}
+        var i = 0;
+        for (const container of this.containers) {
+            if (container.querySelector(['.str-tag-card-images-holder', 'a.wrapper-anchor', 'a.mod-anchor'].join(', '))) {
+                console.warn('element will not be wrapped by anchor:', container);
+                continue;
+            }
+            // main card
+            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-text-holder'), iio[i].realUrl);
 
-/**/
-div.text-block {
-    display: block;
-    position: absolute;
-    color: white;
-    opacity: 0.4;
-    
-    padding: 5px;
-    margin: 2px;
-    
-	min-height: 15px;
-	min-width: 15px;
-	width: fit-content;
-	height: fit-content;
-    top: 0;
-    left: 0;
-    
-    border-radius: 5px;
-    font: normal 11px arial, sans-serif;
-	white-space: nowrap;
-	transition: 0.2s;
-}
-div.text-block.download-block:hover {
-	transform: scale(1.5);
-	opacity: 1;
-}
-div.text-block.ext-gif {
-    background-color: magenta;
-}
-div.text-block.ext:not(.ext-gif) {
-    background-color: #00cbff;
-}
+            // title div
+            // this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-title'), iio[i].url);
 
-/**/
+            // img container
+            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-image-holder'), iio[i].imageUrl);
 
-[type="range"] {
-    -webkit-appearance: none;
-    /*width: 70%;*/
-    height: 15px;
-    border-radius: 5px;
-    background: #d3d3d3;
-    outline: none;
-    opacity: 0.7;
-    -webkit-transition: .2s;
-    transition: opacity .2s;
-}
+            i++;
+        }
 
-[type="range"]:hover {
-    opacity: 1;
-}
+        // language=CSS
+        addCss(
+                `.str-wide-card {
+                    cursor: default !important;
+                }
 
-[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: darkorange;
-    cursor: pointer;
-}
+                .str-wide-card-title, .str-wide-card-text-holder {
+                    display: -webkit-inline-box !important;
+                }
 
-[type="range"]::-moz-range-thumb {
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    background: darkorange;
-    cursor: pointer;
+                .str-wide-card.expandable:not(.expanded) {
+                    height: 100%;
+                }`);
+    }
+    static slipAnchorUnderElement(element, href) {
+        var tempInnerHTML = element.innerHTML;
+        element.innerHTML = "";
+        element.appendChild(createElement(`<a class="mod-anchor" target="_blank" href="${href}">${tempInnerHTML}</a>`));
+    }
+    static directUrls(mutationTarget) {
+        console.log('GSaves.directUrls();');
+        for (const a of mutationTarget.querySelectorAll('a.Uc6dJc')) {
+            const url = new URL(a.href, location.href);
+            const usp = url.searchParams;
+            if (usp.get('imgrefurl'))
+                a.href = usp.get('imgrefurl');
+        }
+    }
 }
-
-.fixed-position${Settings.staticNavbar ? ', #qbc, #rshdr:not(#sfcnt)' : ''} {
-    position: fixed;
-    top: 0;
-    z-index: 1000;
-}
-
-.ubl-site {
-    color: ${successColor} !important;
-}
-
-.scroll-nav:hover,
-.scroll-nav *:hover:not(.hover-click),
-.scroll-nav *:focus:not(.hover-click) {
-    cursor: crosshair, auto;
-}
-`, 'superGoogleStyle');
 
 
 /** change mouse cursor when hovering over elements for scroll navigation
@@ -356,16 +351,16 @@ div.text-block.ext:not(.ext-gif) {
  }`);*/
 
 // URL args: Modifying the URL and adding arguments, such as specifying the size
-if (urlArgs && Object.keys(urlArgs).length) {
+if (Settings.customUrlArgs && Object.keys(Settings.customUrlArgs).length) {
     const url = new URL(location.href),
         searchParams = url.searchParams;
 
-    for (const key in urlArgs) {
-        if (urlArgs.hasOwnProperty(key)) {
+    for (const key in Settings.customUrlArgs) {
+        if (Settings.customUrlArgs.hasOwnProperty(key)) {
             if (searchParams.has(key))
-                searchParams.set(key, urlArgs[key]);
+                searchParams.set(key, Settings.customUrlArgs[key]);
             else
-                searchParams.append(key, urlArgs[key]);
+                searchParams.append(key, Settings.customUrlArgs[key]);
         }
     }
     console.debug('new location:', url.toString());
@@ -415,7 +410,6 @@ if (/google\..+\/save/.test(location.href)) {
         });
 }
 
-const belowDivClassName = 'below-st-div';
 
 /**
  * is el1 == el2 OR contains el2?
@@ -428,7 +422,6 @@ function isOrContains(element, el2) {
     return element.contains(el2) || element == el2;
 }
 
-unsafeWindow.getImgMetaById = getImgMetaById;
 function getImgMetaById(id) {
     for (const metaEl of qa('div.rg_meta')) {
         if (metaEl.innerText.indexOf(id) > -1) {
@@ -443,42 +436,13 @@ function getImgMetaById(id) {
     return false;
 }
 
-unsafeWindow.gZipImages = gZipImages;
-var zip = new JSZip();
-unsafeWindow.zip = zip;
-unsafeWindow.genZip = genZip;
-JSZip.prototype.generateZipIndexHtml = function generateZipIndexHtml() {
-    let html = "";
-    for (const key in this.files) {
-        try {
-            const file = this.files[key];
-            /**{url, name, page}*/
-            const data = JSON.parse(file.comment ? file.comment : "{}");
-            html += `<div>
-    <a href="${data.url || file.name}">
-        <img src="${file.name}">
-    </a>
-        <div>
-        <a href="${data.page}" target="_blank">${file.name}</a>
-        <h4>${file.name}</h4>
-        <h3>${data.name || file.name}</h3>
-        </div>
-    </div>`;
-        } catch (e) {
-            console.error(e)
-        }
-    }
-    return zip.file("index.html", new Blob([html], {type: 'text/plain'}));
-};
+function genZip(thisZip = zip) {
+    thisZip.file("index (online).html", new Blob([getIndexHtml()], {type: 'text/plain'}));
+    thisZip.generateIndexHtml();
+    thisZip.generateAsync({type: "blob"}).then(function (content) {
+            var zipName = (document.title).replace(/site:|( - Google Search)/gi, '');
 
-function genZip(zipName) {
-    zip.file("index (online).html", new Blob([getIndexHtml()], {type: 'text/plain'}));
-
-    zip.generateZipIndexHtml(zip);
-    zip.generateAsync({type: "blob"}).then(function (content) {
-            zipName = (zipName || document.title).replace(/site:|( - Google Search)/gi, '');
-
-            saveAs(content, `${zipName} [${Object.keys(zip.files).length}].zip`);
+            saveAs(content, `${zipName} [${Object.keys(thisZip.files).length}].zip`);
             unsafeWindow.zipGenerated = true;
 
             window.removeEventListener('beforeunload', zipBeforeUnload);
@@ -499,52 +463,6 @@ function extractRarbgTorrentURL(torrentName, torrentPageURL) {
     console.debug('extracted rarbg torrent URL:', torrentURL);
     return torrentURL;
 }
-
-
-/*Image boxes:
-classNames:
-
-
-WITH SCRIPTS ON:
-
-<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
-<a jsname="hSRGPd"
-   href="OG URL"
-   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noreferrer"
-   referrerpolicy="no-referrer">
-    <div class="Q98I0e" jsaction="IbE0S"></div>
-    <img class="rg_ic rg_i"
-         data-src="Thumbnail URL"
-         name="The_ID"
-         jsaction="load:str.tbn"
-         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
-         src="Thumbnail URL">
-    <div class="rg_ilmbg"><a rel="noreferrer" referrerpolicy="no-referrer" href="The site URL" class="x_source_link">
-        610&nbsp;×&nbsp;340 - gameinformer.com </a></div>
-</a>
-<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
-</div>
-
-WITH SCRIPTS OF:
-<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
-<a jsname="hSRGPd"
-   href="Takes you to some weird google images panel page for a single image"
-   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noopener"
-   referrerpolicy="no-referrer">
-    <div class="Q98I0e" jsaction="IbE0S"></div>
-    <img class="rg_ic rg_i"
-         data-src="Thumbnail URL"
-         name="The_ID:" jsaction="load:str.tbn"
-         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
-         src="Thumbnail URL">
-    <div class="rg_ilmbg">
-        610&nbsp;×&nbsp;340 - gameinformer.com
-    </div>
-</a>
-<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
-</div>
-
- */
 
 
 /**
@@ -766,8 +684,8 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
             classList.add('scroll-nav');
         }
 
-        /// belowDivClassName
-        p.sTitle_Anchor.parentNode.after(createElement(`<div class="${belowDivClassName} _r3" style="padding-right: 5px; text-decoration:none;"/></div>`));
+        /// Consts.ClassNames.belowDivClassName
+        p.sTitle_Anchor.parentNode.after(createElement(`<div class="${Consts.ClassNames.belowDiv} _r3" style="padding-right: 5px; text-decoration:none;"/></div>`));
 
         p.inject_SiteSearch();
 
@@ -780,9 +698,12 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         p.inject_Download_ris();
         p.inject_ImageHost();
 
+        /* @deprecated: the imgDimensions element was removed from the webpage*/
         const dimensionsEl = p.q('.irc_idim');
-        dimensionsEl.addEventListener('click', ImagePanel.moreSizes);
-        dimensionsEl.classList.add('hover-click');
+        if (dimensionsEl) {
+            dimensionsEl.addEventListener('click', ImagePanel.moreSizes);
+            dimensionsEl.classList.add('hover-click');
+        }
 
         // remove "Images may be subject to copyright"
         p.sTitle_Anchor.style = "padding-right: 5px; text-decoration:none;";
@@ -874,8 +795,6 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         var imgDimEl = p.q('.rn92ee.irc_msc');
         if (!!imgDimEl) {
             p.sTitle_Anchor.after(imgDimEl);
-        } else {
-            console.error('image dimensions element not found');
         }
 
         ImagePanel.updateP(p);
@@ -903,7 +822,10 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
         p.update_ImageHost();
         p.update_sbi();
 
-        addImgExtensionBox(panelEl.qa("div.irc_rimask:not(.ext)"));
+        // add extensions boxes
+        for (const imgBox of panelEl.qa("div.irc_rimask:not(.ext)")) {
+            addImgExtensionBox(imgBox);
+        }
 
         // rarbg torrent link
         let torrentLink = p.q('.torrent-link'),
@@ -998,10 +920,14 @@ Search:    ${q('#lst-ib').value}`
     }
     inject_Download_ris() {
         // const risContainer = this.relatedImage_Container.parentNode;
+        const targetEl = this.q('.irc_msc, .irc_ris');//this.q('div.irc_ris');
+        if (!targetEl) {
+            console.error("q('.irc_msc') element not found and is needed in inject_Download_ris");
+            return;
+        }
         const className = 'download-related hover-click';
         const text = 'Download&nbsp;Related&nbsp;↓';
         var dataVed = "";
-        const targetEl = this.q('.irc_msc');//this.q('div.irc_ris');
 
         const buttonHtml = `<a class="${className}" role="button" jsaction="" data-rtid="" jsl="" tabindex="0" data-ved="${dataVed}" style="padding-right: 5px; padding-left: 5px; text-decoration:none;"> <span>${text}</span></a>`;
         var button = createElement(buttonHtml);
@@ -1084,8 +1010,8 @@ Search:    ${q('#lst-ib').value}`
     }
 
     inject_ImageHost() {
-        console.log('this.qa(".irc_msc"):', this.qa('.irc_msc'));
-        let container = this.q('.irc_msc');
+        console.log('this.qa(".irc_msc"):', this.qa('.irc_msc, .irc_ris'));
+        let container = this.q('.irc_msc, .irc_ris');
 
         if (this.sTitle_Anchor) {
             // const summaryTable = this.element.querySelector('table[summary]._FKw.irc_but_r');
@@ -1110,7 +1036,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
                 ih.href = gImgSearchURL + 'site:' + hostname;
 
                 if (ublSitesSet.has(hostname))
-                    setStyleInHTML(ih, 'color', `${successColor} !important`);
+                    setStyleInHTML(ih, 'color', `${Settings.successColor} !important`);
             } else {
                 console.warn('ImageHost element not found:', ih);
             }
@@ -1159,7 +1085,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         }
 
         if (ublSitesSet.has(hostname))
-            setStyleInHTML(this.sTitle_Anchor, 'color', `${successColor} !important`);
+            setStyleInHTML(this.sTitle_Anchor, 'color', `${Settings.successColor} !important`);
     }
 
     /** Removes the annoying image link when the panel is open */
@@ -1202,7 +1128,7 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
         switch (position) {
             case 'BOTTOM':
                 // check if the below-st-div exists, create if it doesn't, then appendChild
-                let belowDiv = sTitle.parentElement.parentElement.querySelector(`.${belowDivClassName}`);
+                let belowDiv = sTitle.parentElement.parentElement.querySelector(`.${Consts.ClassNames.belowDiv}`);
                 belowDiv.after(containerEl);
                 break;
             case 'LEFT':
@@ -1226,10 +1152,6 @@ style="padding-right: 5px; padding-left: 5px; text-decoration:none;"
     }
 }
 
-unsafeWindow.ImagePanel = ImagePanel;
-unsafeWindow.successfulUrlsSet = ublSitesSet;
-unsafeWindow.ublSitesSet = ublSitesSet;
-unsafeWindow.ublMap = ublMap;
 
 go();
 if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of determining whether the page is a Google Image search
@@ -1243,6 +1165,12 @@ if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of det
     Mousetrap.bind(["u"], () => {
         location.assign(safeSearchOffUrl());
     });
+    // to https://yandex.com/images/search?text=
+    Mousetrap.bind('y d x', () => {
+        var x = "https://yandex.com/images/search?text=" + encodeURIComponent(new URL(location.href).searchParams.get('q'));
+        console.log('Yandex url = ', x);
+        location.assign(x);
+    });
 
     window.addEventListener("keydown", onKeyDown, true);
     console.log('added super google key listener');
@@ -1253,58 +1181,48 @@ if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of det
             markImageOnLoad(img, a.href);
         }
     }, true);
-
-    (function afterPageReloads() {
-        var reloading = sessionStorage.getItem("reloading");
-        if (reloading) {
-            sessionStorage.removeItem("reloading");
-            GSaves.wrapPanels();
-        }
-    })();
+} else {
+    observeDocument(GSaves.directUrls);
 }
 
 /**
  * Add small text box containing image extension
- * @param imageContainers
+ * @param imgBox
  */
-function addImgExtensionBox(imageContainers) {
-    for (const imgBox of imageContainers) {
-        if (imgBox.querySelector('.text-block')) continue;
-        const img = imgBox.querySelector('img.rg_ic.rg_i'),
-            meta = getMeta(img),
-            ext = meta ? meta.ity : img.src.match(/\.(jpg|jpeg|tiff|png|gif)($|\?)/i);
-        if (!ext) continue;
-        const textBox = createElement(`<div class="text-block ext ext-${ext}"></div>`);
-        if (!ext.toUpperCase) {
-            console.warn("ext.toUpperCase is not a function:", ext);
-            return;
-        }
-        textBox.innerText = ext.toUpperCase();
-        // textBox.style["background-color"] = (ext == 'gif') ? "magenta" : "#83a3ff";
-        img.after(textBox);
-        img.classList.add('ext', `ext-${ext}`);
+function addImgExtensionBox(imgBox) {
+    if (imgBox.querySelector('.text-block')) return;
+    const img = imgBox.querySelector('img.rg_ic.rg_i'),
+        meta = getMeta(img),
+        ext = meta ? meta.ity : img.src.match(/\.(jpg|jpeg|tiff|png|gif)($|\?)/i);
+    if (!ext) return;
+    const textBox = createElement(`<div class="text-block ext ext-${ext}"></div>`);
+    if (!ext.toUpperCase) {
+        console.warn("ext.toUpperCase is not a function:", ext);
+        return;
     }
+    textBox.innerText = ext.toUpperCase();
+    // textBox.style["background-color"] = (ext == 'gif') ? "magenta" : "#83a3ff";
+    img.after(textBox);
+    img.classList.add('ext', `ext-${ext}`);
 }
-function addImgDownloadButton(imageContainers) {
-    for (const imgBox of imageContainers) {
-        if (imgBox.querySelector('.download-block'))
-            continue;
-        const img = imgBox.querySelector('img.rg_ic.rg_i'),
-            meta = getMeta(img),
-            src = meta ? meta.ou : img.src;
-        const downloadButton = createElement(`<div class="text-block download-block"
+function addImgDownloadButton(imgBox) {
+    if (imgBox.querySelector('.download-block'))
+        return;
+    const img = imgBox.querySelector('img.rg_ic.rg_i'),
+        meta = getMeta(img),
+        src = meta ? meta.ou : img.src;
+    const downloadButton = createElement(`<div class="text-block download-block"
  href="JavaScript:void(0);" 
 style="background-color: dodgerblue; margin-left: 35px;">[⇓]</div>`);
-        downloadButton.onclick = function (e) {
-            download(src, unionTitleAndDescr(meta.s, unionTitleAndDescr(meta.pt, meta.st)));
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            e.stopPropagation();
-        };
+    downloadButton.onclick = function (e) {
+        download(src, unionTitleAndDescr(meta.s, unionTitleAndDescr(meta.pt, meta.st)));
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+    };
 
-        img.after(downloadButton);
-        img.classList.add('has-dl');
-    }
+    img.after(downloadButton);
+    img.classList.add('has-dl');
 }
 /**
  * @param meta
@@ -1315,25 +1233,12 @@ function downloadImageFromMeta(meta) {
 
 observeDocument(function (mutationTarget, addedNodes) {
     clickLoadMoreImages();
-    const addedImageBoxes = mutationTarget.querySelectorAll(".rg_bx");
+    const addedImageBoxes = mutationTarget.querySelectorAll(".rg_bx:not(.rg_bx_listed)");
     if (mutationTarget.classList.contains("rg_bx") || addedImageBoxes.length) {
         onImagesLoading(addedImageBoxes);
     }
-
-    (function updateDlLimitSliderMax() {
-        const dlLimitSlider = q('#dlLimitSlider');
-        if (dlLimitSlider) {
-            var tmpValue = dlLimitSlider.getAttribute('value');
-            const numImages = qa('.rg_bx').length;
-            dlLimitSlider.setAttribute('max', numImages);
-
-            const newValue = Math.min(numImages, tmpValue);
-            dlLimitSlider.setAttribute('value', newValue);
-            const sliderValueEl = q('#dlLimitSliderValue');
-            if (sliderValueEl) sliderValueEl.setAttribute('value', newValue);
-        }
-    })();
-
+}, {
+    singleCallbackPerMutation: true
 });
 // attach chgMon to document.body
 
@@ -1430,9 +1335,9 @@ function getThumbnails(visibleThumbnailsOnly) {
     return qa(selector);
 }
 // done:    Make a navbar that drops down containing all the buttons and controls
+
 function updateQualifiedImagesLabel(value) {
-    const qualifiedGImgs = getQualifiedGImgs();
-    value = value || Array.from(qualifiedGImgs).length;
+    value = value != null ? value : Array.from(getQualifiedGImgs()).length;
     const satCondLabel = q("#satCondLabel");
     if (satCondLabel)
         satCondLabel.innerHTML = `${value} images satisfying conditions`;
@@ -1524,7 +1429,7 @@ function injectGoogleButtons() {
         function _sfi() {
             const checked = q("#showFailedImagesBox").checked;
             setVisibilityForFailedImages(checked);
-            GM_setValue("HIDE_FAILED_IMAGES_ON_LOAD", checked_ShowFailedImages());
+            GM_setValue(Consts.GMValues.hideFailedImagesOnLoad, q('#showFailedImagesBox').checked);
         }
 
         function _gifsOnly() {
@@ -1641,7 +1546,7 @@ function injectGoogleButtons() {
 
         // buttons
         function createGButton(id, innerText, onClick) {
-            const button = createElement(`<button class="${ClassNames.BUTTONS} sg sbtn hdtb-tl" id="${id}">${innerText.replace(/\s/g, "&nbsp;")}</button>`);
+            const button = createElement(`<button class="${Consts.ClassNames.BUTTONS} sg sbtn hdtb-tl" id="${id}">${innerText.replace(/\s/g, "&nbsp;")}</button>`);
             if (onClick && typeof(onClick) === "function") button.onclick = function () {
                 onClick()
             };
@@ -1729,21 +1634,26 @@ function injectGoogleButtons() {
         sliderConstraintsContainer.appendChild(tr1);
         sliderConstraintsContainer.appendChild(tr2);
 
-        // Appending the buttons
+        // Appending buttons to downloadPanel
         for (const el of [cbox_ZIP, btn_download, btn_preload, sliderConstraintsContainer]) {
             downloadPanel.appendChild(el);
         }
-
-        // don't use this function, BAD // var dlCondition = function (element) {return (element.hasAttribute('img-w') && element.getAttribute('img-w') > minImgSizeSlider.value);};
 
         // automatically display originals if searching for a site:
         if (/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
             displayImages();
         }
+        var defaultDownlodPath = "";
+        /** contains the current download path, changing it will change the download path */
+
+        var pathBox = createElement(`<div class="sg" style="display: inline;">
+<input id="download-path" value="${defaultDownlodPath}"><label>Download path</label>
+</div>`);
 
         const divider = document.createElement('div');
         controlsContainer.appendChild(divider);
-        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, downloadPanel);
+        // appending buttons and controls
+        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, pathBox, downloadPanel);
         sliderConstraintsContainer.after(satCondLabel);
         downloadPanel.appendChild(createElement(`<div id="progressbar-container"></div>`));
 
@@ -1764,8 +1674,8 @@ function clearAllEffects() { // remove highlighting of elements
 
 function getQualifiedUblImgMetas() {
     let qualifiedUblImgMetas = new Set();
-    for (const img of qa(`.${ClassNames.DISPLAY_ORIGINAL}, img[loaded="true"]`)) {
-        if (img.classList.contains(ClassNames.FAILED) || img.classList.contains(ClassNames.FAILED_DDG))
+    for (const img of qa(`.${Consts.ClassNames.DISPLAY_ORIGINAL}, img[loaded="true"]`)) {
+        if (img.classList.contains(Consts.ClassNames.FAILED) || img.classList.contains(Consts.ClassNames.FAILED_DDG))
             continue;
         let meta = getMeta(img);
         if (meta && Math.max(meta.ow, meta.oh) < 120) continue;
@@ -1780,24 +1690,29 @@ unsafeWindow.getQualifiedGImgs = getQualifiedGImgs;
 /**
  * @returns {Set<{fileURL: string, fileName: string, img: HTMLImageElement}>}
  * to get images that only satisfy the dimensions condition:    getQualifiedGImgs(null, null, true)
- * @param ogs
+ * @param imgs
  * @param exception4smallGifs
  * @param ignoreDlLimit
  */
-function getQualifiedGImgs(ogs, exception4smallGifs, ignoreDlLimit) {
-    if (typeof ogs === "object" && ogs.ogs) {
-        ogs = ogs.ogs;
-        exception4smallGifs = ogs.exception4smallGifs;
-        ignoreDlLimit = ogs.ignoreDlLimit;
+function getQualifiedGImgs(imgs, exception4smallGifs, ignoreDlLimit) {
+    var ogs = [];
+    if (typeof imgs === "object"
+        && imgs.hasOwnProperty("ogs")
+        && imgs.hasOwnProperty("exception4smallGifs")
+        && imgs.hasOwnProperty("ignoreDlLimit")
+    ) {
+        ogs = imgs.ogs;
+        exception4smallGifs = imgs.exception4smallGifs;
+        ignoreDlLimit = imgs.ignoreDlLimit;
     }
-    ogs = !ogs ? qa('img.rg_ic.rg_i') : ogs;
+    ogs = ogs.length <= 0 ? qa('img.rg_ic.rg_i') : ogs;
 
-    const minImgSizeSlider = q('#minImgSizeSlider'),
-        dlLimitSlider = q('#dlLimitSlider');
+    const minImgSizeSlider = q('#minImgSizeSlider');
+    const dlLimitSlider = q('#dlLimitSlider');
 
-    const minImgSize = minImgSizeSlider ? minImgSizeSlider.value : 0,
-        dlLimit = dlLimitSlider ? dlLimitSlider.value : 0,
-        qualImgs = new Set();
+    const minImgSize = minImgSizeSlider ? minImgSizeSlider.value : 0;
+    const dlLimit = dlLimitSlider ? dlLimitSlider.value : 0;
+    const qualImgs = new Set();
 
     for (const img of ogs) {
         try {
@@ -1806,20 +1721,19 @@ function getQualifiedGImgs(ogs, exception4smallGifs, ignoreDlLimit) {
             if (zip.file(fileName))
                 continue;
 
-            const meta = getMeta(img),
-                fileURL = meta.ou,
-                w = parseInt(meta.ow),
-                h = parseInt(meta.oh)
-            ;
+            const meta = getMeta(img);
+            const fileURL = meta.ou;
+            const w = parseInt(meta.ow);
+            const h = parseInt(meta.oh);
 
             // adding new property names to the img object
             img["fileURL"] = fileURL;
             img["fileName"] = fileName;
             img["meta"] = meta;
 
-            const isBig = w >= minImgSize || h >= minImgSize,
-                qualDim = isBig || exception4smallGifs && /\.gif\?|$/i.test(fileURL),
-                underDlLimit = qualImgs.size < dlLimit;
+            const isBig = w >= minImgSize || h >= minImgSize;
+            const qualDim = isBig || exception4smallGifs && /\.gif\?|$/i.test(fileURL);
+            const underDlLimit = qualImgs.size < dlLimit;
 
             if (qualDim && (ignoreDlLimit || underDlLimit)) {
                 qualImgs.add(img);
@@ -1828,7 +1742,6 @@ function getQualifiedGImgs(ogs, exception4smallGifs, ignoreDlLimit) {
             console.warn(e);
         }
     }
-    console.debug('qualified img objects list:', qualImgs);
     return qualImgs;
 }
 
@@ -1861,7 +1774,7 @@ function storeUblSitesSet() {
     return ublSitesSet;
 
 }
-unsafeWindow.ublMetas = ublMetas;
+unsafeWindow.UblMetas = ublMetas;
 unsafeWindow.storeUblMetas = storeUblMetas;
 function storeUblMetas() {
     for (const imgMeta of getQualifiedUblImgMetas()) {
@@ -1941,8 +1854,29 @@ function clickLoadMoreImages() {
     }
 }
 function onImagesLoading(addedImageBoxes) {
-    addImgExtensionBox(addedImageBoxes);
-    addImgDownloadButton(addedImageBoxes);
+    console.log('onImagesLoading()');
+    // if (imageSet.contains(addedImageBoxes)) return;
+    // else imageSet.add(addedImageBoxes);
+
+    for (const imageBox of addedImageBoxes) {
+        imageBox.classList.add("rg_bx_listed");
+        addImgExtensionBox(imageBox);
+        addImgDownloadButton(imageBox);
+    }
+
+    (function updateDlLimitSliderMax() {
+        const dlLimitSlider = q('#dlLimitSlider');
+        if (dlLimitSlider) {
+            const tmpValue = dlLimitSlider.getAttribute('value');
+            const numImages = qa('.rg_bx').length;
+            dlLimitSlider.setAttribute('max', numImages);
+
+            const newValue = Math.min(numImages, tmpValue);
+            dlLimitSlider.setAttribute('value', newValue);
+            const sliderValueEl = q('#dlLimitSliderValue');
+            if (sliderValueEl) sliderValueEl.setAttribute('value', newValue);
+        }
+    })();
 
     /**
      * Adds a mouseover listener so the image will be replaced with it's original if you hover over an image for a moment
@@ -2085,14 +2019,6 @@ function getMeta(imageElement) {
  }
  */
 
-unsafeWindow.getGimgTitle = getGimgTitle;
-unsafeWindow.getGimgDescription = getGimgDescription;
-
-unsafeWindow.geResultsData = getResultsData;
-unsafeWindow.downloadImageData = downloadImageData;
-
-//[Google.com images]
-unsafeWindow.saveUblSites = saveUblSites;
 
 function saveUblSites() {
     storeUblSitesSet();
@@ -2392,8 +2318,12 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
             }
             break;
         case KeyEvent.DOM_VK_FORWARD_SLASH: // focus search box
-            if (!$(q('#lst-ib')).is(':focus')) {
-                q('#lst-ib').focus();
+            const searchBar = q('input#lst-ib');
+            if (!$(searchBar).is(':focus')) {
+                searchBar.focus();
+                searchBar.scrollIntoView();
+                searchBar.select();
+                searchBar.setSelectionRange(0, searchBar.value.length); // this one is for compatability
                 e.preventDefault();
             }
             break;
@@ -2677,11 +2607,7 @@ function markImageOnLoad(imgEl, imgUrl) {
     imgObj.onload = function () {
         imgEl.setAttribute('loaded', true);
     };
-    try {
-        imgObj.src = imgUrl;
-    } catch (e) {
-        if (logAnnoyingNetworkErrors) console.error(e);
-    }
+    imgObj.src = imgUrl;
 }
 
 /**
@@ -2751,6 +2677,7 @@ function gZipImages() {
     zip = zip || new JSZip();
     zip.current = 0;
     zip.totalSize = 0;
+    zip.totalLoaded = 0;
     zip.file("info.txt", new Blob([getGimgPageInfoText()], {type: 'text/plain'}));
 
     window.addEventListener('beforeunload', zipBeforeUnload);
@@ -2769,8 +2696,6 @@ function gZipImages() {
     progressBar = setupProgressBar();
 
     console.debug('Original images to be downloaded:', ogs);
-    zip.totalSize = 0;
-    zip.totalLoaded = 0;
     var activeZipThreads = 0;
 
     for (const qualifiedImgArgs of qualImgs)
@@ -3026,7 +2951,7 @@ function setVisibilityForFailedImages(visibility) {
     }
     */
 
-    let bxs = qa(`div.rg_bx > a.rg_l > img.${ClassNames.FAILED_DDG}, div.rg_bx > a.rg_l > img.${ClassNames.FAILED}`);
+    let bxs = qa(`div.rg_bx > a.rg_l > img.${Consts.ClassNames.FAILED_DDG}, div.rg_bx > a.rg_l > img.${Consts.ClassNames.FAILED}`);
     if (!bxs.length) return;
 
     let count = 0;
@@ -3048,135 +2973,6 @@ function setVisible(node, visible) {
         node.classList.add('hide-img');
     }
 }
-
-class GSaves {
-    static get initialItem() {
-        return google.pmc.colmob.initial_item.map(item => JSON.parse(item));
-    }
-    /**
-     * @return {{
-     * imageUrl:{string},
-     * url:{string},
-     * title:{string},
-     * faviconUrl:{string},
-     * redirectUrl:{string},
-     * realUrl:{string}
-     * }}
-     */
-    static get initialItemObjectList() {
-        function item2Obj(item) {
-            var itemObj = {};
-            try {
-                itemObj.imageUrl = item[9] ? item[9][0] : null; // img url
-                itemObj.url = item[5];
-                itemObj.title = item[6];
-                itemObj.faviconUrl = item[17];
-                itemObj.redirectUrl = item[18];
-
-                const searchParams = new URL(itemObj.redirectUrl, 'https://www.google.com').searchParams;
-                console.log('searchParams for:', item, searchParams);
-
-                var q = searchParams.get("q");
-                var qUrl = new URL(q, "https://google.com");
-
-                const imgrefurl = qUrl.searchParams.get("imgrefurl") ? qUrl.searchParams.get("imgrefurl") : q;
-
-                itemObj.realUrl = imgrefurl ? imgrefurl : q;
-            } catch (e) {
-                console.error(e);
-            }
-
-            return itemObj;
-        }
-        return this.initialItem.map(item2Obj);
-    }
-    static get containers() {
-        return qa('div.str-clip-card-space:not(.modified)');
-    }
-    static removeClickListeners(container) {
-        container.parentNode.appendChild(createElement(container.outerHTML));
-        container.remove();
-    }
-    static wrapPanels() {
-
-        var iio = this.initialItemObjectList;
-
-        for (const container of this.containers) {
-            this.removeClickListeners(container);
-        }
-
-        var i = 0;
-        for (const container of this.containers) {
-            if (container.querySelector(['.str-tag-card-images-holder', 'a.wrapper-anchor', 'a.mod-anchor'].join(', '))) {
-                console.warn('element will not be wrapped by anchor:', container);
-                continue;
-            }
-            // main card
-            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-text-holder'), iio[i].realUrl);
-
-            // title div
-            // this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-title'), iio[i].url);
-
-            // img container
-            this.slipAnchorUnderElement(container.querySelector('div.str-wide-card-image-holder'), iio[i].imageUrl);
-
-            i++;
-        }
-
-        // language=CSS
-        addCss(
-                `.str-wide-card {
-                    cursor: default !important;
-                }
-
-                .str-wide-card-title, .str-wide-card-text-holder {
-                    display: -webkit-inline-box !important;
-                }
-
-                .str-wide-card.expandable:not(.expanded) {
-                    height: 100%;
-                }`);
-    }
-    static slipAnchorUnderElement(element, href) {
-        var tempInnerHTML = element.innerHTML;
-        element.innerHTML = "";
-        element.appendChild(createElement(`<a class="mod-anchor" target="_blank" href="${href}">${tempInnerHTML}</a>`));
-    }
-    static outerWrapPanels() {
-        /**
-         * @type {any[]}
-         [
-         0: "wc_70E6Xj2JB_HiZhxy9l7_mcA5R5meGZhF"
-         1: 2
-         5 site: "https://www.google.com.sa/search?q=site%3A4chanarchives.cu.cc&tbm=isch&tbs=rimg%3ACW1a4FzI3jU7Ijin5u866o8-rRk8k1t7XEy5aJ7Uf3c8yS3dCdQ8DD2esqCQHRopVHoj1O5adUXJe-LHtJD3Y9fi6CoSCafm7zrqjz6tEd2HvPoFvwkxKhIJGTyTW3tcTLkR2HOwTpIxd-4qEglontR_1dzzJLRFUC00ZWceOXioSCd0J1DwMPZ6yEY-nOZAfV2KIKhIJoJAdGilUeiMR0eOEGcWrGUAqEgnU7lp1Rcl74hF8oHVvSZhDTCoSCce0kPdj1-LoEbJ4kSjG9QhA&tbo=u&bih=543&biw=1097&ved=0ahUKEwjeqcS_6u7PAhVEuBoKHXXVDX4Q9C8ICQ"
-         6: "site:4chanarchives.cu.cc - Google Search"
-         9 image: (4) ["https://encrypted-tbn2.gstatic.com/images?q=tbn:AN…RbziTjEKR8ZLQR0mN1zewWYHbr73MsqCmMIwLWB3wjEfiqt2A", 264, 191, Array(0)]
-         10: (4) ["https://encrypted-tbn3.gstatic.com/images?q=tbn:AN…QZ1NGhDYp5R-QDtW_mhH5YsTF7o9etY-TMv0yUcTt1LbX6yo_", 211, 152, Array(10)]
-         17: "https://encrypted-tbn2.gstatic.com/favicon?q=tbn:ANd9GcS7Gq4fBcOyAR1DBH7iP5t2k1zJfM6QTpiEKaR1ODP7GzDzQ5gGFkl0gfZA326v72gT-spvAg"
-         18: "/url?q=https%3A%2F%2Fwww.google.com.sa%2Fsearch%3Fq%3Dsite%253A4chanarchives.cu.cc%26tbm%3Disch%26tbs%3Drimg%253ACW1a4FzI3jU7Ijin5u866o8-rRk8k1t7XEy5aJ7Uf3c8yS3dCdQ8DD2esqCQHRopVHoj1O5adUXJe-LHtJD3Y9fi6CoSCafm7zrqjz6tEd2HvPoFvwkxKhIJGTyTW3tcTLkR2HOwTpIxd-4qEglontR_1dzzJLRFUC00ZWceOXioSCd0J1DwMPZ6yEY-nOZAfV2KIKhIJoJAdGilUeiMR0eOEGcWrGUAqEgnU7lp1Rcl74hF8oHVvSZhDTCoSCce0kPdj1-LoEbJ4kSjG9QhA%26tbo%3Du%26bih%3D543%26biw%3D1097%26ved%3D0ahUKEwjeqcS_6u7PAhVEuBoKHXXVDX4Q9C8ICQ&usg=AOvVaw3eb9K2V3-5Fl2DR41rvzXB"
-         length: 20
-         ]
-         */
-        var initial_item = google.pmc.colmob.initial_item.map(item => JSON.parse(item));
-        var urls = initial_item.map(item => item[9] ? item[9][0] : item[5]);
-
-        var i = 0;
-        for (const el of qa('div.str-clip-card-space')) {
-            if (el.querySelector('.str-tag-card-images-holder') || el.closest('a.wrapper-anchor')) {
-                console.warn('element will not be wrapped by anchor:', el);
-                continue;
-            }
-            el.parentElement.appendChild(createElement(
-                `<a class="wrapper-anchor" target="_blank" href="${urls[i]}"> ${el.outerHTML} </a>>`)
-            );
-            console.log('replaceGSavesPanelsWithAnchors:', el);
-            el.remove();
-            i++;
-        }
-    }
-}
-
-unsafeWindow.GSaves = GSaves;
 
 function underlineText(el, subStr) {
     if (!el) {
@@ -3297,3 +3093,219 @@ function object2Map(obj) {
     }
     return map;
 }
+
+
+unsafeWindow.gZipImages = gZipImages;
+unsafeWindow.zip = zip;
+unsafeWindow.genZip = genZip;
+unsafeWindow.ImagePanel = ImagePanel;
+unsafeWindow.successfulUrlsSet = ublSitesSet;
+unsafeWindow.ublSitesSet = ublSitesSet;
+unsafeWindow.ublMap = ublMap;
+
+unsafeWindow.GSaves = GSaves;
+
+unsafeWindow.getImgMetaById = getImgMetaById;
+unsafeWindow.getGimgTitle = getGimgTitle;
+unsafeWindow.getGimgDescription = getGimgDescription;
+
+unsafeWindow.geResultsData = getResultsData;
+unsafeWindow.downloadImageData = downloadImageData;
+
+//[Google.com images]
+unsafeWindow.saveUblSites = saveUblSites;
+
+
+/*Image boxes:
+classNames:
+
+
+WITH SCRIPTS ON:
+
+<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
+<a jsname="hSRGPd"
+   href="OG URL"
+   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noreferrer"
+   referrerpolicy="no-referrer">
+    <div class="Q98I0e" jsaction="IbE0S"></div>
+    <img class="rg_ic rg_i"
+         data-src="Thumbnail URL"
+         name="The_ID"
+         jsaction="load:str.tbn"
+         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
+         src="Thumbnail URL">
+    <div class="rg_ilmbg"><a rel="noreferrer" referrerpolicy="no-referrer" href="The site URL" class="x_source_link">
+        610&nbsp;×&nbsp;340 - gameinformer.com </a></div>
+</a>
+<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
+</div>
+
+WITH SCRIPTS OF:
+<div jscontroller="Q7Rsec" data-ri="74" class="rg_bx rg_di rg_el ivg-i" data-ved="" data-row="14"
+<a jsname="hSRGPd"
+   href="Takes you to some weird google images panel page for a single image"
+   jsaction="fire.ivg_o;mouseover:str.hmov;mouseout:str.hmou" class="rg_l" rel="noopener"
+   referrerpolicy="no-referrer">
+    <div class="Q98I0e" jsaction="IbE0S"></div>
+    <img class="rg_ic rg_i"
+         data-src="Thumbnail URL"
+         name="The_ID:" jsaction="load:str.tbn"
+         onload="typeof google==='object'&amp;&amp;google.aft&amp;&amp;google.aft(this)"
+         src="Thumbnail URL">
+    <div class="rg_ilmbg">
+        610&nbsp;×&nbsp;340 - gameinformer.com
+    </div>
+</a>
+<div jsname="ik8THc" class="rg_meta notranslate"> {meta info}</div>
+</div>
+
+ */
+
+
+// language=CSS
+addCss(`.hover-click:hover,
+.hover-click:focus {
+    color: #999;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.sg { /*sg=SuperGoogle, this is padding for the buttons and controls*/
+    margin: 8px;
+}
+
+input[type="range"] + label { /*The label elements displaying the slider readings*/
+    padding: 6px;
+}
+
+a.irc_mutl, a.irc_mi {
+    display: contents !important;
+}
+
+/*The right upper part of the image panel (containing description and title and stuff)*/
+div.irc_hd * {
+    margin-right: 3px;
+    margin-bottom: 2px;
+}
+
+/*keeps the bar at a fixed position when scrolling*/
+/*.rshdr, .jsrp{position:fixed; height:100%; width:100%; left:0; top:0; z-index:2;}
+#rcnt{position:relative; z-index:1; margin:100% 0 0;}*/
+div#extrares {
+    display: none !important;
+}
+
+/*bigger space between image boxes*/
+div.rg_bx {
+    margin: 10px;
+}
+
+/*fixes the selection area of main image anchors*/
+.irc_asc {
+    display: inline-block !important;
+}
+
+.irc_ris {
+    height: fit-content !important;
+    width: 80% !important;
+}
+
+/**/
+div.text-block {
+    display: block;
+    position: absolute;
+    color: white;
+    opacity: 0.4;
+
+    padding: 5px;
+    margin: 2px;
+
+    min-height: 15px;
+    min-width: 15px;
+    width: fit-content;
+    height: fit-content;
+    top: 0;
+    left: 0;
+
+    border-radius: 5px;
+    font: normal 11px arial, sans-serif;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+div.text-block.download-block:hover {
+    transform: scale(1.5);
+    opacity: 1;
+}
+
+div.text-block.ext-gif {
+    background-color: magenta;
+}
+
+div.text-block.ext:not(.ext-gif) {
+    background-color: #00cbff;
+}
+
+a.download-related {
+    border-radius: 4px;
+    border: #454545 3px solid;
+    background-color: #454545;
+
+    box-shadow: 
+    0 1px 0 rgba(255, 255, 255, .06),
+    1px 1px 0 rgba(255, 255, 255, .03),
+    -1px -1px 0 rgba(0, 0, 0, .02),
+    inset 1px 1px 0 rgba(255, 255, 255, .05);
+
+}
+
+/**/
+
+[type="range"] {
+    -webkit-appearance: none;
+    /*width: 70%;*/
+    height: 15px;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+}
+
+[type="range"]:hover {
+    opacity: 1;
+}
+
+[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: darkorange;
+    cursor: pointer;
+}
+
+[type="range"]::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: darkorange;
+    cursor: pointer;
+}
+
+.fixed-position${Settings.staticNavbar ? ', #qbc, #rshdr:not(#sfcnt)' : ''} {
+    position: fixed;
+    top: 0;
+    z-index: 1000;
+}
+
+.ubl-site {
+    color: ${Settings.successColor} !important;
+}
+
+.scroll-nav:hover,
+.scroll-nav *:hover:not(.hover-click),
+.scroll-nav *:focus:not(.hover-click) {
+    cursor: crosshair, auto;
+} `, 'superGoogleStyle');
