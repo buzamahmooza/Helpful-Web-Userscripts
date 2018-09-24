@@ -92,22 +92,47 @@
  * observeDocument(dealWithTorrents)
  * */
 
+//todo: maybe change hotkeys to Mousetrap
+//todo:	remove searchEngine variable and use Options.searchEngine instead, this way you won't have to manually use GM_setValue and getValue for it
+//done: FIX random extra "DL ML" columns appearing
+//done: make script run independantly of other scripts
+//done: add an option to change what the thumbnail downloads (magnet link or torrent file)
+//done: maybe make the colors extra red/green depending on the seeds
+//done: add forward slash hotkey to go to the search bar
+//done: if there's no next page, scrolling down shouldn't append an extra link
+//done: complete category search
+
 // Cat. | File | Added | Size | S. | L. | comments	|   Uploader
 
 console.log('rarbg script running');
 
-const DBG = true; // debug mode (setting this to false will disable the console logging)
-var currentDocument = document;
+var debug = true; // debug mode (setting this to false will disable the console logging)
+
+var currentDocument = document; // placeholder to keep track of the latest document object (since multiple documents are used)
 const SEARCH_ICON_URL = "https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-ios7-search-strong-128.png";
 // "http://icons.iconarchive.com/icons/custom-icon-design/mono-general-2/512/search-icon.png"; // search icon
-const TORRENT_DL_ICO = "https://dyncdn.me/static/20/img/16x16/download.png";
+const TORRENT_ICO = "https://dyncdn.me/static/20/img/16x16/download.png";
 const MAGNET_ICO = "https://dyncdn.me/static/20/img/magnet.gif";
 const trackers = 'http%3A%2F%2Ftracker.trackerfix.com%3A80%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2710&tr=udp%3A%2F%2F9.rarbg.to%3A2710';
 
-const showGeneratedSearchQuery = false;
-const addCategoryWithSearch = true;
-const bigPics = true;
+const Options = GM_getValue("RarbgOptions",
+    {
+        thumbnailLink: "ml",    //options:  "ml", "tor", "img", "page"
+        addThumbnails: true,	// if set to false, the content thumbnails will not be used, magnet or torrent thumbnails will be used isntead
+        showGeneratedSearchQuery: false,
+        addCategoryWithSearch: true,
+        userLargeThumbnails: true,
+        defaultImageSearchEngine: "google"
+    }
+);
+window.addEventListener("unload", function () {
+    GM_setValue("RarbgOptions", Options);
+});
 
+Math.clamp = function (a, min, max) {
+    return a < min ? min :
+        a > max ? max : a;
+};
 
 const SearchEngines = {
     google: {
@@ -126,7 +151,7 @@ const SearchEngines = {
 let searchEngine = {};
 initSearchEngine();
 function initSearchEngine() {
-    const searchEngineValue = GM_getValue("ImageSearchEngine", "google");
+    const searchEngineValue = GM_getValue("ImageSearchEngine", Options.defaultImageSearchEngine);
     if (SearchEngines.hasOwnProperty(searchEngineValue)) {
         searchEngine = SearchEngines[searchEngineValue];
         console.log('search engine:', searchEngineValue, searchEngine);
@@ -148,56 +173,89 @@ if (!tbodyEl) {
 
 const nextPage = document.querySelector('a[title="next page"]'),
     prevPage = document.querySelector('a[title="previous page"]');
-var usingSmallThumbnails = GM_getValue('usingSmallThumbnails', true);
-var torrents = document.querySelectorAll('tr.lista_related td:nth-child(1) [href^="/torrent/"]');
+var torrents = document.querySelectorAll('a[onmouseover][href^="/torrent/"]');
+
+(function addColumnHeader() {
+    var nearHeader = document.querySelector('.lista2t > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(3)'); // the first cell (header cell) of the new column
+    if (!nearHeader) {
+        console.warn("Problem: Header not found");
+        return;
+    }
+    var header = nearHeader.cloneNode(false);
+    nearHeader.before(header);
+    // noinspection JSUnusedAssignment
+    nearHeader = undefined; // clear memory
+
+    header.setAttribute('class', 'header6');
+    header.setAttribute('align', 'center');
+    header.setAttribute('id', 'DL-header');
+
+    var dlAnchor = createElement('<a>DL</a>');
+    dlAnchor.addEventListener('click', dlTorrents);
+    header.appendChild(dlAnchor);
+})();
 
 //if on a single torrent page, it gets special treatment
 if (matchSite(/\/torrent\//)) {
     let mainTorrentLink = q('body > table:nth-child(6) > tbody > tr > td:nth-child(2) > div > table > tbody > tr:nth-child(2) > td > div > table > tbody > tr:nth-child(1) > td.lista > a:nth-child(2)');
     addImageSearchAnchor(mainTorrentLink, mainTorrentLink.innerText);
 
-    var i = 0;
-    for (var torrent of torrents) {
-        let thb = getMouseoverThumbnail(torrent);
+    var i = 0; // just for counting and debugging
+    for (const torrent of torrents) {
         //creating and adding the elements
-        var cell = document.createElement('td'),
-            magnetLink = document.createElement('a'),
-            magnetImg = document.createElement('img');
-        magnetLink.href = torrent.href;
+        const cell = document.createElement('td'),
+            thumbnailLink = document.createElement('a'),
+            thumbnailImg = document.createElement('img');
+        thumbnailLink.href = torrent.href;
 
         cell.classList.add('magnet-cell');
-        cell.appendChild(magnetLink);
+        cell.appendChild(thumbnailLink);
         // thumbnail
-        magnetImg.classList.add('preview-image');
-        magnetImg.src = thb;
-        magnetLink.appendChild(magnetImg);
+        thumbnailImg.classList.add('preview-image');
+        const thumbnailSrc = extractMouseoverThumbnail(torrent);
+        console.log('Added thumbnail:', thumbnailSrc, thumbnailImg);
+        thumbnailImg.src = thumbnailSrc;
+        thumbnailLink.appendChild(thumbnailImg);
 
         torrent.parentNode.parentNode.after(cell, torrent.parentNode);
         i++;
     }
-    if (DBG) console.log('You should see ' + i + ' thumbnails now.');
+    if (debug) console.log(`You should see ${i} thumbnails now.`);
     void(0);
 }
-// this is the selector for the element to append a page once it's in view
-inView('body > div:nth-child(7)').on('enter', function () {
-    appendPage(currentDocument.querySelector('a[title="next page"]'));
-});
+
+// this is the selector for the element to append a page to it once it's in view
+if (typeof inView !== "undefined")
+    inView('body > div:nth-child(7)').on('enter', function () {
+        appendPage(currentDocument.querySelector('a[title="next page"]'));
+    });
 
 clickToVerifyBrowser();
 
-var addedColumnHeader = false,
-    title = 'DL&nbsp;ML',
+var title = 'DL&nbsp;ML',
     mls = appendColumn(),
     magnetImgData = 'data:image/svg+xml;base64,',
     appendedPageNum = 1;
 
 const onLoad = function () {
+    console.log('loaded');
+    // check for captcha
     if (/rarbg.+threat_defence/i.test(location.href) && document.querySelector('#solve_string')) {
         console.log('rarbg threat defence page');
         solveCaptcha();
     }
-    document.body.onclick = null;
-    console.log('loaded');
+    document.body.onclick = null; // remove annoying click listeners
+
+    /** removes all coded functionality to the element by removing it and reappending it's outerHTML */
+    function clearElementFunctions(element) {
+        const outerHTML = element.outerHTML;
+        element.after(createElement(outerHTML));
+        element.remove();
+    }
+    // remove annoying search description
+    if (q("#SearchDescription"))
+        q("#SearchDescription").remove();
+
 
     observeDocument((target) => {
         dealWithTorrents(target);
@@ -209,12 +267,11 @@ const onLoad = function () {
         }
     });
 };
-// window.addEventListener('load', onLoad);
+
 onLoad();
 
-let width = 100, maxwidth = 110, maxheight = 300;
-width = bigPics ? width * 2 : width;
-maxwidth = bigPics ? maxwidth * 2 : maxwidth;
+let width = 200, maxwidth = 250, maxheight = 300;
+var imagesList = [];	// just used to save image objects so that they won't get garbage-collected
 
 var cssBlock = document.createElement('style');
 fixCss();
@@ -252,8 +309,7 @@ function solveCaptcha() {
         imageText = OCRAD(image);
         console.log('OCRAD result:', imageText);
         captcha.value = imageText;
-        // var fakeSubmitBtn = createElemeng(`<button class="button" type="submit" style="padding-top: 10px;" id="button_submit"><i class="icon-user"></i> I am human</button>`);
-        // container.appendChild(fakeSubmitBtn);
+
         var submitBtn = document.querySelector('#button_submit');
         submitBtn.display = '';
         submitBtn.click();
@@ -265,21 +321,29 @@ function solveCaptcha() {
 function fixCss() {
     // language=CSS
     cssBlock.innerText = `
+table.lista2t tr.lista2 td {
+    border-bottom: 1px solid #fff;
+    min-width: 40px;
+}
+
 .magnet-cell img.preview-image {
-    width: ${usingSmallThumbnails ? width : width * 1.3}px;
-    max-width: ${usingSmallThumbnails ? width : maxwidth * 1.4};
-    max-height: ${(usingSmallThumbnails ? width : maxwidth * 1.4) * 1.5};
+    width: ${!Options.addThumbnails ? width * 0.5 : !Options.userLargeThumbnails ? width : width * 1.3}px;
+    max-width: ${maxwidth * 1.4}px;
+    max-height: ${(!Options.userLargeThumbnails ? width : maxwidth * 1.4) * 1.5}px;
     padding: 5px 5px;
 }
 
 .magnet-cell {
     text-align: center;
-    max-width: ${maxwidth}
-    max-height: ${maxheight};
+    max-width: ${maxwidth}px;
+    max-height: ${maxheight}px;
 }
 a.torrent-ml, a.torrent-dl{
 	display: table-cell;	
 	padding: 5px;
+}
+a.torrent-ml > img, a.torrent-dl > img {
+    width: 40px;
 }
 
 a.gs:link {
@@ -364,47 +428,76 @@ function observeDocument(callback) {
         });
 }
 
+/**
+ * @param numberOfSeeders
+ * @return {number} alpha channel (between 0 and 1 but clamped between [0.2, 0.6]) according to the number of seeders
+ */
+function mapSeedersToAlpha(numberOfSeeders) {
+    const alpha = 0.013 * Math.log(1 + numberOfSeeders) / Math.log(1.15);
+    return Math.clamp(alpha, 0.1, 0.4);
+}
 function dealWithTorrents(node) {
     torrents = node.querySelectorAll('.lista2 td:nth-child(2) [href^="/torrent/"]');
-    if (DBG) console.log('torrents.length: ' + torrents.length);
     for (var i = 0; i < torrents.length; i++) {
         //creating and adding the elements
-        var cell = document.createElement('td'),
-            magnetLink = document.createElement('a'),
-            magnetImg = document.createElement('img');
+        const cell = document.createElement('td'),
+            thumbnailLink = document.createElement('a'),
+            thumbnailImg = document.createElement('img');
 
-        try {
-            magnetLink.href = getTorrentDownloadLinkFromAnchor(torrents[i]);
-            // getTorrentDownloadLink(torrents[i].parentNode);
-        } catch (e) {
-            magnetLink.href = mls[i];
-            if (DBG) console.log('Using mls for MagnetLink:', mls[i]);
+        switch (Options.thumbnailLink) {
+            case "ml":
+                try {
+                    thumbnailLink.href = mls[i];
+                    if (!/^magnet:\?/.test(thumbnailLink.href))  // noinspection ExceptionCaughtLocallyJS
+                        throw new Error("Not a magnet link");
+                } catch (e) {
+                    thumbnailLink.href = getTorrentDownloadLinkFromAnchor(torrents[i]);
+                }
+                break;
+            case "tor":
+                try {
+                    thumbnailLink.href = getTorrentDownloadLinkFromAnchor(torrents[i]);
+                } catch (e) {
+                    thumbnailLink.href = mls[i];
+                    console.debug('Using MagnetLink for torrent thumbnail since torrent failed:', mls[i]);
+                }
+                break;
+            case "page":
+                thumbnailLink.href = torrents[i].href;
+                break;
+            case "img":
+                thumbnailLink.href = thumbnailImg.src;
+                break;
         }
-        // magnetLink.href = mls[i];
 
         cell.classList.add('magnet-cell');
 
-        // cell.insertAdjacentElement("beforebegin", magnetLink);
-        cell.appendChild(magnetLink);
+        cell.appendChild(thumbnailLink);
 
-        if (DBG) console.log("thumbnail Link:", magnetLink);
+        if (thumbnailLink.href.indexOf('undefined') >= 0)
+            console.warn(
+                "thumbnail Link:", thumbnailLink,
+                "torrents[i]:", torrents[i].innerText,
+                "getTorrentDownloadLinkFromAnchor(torrents[i])", getTorrentDownloadLinkFromAnchor(torrents[i])
+            );
+
         // thumbnail
-        magnetImg.classList.add('preview-image');
-        magnetImg.classList.add('zoom');
+        thumbnailImg.classList.add('preview-image');
+        thumbnailImg.classList.add('zoom');
 
-        magnetImg.onmouseover = function playSound(soundobj) {
+        thumbnailImg.onmouseover = function playSound(soundobj) {
             var thissound = document.getElementById('hoverSound');
             // if(thissound.paused)
             thissound.currentTime = 0;
             thissound.play();
         };
 
-        let thumb = getMouseoverThumbnail(torrents[i]);
-        createAndAddAttribute(magnetImg, 'smallSrc', thumb);
-        createAndAddAttribute(magnetImg, 'bigSrc', getLargeThumbnail(thumb));
+        let thumb = extractMouseoverThumbnail(torrents[i]);
+        createAndAddAttribute(thumbnailImg, 'smallSrc', thumb);
+        createAndAddAttribute(thumbnailImg, 'bigSrc', getLargeThumbnail(thumb));
 
-        setThumbnail(magnetImg);
-        magnetLink.appendChild(magnetImg);
+        thumbnailLink.appendChild(thumbnailImg);
+        setThumbnail(thumbnailImg);
 
         torrents[i].parentNode.before(cell);
 
@@ -419,37 +512,72 @@ function dealWithTorrents(node) {
         }
         minutes = Math.round(minutes);
 
-        if (DBG) console.log('column_Added:', column_Added);
+        if (debug) console.log('column_Added:', column_Added);
         column_Added.innerHTML =
             column_Added.innerHTML + '<br>\n' + ((hours ? (hours + 'h') : '') + minutes ? (minutes + 'min') : '') + '&nbsp' + 'ago';
 
 
-        // color backgrounds depending on the number of peers
-        var statusRGB = hex2rgb(row.querySelector('font[color]').getAttribute('color')); // to color the row
-        statusRGB.push(0.15);
-        statusRGB = 'rgb(' + statusRGB.join(', ') + ')';
-        row.style.background = statusRGB;
+        // color backgrounds depending on the number of seeders
+        const seedersFont = row.querySelector('font[color]');
+        var statusRGB = hex2rgb(seedersFont.getAttribute('color')); // to color the row
+        const clampedAlpha = mapSeedersToAlpha(parseInt(seedersFont.innerText));
+        statusRGB.map(x => x * clampedAlpha * 10);
+        statusRGB.push(clampedAlpha); // add alpha channel
 
+        row.style.background = 'rgb(' + statusRGB.join(', ') + ')';
     }
     torrents.forEach(addImageSearchAnchor);
 }
 
 function setThumbnail(magnetImg) {
-    // magnetImg.src = magnetImg.getAttribute((usingSmallThumbnails ? 'smallSrc' : 'bigSrc'));
-    if (!usingSmallThumbnails)
-        magnetImg.src = magnetImg.getAttribute('bigSrc');
 
     if (!magnetImg.src) {
         magnetImg.src = magnetImg.getAttribute('smallSrc');
     }
+
+    // creating image objects to add load listeners to them
+    var smallImage = new Image();
+    smallImage.src = magnetImg.getAttribute('smallSrc');
+    // set to small src when loading small image
+    smallImage.onLoad = function() {
+        createAndAddAttribute(magnetImg, 'small-loaded');
+        magnetImg.src = magnetImg.getAttribute('smallSrc');
+
+        if(Options.userLargeThumbnails && magnetImg.getAttribute('big-loaded')) {
+        	magnetImg.src = magnetImg.getAttribute('bigSrc');
+        }
+    };
+    // creating image objects to add load listeners to them
+    var bigImage = new Image();
+    bigImage.src = magnetImg.getAttribute('bigSrc');
+    // set to small src when loading small image
+    bigImage.onLoad = function() {
+        createAndAddAttribute(magnetImg, 'big-loaded');
+
+        if(Options.userLargeThumbnails) {
+        	magnetImg.src = magnetImg.getAttribute('bigSrc');
+        }
+    };
+
+    // magnetImg.src = magnetImg.getAttribute((!Options.userLargeThumbnails ? 'smallSrc' : 'bigSrc'));
+    if (Options.userLargeThumbnails)
+        magnetImg.src = magnetImg.getAttribute('bigSrc');
+
+
+    if (!Options.addThumbnails) {
+        if (magnetImg.closest('a').href.indexOf('magnet:?') === 0) {	// if magnet link
+            magnetImg.src = MAGNET_ICO;
+        } else {	// if torrent link
+            magnetImg.src = TORRENT_ICO;
+        }
+    }
 }
 function toggleThumbnailSize() {
     console.log('toggleThumbnailSize()');
-    usingSmallThumbnails = !usingSmallThumbnails;
-    GM_setValue('usingSmallThumbnails', usingSmallThumbnails);
+    Options.userLargeThumbnails = !Options.userLargeThumbnails;
     document.querySelectorAll('.preview-image').forEach(setThumbnail);
     fixCss();
-    if (DBG) console.log('toggling thumbnail sizes. usingSmallThumbnails = ', usingSmallThumbnails);
+    if (debug) console.log('toggling thumbnail sizes. Options.userLargeThumbnails = ', Options.userLargeThumbnails);
 }
 function tryBigImage(img) {
     img.addEventListener("error", bigThumbHandleError);
@@ -484,63 +612,63 @@ function createAndAddAttribute(node, attributeName, attributeValue) {
     node.setAttributeNode(att);
 }
 
-/** @Return returns the link from the 'onmouseover' attribute */
-function getMouseoverThumbnail(node) {
-    if (!node) console.warn('null torrent anchor:', node);
+/** @Return returns the extracted source url from the 'onmouseover' attribute */
+function extractMouseoverThumbnail(torrentAnchor) {
+    if (!torrentAnchor) console.warn('null torrent anchor:', torrentAnchor);
     let thb = '';
     try {
         // thb = thb.match(/(?<=(return overlib('\<img src\=\')))(.*?)(?=(\' border\=0\>\'))/i)[0];
-        thb = node.getAttribute('onmouseover');
+        thb = torrentAnchor.getAttribute('onmouseover') || "";
         thb = thb.substring("return overlib('<img src=\'".length + 1, thb.length - "\' border=0>'".length - 2);
     } catch (r) {
         thb = magnetImgData;
-        if (DBG) console.error('getMouseoverThumbnail error:', r);
+        if (debug) console.error('getMouseoverThumbnail error:', r);
     }
     return thb;
 }
-function addImageSearchAnchor(torrentAnchor, query) {
-    var searchTd = document.createElement('td'),
-        searchLink = document.createElement('a'),
-        frame = document.createElement('iframe'),
-        searchImg = document.createElement('img')
+function addImageSearchAnchor(torrentAnchor) {
+    const searchTd = document.createElement('td'),
+        searchLink = document.createElement('a')
     ;
     searchTd.style = "border-top-width: 10px; padding-top: 10px;";
 
-    let q = cleanSymbols(torrentAnchor.title || torrentAnchor.innerText) //replacing common useless torrent terms
+    let searchQuery = cleanSymbols(torrentAnchor.title || torrentAnchor.innerText) //replacing common useless torrent terms
         // replace dates (numbers with dots between them)
             .replace(/\s\s+/g, ' ')	// removes double spaces
             .trim()
     ;
 
-    frame.src = SearchEngines.ddg.imageSearchUrl(q);
-    frame.height = "200";
-    frame.width = "300";
-
-
-    // category
-    function getCat() {
-        var anchor = torrentAnchor.parentNode.parentNode.parentNode.querySelector('a[href^="/torrents.php?category="]');
-        var catSearch = anchor.href.match(/(?<=\/torrents\.php\?category=)(.+?)/i)[0];
-        switch (catSearch) {
-            case '4':
-                var c = String.fromCharCode(88);
-                catSearch = c.concat(c).concat(c);
-                break;
-            case 'Movies':
-            case 'Shows':
-                break;
-            default:
-                console.log('Uknown category:', catSearch);
-                catSearch = undefined;
+    /**
+     * @return {string} the category of the torrent (Movies, XXX, TV Shows, Games, Music, Software, Non XXX)
+     */
+    function getCategory(torrentAnchor) {
+        const anchor = torrentAnchor.parentNode.parentNode.parentNode.querySelector('table.lista2t a[href^="/torrents.php?category="]');
+        /*
+         *  extracting the code of the category from the url.
+         *  example:
+         *    TV shows:   .../torrents.php?category=18
+         *    code is:  18
+         */
+        const categoryCode = anchor.href.match(/(?<=\/torrents\.php\?category=)(.+?)/i)[0];
+        // a map of the
+        const catMap = {
+            'Movies': 'Movies',
+            '4': "XXX",
+            '23': "Music",
+            '18': "TV show",
+            '33': "Software",
+        };
+        if (catMap.hasOwnProperty(categoryCode)) {
+            return catMap[categoryCode];
+        } else {
+            console.debug('Uknown category:', categoryCode);
         }
-        console.debug('category:', catSearch);
-        return catSearch;
     }
 
-    searchLink.href = searchEngine.imageSearchUrl(q);
+    searchLink.href = searchEngine.imageSearchUrl(searchQuery);
     try {
-        if (addCategoryWithSearch && !new RegExp(getCat()).test(searchLink.href))
-            searchLink.href += " " + getCat();
+        if (Options.addCategoryWithSearch && !new RegExp(getCategory(torrentAnchor)).test(searchLink.href))
+            searchLink.href += " " + getCategory(torrentAnchor);
     } catch (e) {
         console.warn("unable to get category", searchLink);
     }
@@ -560,7 +688,7 @@ font-family: sans-serif;`
     var searchEngineText = document.createElement('p5');
     var qText = document.createElement('p6');
     searchEngineText.innerHTML = `${searchEngine.name} Image Search`;
-    qText.innerHTML = (showGeneratedSearchQuery) ? ':\t' + q : '';
+    qText.innerHTML = (Options.showGeneratedSearchQuery) ? ':\t' + searchQuery : '';
 
     let searchIcon = document.createElement('img');
     // searchIcon.src = SEARCH_ICON_URL;
@@ -579,14 +707,15 @@ font-family: sans-serif;`
 }
 
 function appendPage(pageLink) {
-    var tb = document.createElement('tr');
-    var pageAnchor = createElement(`<td><a href="${pageLink}"><p1 style="white-space: nowrap;">Go to page ${++appendedPageNum}</p1></a></td>`);
+    if (!pageLink) return;
+
+    const tb = document.createElement('tr');
+    const pageAnchor = createElement(`<td><a href="${pageLink.href}"><p1 style="white-space: nowrap;">Go to page ${++appendedPageNum}</p1></a></td>`);
     tb.appendChild(pageAnchor);
     tbodyEl.appendChild(tb);
 
-    var url = pageLink;
     var req = new XMLHttpRequest();
-    req.open('GET', url);
+    req.open('GET', pageLink.href);
     req.send();
     req.onreadystatechange = function () {
         if (req.readyState == 4) {
@@ -594,7 +723,7 @@ function appendPage(pageLink) {
             currentDocument = document.createElement('html');
             currentDocument.innerHTML = pageHTML;
             var lista2s = currentDocument.querySelectorAll('tbody>.lista2');
-            if (DBG) console.log('lista2s:', lista2s);
+            if (debug) console.log('lista2s:', lista2s);
             lista2s.forEach(function (e) {
                 tbodyEl.appendChild(e);
                 appendColumnSingle(e.childNodes[1]);
@@ -639,7 +768,18 @@ window.onkeyup = function (e) {
     var key = e.keyCode ? e.keyCode : e.which;
     switch (key) {
         case 32: // SpaceBar
-            appendPage();
+            appendPage(currentDocument.querySelector('a[title="next page"]'));
+            break;
+        case 191: // "/"
+            console.log('clicking search input');
+            const searchBar = q("#searchinput");
+            searchBar.click();
+            searchBar.scrollIntoView();
+            searchBar.select();
+            searchBar.setSelectionRange(0, searchBar.value.length); // this one is for compatability
+            break;
+        case 88:  // x
+            location.assign("/torrents.php?category=2;4");
             break;
         case 37: // Left arrowKey
             e.preventDefault();
@@ -649,12 +789,12 @@ window.onkeyup = function (e) {
             e.preventDefault();
             nextPage.click();
             break;
-        case 192: // ' ` ' key
+        case 192: // "`" backquote
             toggleThumbnailSize();
             break;
         case 83: // Ctrl + S
-            if (e.ctrlKey) {
-                var text = document.title + '\t' + Date.now() +
+            if (e.ctrlKey) { // saves an html file containing the data
+                let text = document.title + '\t' + Date.now() +
                     '\n' + location.href
                     + '\n\n\n';
                 for (const row of document.querySelectorAll('table > tbody > tr.lista2')) {
@@ -671,7 +811,8 @@ window.onkeyup = function (e) {
             break;
     }
 };
-/** Create an element by typing it's inner HTML.
+
+/** Create an element by HTML.
  example:   var myAnchor = createElement('<a href="https://example.com">Go to example.com</a>');*/
 function createElement(html) {
     var div = document.createElement('div');
@@ -679,15 +820,27 @@ function createElement(html) {
     return div.childNodes[0];
 }
 
+function anchorClick(href, downloadValue, target) {
+    downloadValue = downloadValue || '_untitled';
+    var a = document.createElement('a');
+    a.setAttribute('href', href);
+    a.setAttribute('download', downloadValue);
+    a.target = target;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+function saveByAnchor(url, dlName) {
+    anchorClick(url, dlName);
+}
 unsafeWindow.dlTorrents = dlTorrents;
 function dlTorrents() {
     console.log('dlTorrents');
     const dlAnchors = document.querySelectorAll(".torrent-dl");
     if (confirm(`Would you like to download all the torrents on the page? (${dlAnchors.length})`)) {
-        dlAnchors.forEach(e => {
-            e.click();
-            console.log(e.href);
-        });
+        for (const dlAnchor of dlAnchors) {
+            saveByAnchor(dlAnchor.href, new URL(dlAnchor.href).searchParams.get('f'));
+        }
     }
 }
 
@@ -699,34 +852,11 @@ function appendColumn() {
     /*document.querySelectorAll('.lista2t > tbody > tr > td:nth-child(2)').forEach(function(entry){		// creation of the extra column
     	entry.insertAdjacentHTML('afterend', `<td>` + title + `</td>`);
     });*/
-    // add header
-    console.log("addedColumnHeader:", addedColumnHeader);
-    if (!addedColumnHeader) {
-        var nearHeader = document.querySelector('.lista2t > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(3)'); // the first cell (header cell) of the new column
-        if (!nearHeader) {
-            console.warn("Problem: Header not found");
-            return;
-        }
-        var header = nearHeader.cloneNode(false);
-        nearHeader.before(header);
-        // noinspection JSUnusedAssignment
-        nearHeader = undefined; // clear memory
-
-        header.setAttribute('class', 'header6');
-        header.setAttribute('align', 'center');
-        header.setAttribute('id', 'DL-header');
-
-        var dlAnchor = createElement('<a>DL</a>');
-        dlAnchor.addEventListener('click', dlTorrents);
-        header.appendChild(dlAnchor);
-
-        addedColumnHeader = true;
-    }
 
     // the rest cells of the new column
     document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td:nth-child(3)')
         .forEach(fixCellCss);
-    var oldColumn = Array.from(document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td a[href^="/torrent/"]'))
+    var oldColumn = Array.from(document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td a[title]'))
         .map(a => a.parentElement);		// torrent links row
     // populate the cells in the new column with DL and ML links
     return Array.from(oldColumn).map(appendColumnSingle);
@@ -747,7 +877,7 @@ function fixCellCss(cell) {
 function addDlAndMl(torrentAnchor, cellNode) {
     // language=HTML
     torrentAnchor.appendChild(createElement(
-        `<a href="${getTorrentDownloadLink(cellNode)}" class="torrent-dl" target="_blank" ><img src="${TORRENT_DL_ICO}"></a>`
+        `<a href="${getTorrentDownloadLinkFromAnchor(cellNode.querySelector('a[title]'))}" class="torrent-dl" target="_blank" ><img src="${TORRENT_ICO}"></a>`
     )); // torrent download
 
     // matches anything containing "over/*.jpg" *: anything
@@ -771,11 +901,8 @@ function addDlAndMl(torrentAnchor, cellNode) {
     return magnetUriStr;
 }
 
-function getTorrentDownloadLink(oldColumn) {
-    return oldColumn.firstChild.href.replace('torrent/', 'download.php?id=') + '&f=' + oldColumn.firstChild.innerText + '-[rarbg.com].torrent"';
-}
 function getTorrentDownloadLinkFromAnchor(anchor) {
-    return anchor.href.replace('torrent/', 'download.php?id=') + '&f=' + anchor.innerText + '-[rarbg.com].torrent';
+    return anchor.href.replace('torrent/', 'download.php?id=') + '&f=' + encodeURI(anchor.innerText) + '-[rarbg.com].torrent';
 }
 
 /**
@@ -784,22 +911,13 @@ function getTorrentDownloadLinkFromAnchor(anchor) {
  * @return {*}
  */
 function appendColumnSingle(torrentLink) {
-    if (torrentLink.classList.contains('has-torrent-DL-ML')) return;
+    if (torrentLink.closest('tr.lista2').querySelector('.has-torrent-DL-ML')) // check that the same row doesn't already have DL-ML
+        return;
     // the initial column 'Files' after of which the extra column will be appended
     // creation of the extra column
 
     torrentLink.insertAdjacentHTML('afterend', `<td>${title}</td>`);
     torrentLink.classList.add('has-torrent-DL-ML');
-    // add header
-    if (!addedColumnHeader) {
-        // the first cell (the header cell) of the new column
-        var header = document.querySelector('.lista2t > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(3)');
-        header.setAttribute('class', 'header6');
-        header.setAttribute('align', 'center');
-        header.addEventListener('click', dlTorrents);
-        header.appendChild(createElement('<a>DL</a>')); // append DL anchor
-        addedColumnHeader = true;
-    }
 
     // the rest cells of the new column
     fixCellCss(torrentLink.nextSibling);
@@ -811,7 +929,7 @@ function appendColumnSingle(torrentLink) {
 
 function matchSite(siteRegex) {
     let result = location.href.match(siteRegex);
-    if (result) if (DBG) console.log("Site matched regex: " + siteRegex);
+    if (result) if (debug) console.log("Site matched regex: " + siteRegex);
     return result;
 }
 function loadBigPics() {
@@ -837,24 +955,6 @@ function hex2rgb(c) {
     return [r, g, b];
 }
 
-
-function saveByAnchor(url, dlName) {
-    anchorClick(url, dlName);
-}
-function saveBlobAsFile(blob, fileName) {
-    var reader = new FileReader();
-
-    reader.onloadend = function () {
-        var base64 = reader.result;
-        var link = document.createElement("a");
-
-        link.setAttribute("href", base64);
-        link.setAttribute("download", fileName);
-        link.click();
-    };
-
-    reader.readAsDataURL(blob);
-}
 function makeTextFile(text) {
     var data = new Blob([text], {type: 'text/plain'});
     var textFile = null;
@@ -865,220 +965,46 @@ function makeTextFile(text) {
 }
 
 
-class Queue {
-    constructor() {
-        this._oldestIndex = 1;
-        this._newestIndex = 1;
-        this._storage = {};
-    }
-    size() {
-        return this._newestIndex - this._oldestIndex;
-    }
-    enqueue(data) {
-        this._storage[this._newestIndex] = data;
-        this._newestIndex++;
-    }
-    dequeue() {
-        var oldestIndex = this._oldestIndex,
-            newestIndex = this._newestIndex,
-            deletedData;
-
-        if (oldestIndex !== newestIndex) {
-            deletedData = this._storage[oldestIndex];
-            delete this._storage[oldestIndex];
-            this._oldestIndex++;
-
-            return deletedData;
-        }
-    }
+/**abbreviation for querySelectorAll()
+ * @param selector
+ * @param node
+ * @return {set<HTMLElement>} */
+function qa(selector, node = document) {
+    return node.querySelectorAll(selector);
+}
+/**abbreviation for querySelector()
+ * @param selector
+ * @param node
+ * @return {HTMLElement} */
+function q(selector, node = document) {
+    return node.querySelector(selector);
 }
 
-
-/* FileSaver.js
- * A saveAs() FileSaver implementation.
- * 1.3.8
- * 2018-03-22 14:03:47
+/**
+ *    @author    https://codepen.io/frosas/
+ *    Also works with scripts from other sites if they have CORS enabled (look for the header Access-Control-Allow-Origin: *).
  *
- * By Eli Grey, https://eligrey.com
- * License: MIT
- *   See https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md
+ *    // Usage
+ *    var url = 'https://raw.githubusercontent.com/buzamahmooza/Helpful-Web-Userscripts/master/GM_dummy_functions.js?token=AZoN2Rl0UPDtcrOIgaESbGp_tuHy51Hmks5bpijqwA%3D%3D';
+ *    loadGitHubScript(url).then((event) => {	});
  */
+function loadGitHubScript(url) {
+    return fetch(url).then(res => res.blob()).then(body => loadScript(URL.createObjectURL(body)));
 
-/*global self */
-/*jslint bitwise: true, indent: 4, laxbreak: true, laxcomma: true, smarttabs: true, plusplus: true */
-
-/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/src/FileSaver.js */
-
-var saveAs = saveAs || (function (view) {
-    "use strict";
-    // IE <10 is explicitly unsupported
-    if (typeof view === "undefined" || typeof navigator !== "undefined" && /MSIE [1-9]\./.test(navigator.userAgent)) {
-        return;
+    function loadScript(url) {
+        return new Promise(function (resolve, reject) {
+            var script = document.createElement('script');
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = function () {
+                console.warn("couldn't load script: ", url);
+                if (typeof reject === 'function')
+                    reject();
+            }; // TODO Not sure it really works
+            document.head.appendChild(script);
+        });
     }
-    var
-        doc = view.document
-        // only get URL when necessary in case Blob.js hasn't overridden it yet
-        ,
-        get_URL = function () {
-            return view.URL || view.webkitURL || view;
-        },
-        save_link = doc.createElementNS("http://www.w3.org/1999/xhtml", "a"),
-        can_use_save_link = "download" in save_link,
-        click = function (node) {
-            var event = new MouseEvent("click");
-            node.dispatchEvent(event);
-        },
-        is_safari = /constructor/i.test(view.HTMLElement) || view.safari,
-        is_chrome_ios = /CriOS\/[\d]+/.test(navigator.userAgent),
-        setImmediate = view.setImmediate || view.setTimeout,
-        throw_outside = function (ex) {
-            setImmediate(function () {
-                throw ex;
-            }, 0);
-        },
-        force_saveable_type = "application/octet-stream"
-        // the Blob API is fundamentally broken as there is no "downloadfinished" event to subscribe to
-        ,
-        arbitrary_revoke_timeout = 1000 * 40 // in ms
-        ,
-        revoke = function (file) {
-            var revoker = function () {
-                if (typeof file === "string") { // file is an object URL
-                    get_URL().revokeObjectURL(file);
-                } else { // file is a File
-                    file.remove();
-                }
-            };
-            setTimeout(revoker, arbitrary_revoke_timeout);
-        },
-        dispatch = function (filesaver, event_types, event) {
-            event_types = [].concat(event_types);
-            var i = event_types.length;
-            while (i--) {
-                var listener = filesaver["on" + event_types[i]];
-                if (typeof listener === "function") {
-                    try {
-                        listener.call(filesaver, event || filesaver);
-                    } catch (ex) {
-                        throw_outside(ex);
-                    }
-                }
-            }
-        },
-        auto_bom = function (blob) {
-            // prepend BOM for UTF-8 XML and text/* types (including HTML)
-            // note: your browser will automatically convert UTF-16 U+FEFF to EF BB BF
-            if (/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)) {
-                return new Blob([String.fromCharCode(0xFEFF), blob], {
-                    type: blob.type
-                });
-            }
-            return blob;
-        },
-        FileSaver = function (blob, name, no_auto_bom) {
-            if (!no_auto_bom) {
-                blob = auto_bom(blob);
-            }
-            // First try a.download, then web filesystem, then object URLs
-            var
-                filesaver = this,
-                type = blob.type,
-                force = type === force_saveable_type,
-                object_url, dispatch_all = function () {
-                    dispatch(filesaver, "writestart progress write writeend".split(" "));
-                }
-                // on any filesys errors revert to saving with object URLs
-                ,
-                fs_error = function () {
-                    if ((is_chrome_ios || (force && is_safari)) && view.FileReader) {
-                        // Safari doesn't allow downloading of blob urls
-                        var reader = new FileReader();
-                        reader.onloadend = function () {
-                            var url = is_chrome_ios ? reader.result : reader.result.replace(/^data:[^;]*;/, 'data:attachment/file;');
-                            var popup = view.open(url, '_blank');
-                            if (!popup) view.location.href = url;
-                            url = undefined; // release reference before dispatching
-                            filesaver.readyState = filesaver.DONE;
-                            dispatch_all();
-                        };
-                        reader.readAsDataURL(blob);
-                        filesaver.readyState = filesaver.INIT;
-                        return;
-                    }
-                    // don't create more object URLs than needed
-                    if (!object_url) {
-                        object_url = get_URL().createObjectURL(blob);
-                    }
-                    if (force) {
-                        view.location.href = object_url;
-                    } else {
-                        var opened = view.open(object_url, "_blank");
-                        if (!opened) {
-                            // Apple does not allow window.open, see https://developer.apple.com/library/safari/documentation/Tools/Conceptual/SafariExtensionGuide/WorkingwithWindowsandTabs/WorkingwithWindowsandTabs.html
-                            view.location.href = object_url;
-                        }
-                    }
-                    filesaver.readyState = filesaver.DONE;
-                    dispatch_all();
-                    revoke(object_url);
-                };
-            filesaver.readyState = filesaver.INIT;
-
-            if (can_use_save_link) {
-                object_url = get_URL().createObjectURL(blob);
-                setImmediate(function () {
-                    save_link.href = object_url;
-                    save_link.download = name;
-                    click(save_link);
-                    dispatch_all();
-                    revoke(object_url);
-                    filesaver.readyState = filesaver.DONE;
-                }, 0);
-                return;
-            }
-
-            fs_error();
-        },
-        FS_proto = FileSaver.prototype,
-        saveAs = function (blob, name, no_auto_bom) {
-            return new FileSaver(blob, name || blob.name || "download", no_auto_bom);
-        };
-
-    // IE 10+ (native saveAs)
-    if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
-        return function (blob, name, no_auto_bom) {
-            name = name || blob.name || "download";
-
-            if (!no_auto_bom) {
-                blob = auto_bom(blob);
-            }
-            return navigator.msSaveOrOpenBlob(blob, name);
-        };
-    }
-
-    //save_link.target = "_blank";
-
-    FS_proto.abort = function () {
-    };
-    FS_proto.readyState = FS_proto.INIT = 0;
-    FS_proto.WRITING = 1;
-    FS_proto.DONE = 2;
-
-    FS_proto.error =
-        FS_proto.onwritestart =
-            FS_proto.onprogress =
-                FS_proto.onwrite =
-                    FS_proto.onabort =
-                        FS_proto.onerror =
-                            FS_proto.onwriteend =
-                                null;
-
-    return saveAs;
-}(
-    typeof self !== "undefined" && self ||
-    typeof window !== "undefined" && window ||
-    this
-));
+}
 
 
 // this is one row
