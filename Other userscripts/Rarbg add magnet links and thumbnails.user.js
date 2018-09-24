@@ -649,7 +649,7 @@ function addImageSearchAnchor(torrentAnchor) {
          *    TV shows:   .../torrents.php?category=18
          *    code is:  18
          */
-        const categoryCode = anchor.href.match(/(?<=\/torrents\.php\?category=)(.+?)/i)[0];
+        const categoryCode = anchor.href.split('torrents.php?category=').pop();
         // a map of the
         const catMap = {
             'Movies': 'Movies',
