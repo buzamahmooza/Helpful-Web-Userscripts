@@ -1,29 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="BookmarkManager">
-    <bookmark url="file://$PROJECT_DIR$/SuperGoogle.user.js" line="2113" />
+    <bookmark url="file://$PROJECT_DIR$/SuperGoogle.user.js" line="2114" />
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9a182d5d-cbaa-4cd8-8d1c-21449f7b9db5" name="Default" comment="Added null checks before modifying the imageDimensions element&#10;AddImgExtensionBox() addImgDownloadButton() now both operate on a single imgBox at a time (rather than taking in an array)&#10;Grouped frequently used classNames under Consts.ClassNames&#10;Moved generateZipIndexHtml() to the JSZip prototype&#10;the &quot;/&quot; hotkey now also selects the searchbar">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Bookmarklets/Bookmarklets.js" beforeDir="false" afterPath="$PROJECT_DIR$/Bookmarklets/Bookmarklets.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DDGP Unblocker.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/DDGP Unblocker.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Display Original Image.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/Display Original Image.user.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FileSaver.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Global Script.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/Global Script.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Handy AF functions Faris.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/Handy AF functions Faris.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Other userscripts/Rarbg add magnet links and thumbnails.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/Other userscripts/Rarbg add magnet links and thumbnails.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/Google Images HTML.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/Youtube's hotkey popup/Youtube's hotkey popup.HTML" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/_Testing links and finding patterns.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/_txt UBL Hostnames Set from Super Google Script.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/gfycat url to gif url.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scraps/ublsites backup from super google scripts.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/SuperGoogle.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/SuperGoogle.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Video Keyboard Shortcuts.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/Video Keyboard Shortcuts.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/download_script.user.js" beforeDir="false" afterPath="$PROJECT_DIR$/download_script.user.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libs/FileSaver.js" beforeDir="false" afterPath="$PROJECT_DIR$/libs/FileSaver.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libs/GM_download_polyfill.js" beforeDir="false" afterPath="$PROJECT_DIR$/libs/GM_download_polyfill.js" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -50,11 +34,25 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="SuperGoogle.user.js" pinned="true" current-in-tab="false">
+      <file leaf-file-name="SuperGoogle.user.js" pinned="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/SuperGoogle.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="39763">
-              <caret line="2353" column="5" selection-start-line="2353" selection-start-column="5" selection-end-line="2353" selection-end-column="5" />
+            <state relative-caret-position="26">
+              <caret line="1" column="24" selection-start-line="1" selection-start-column="24" selection-end-line="1" selection-end-column="24" />
+              <folding>
+                <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#a#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
+                <element signature="e#269#275#0" expanded="true" />
+                <element signature="e#277#283#0" expanded="true" />
+                <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#EXTERNAL_FRAGMENT#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#strong#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+                <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -62,10 +60,19 @@
       <file leaf-file-name="download_script.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/download_script.user.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2975">
-              <caret line="198" column="40" selection-start-line="198" selection-start-column="40" selection-end-line="198" selection-end-column="40" />
+            <state relative-caret-position="580">
+              <caret line="20" column="122" selection-start-line="20" selection-start-column="122" selection-end-line="20" selection-end-column="122" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Yandex_Images_Upgrade.user.js" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Yandex_Images_Upgrade.user.js">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret lean-forward="true" />
               <folding>
-                <element signature="e#906#992#0" />
+                <element signature="n#!!doc" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -83,7 +90,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Rarbg add magnet links and thumbnails.user.js" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Rarbg add magnet links and thumbnails.user.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Other userscripts/Rarbg add magnet links and thumbnails.user.js">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="668">
@@ -118,9 +125,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>#search</find>
-      <find>targetel.after(</find>
-      <find>.irc_msc</find>
       <find>moresizes</find>
       <find>onimage</find>
       <find>searchbar.</find>
@@ -148,6 +152,9 @@
       <find>more</find>
       <find>single</find>
       <find>keycode</find>
+      <find>debug</find>
+      <find>BLACK_LIST</find>
+      <find>outerhtml</find>
     </findStrings>
     <replaceStrings>
       <replace>\&quot;</replace>
@@ -238,15 +245,15 @@
         <option value="$PROJECT_DIR$/Display Original Image.user.js" />
         <option value="$PROJECT_DIR$/libs/in-view.min.js" />
         <option value="$PROJECT_DIR$/Global Script.user.js" />
-        <option value="$PROJECT_DIR$/SuperGoogle.user.js" />
         <option value="$PROJECT_DIR$/Handy AF functions Faris.user.js" />
         <option value="$PROJECT_DIR$/Video Keyboard Shortcuts.user.js" />
-        <option value="$PROJECT_DIR$/download_script.user.js" />
         <option value="$PROJECT_DIR$/Yandex upgrade.js" />
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/Scraps/_really old scraps/GM_ Script reddit images.js" />
         <option value="$PROJECT_DIR$/Scraps/_really old scraps/Reddit images.bkmrk.js" />
         <option value="$PROJECT_DIR$/Other userscripts/Rarbg add magnet links and thumbnails.user.js" />
+        <option value="$PROJECT_DIR$/download_script.user.js" />
+        <option value="$PROJECT_DIR$/SuperGoogle.user.js" />
       </list>
     </option>
   </component>
@@ -591,7 +598,7 @@
       <workItem from="1537188963235" duration="5274000" />
       <workItem from="1537305578779" duration="6056000" />
       <workItem from="1537821285495" duration="357000" />
-      <workItem from="1537888158937" duration="1850000" />
+      <workItem from="1537888158937" duration="3829000" />
     </task>
     <task id="LOCAL-00001" summary="Fixed the zipImages() function (now working, but must be manually called (for both zipping and downloading))">
       <created>1522940943731</created>
@@ -702,7 +709,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="1426130000" />
+    <option name="totallyTimeSpent" value="1428109000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -771,13 +778,6 @@
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$APPLICATION_HOME_DIR$/plugins/JavaScriptLanguage/jsLanguageServicesImpl/external/lib.es6.d.ts">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="809">
-          <caret line="19239" column="21" lean-forward="true" selection-start-line="19239" selection-start-column="21" selection-end-line="19239" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Scraps/KFUPM _ Video Learning Objects_files/jquery-ui.js.download" />
     <entry file="file://$PROJECT_DIR$/cockpit for Pixiv.js" />
     <entry file="file://$PROJECT_DIR$/FileSaver.js" />
@@ -945,13 +945,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/SuperGoogle.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="39763">
-          <caret line="2353" column="5" selection-start-line="2353" selection-start-column="5" selection-end-line="2353" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Super Google (unified script).js" />
     <entry file="file://$PROJECT_DIR$/Video Keyboard Shortcuts.user.js">
       <provider selected="true" editor-type-id="text-editor">
@@ -964,16 +957,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="24854">
           <caret line="1462" column="31" selection-start-line="1462" selection-start-column="31" selection-end-line="1462" selection-end-column="31" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/download_script.user.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2975">
-          <caret line="198" column="40" selection-start-line="198" selection-start-column="40" selection-end-line="198" selection-end-column="40" />
-          <folding>
-            <element signature="e#906#992#0" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1029,6 +1012,44 @@
           <caret line="1006" column="1" selection-start-line="1006" selection-start-column="1" selection-end-line="1006" selection-end-column="1" />
           <folding>
             <element signature="n#style#0;n#p1#0;n#a#0;n#td#0;n#!!top" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Yandex_Images_Upgrade.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret lean-forward="true" />
+          <folding>
+            <element signature="n#!!doc" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/download_script.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="580">
+          <caret line="20" column="122" selection-start-line="20" selection-start-column="122" selection-end-line="20" selection-end-column="122" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/SuperGoogle.user.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="26">
+          <caret line="1" column="24" selection-start-line="1" selection-start-column="24" selection-end-line="1" selection-end-column="24" />
+          <folding>
+            <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#a#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
+            <element signature="e#269#275#0" expanded="true" />
+            <element signature="e#277#283#0" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#EXTERNAL_FRAGMENT#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#strong#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#!!top" expanded="true" />
           </folding>
         </state>
       </provider>
