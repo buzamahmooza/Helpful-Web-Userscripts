@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Super google
+// @name         Super Google
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Open google images in page instead of new tab
 // @author       Faris Hijazi
 // @include      /https?://(www|encrypted)\.google\..*/
@@ -9,13 +9,14 @@
 // @grant        GM_getValue
 // @grant        unsafeWindow
 // @require      http://code.jquery.com/jquery-latest.min.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\SuperGoogle.user.js
 // @require      https://raw.githubusercontent.com/kimmobrunfeldt/progressbar.js/master/dist/progressbar.min.js
 // @require      https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.min.js
+// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // @run-at       document-end
 // ==/UserScript==
 
+// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
+// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\SuperGoogle.user.js
 // @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // @require      https://greasyfork.org/scripts/38996-faris-handy-webdev-javascript-functions/code/Faris%20Handy%20Webdev%20JavaScript%20functions.user.js
 
@@ -549,7 +550,7 @@ class ImagePanel {  // ImagePanel class
             console.warn('Title anchor not found!');
             return;
         }
-        return cleanGibberish(this.pTitle_Anchor.outerHTML.replace(getHostname(this.pTitle_Anchor.href), ''));
+        return cleanGibberish(this.pTitle_Anchor.innerText.replace(getHostname(this.pTitle_Anchor.href), ''));
     }
     /** Secondary title
      * @return {HTMLAnchorElement, Node} */
