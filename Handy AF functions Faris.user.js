@@ -14,28 +14,24 @@
 // @grant        window.close
 // @grant        window.focus
 // @run-at		 document-start
+// @include      *
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // ==/UserScript==
 
-// noinspection ES6ConvertVarToLetConst
-var debug;
-
 /**/
 if (typeof unsafeWindow === "undefined") unsafeWindow = window;
-if (typeof debug === 'undefined') debug = true;
-if (typeof log === 'undefined') log = (...arguments) => (debug) ? console.log('Log:', ...arguments) : false;
 
-URL_REGEX_STR = `(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?`;
-IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?\\.(jpg|png|jpeg|gif|tiff|&f=1)`, 'gim');
+unsafeWindow.URL_REGEX_STR = `(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?`;
+unsafeWindow.IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?\\.(jpg|png|jpeg|gif|tiff|&f=1)`, 'gim');
 // /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(jpg|png|jpeg|gif|tiff|&f=1)/gim;
-VID_URL_REGEX = /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(mov|webm|mp4|wmv|&f=1)/gim;
+unsafeWindow.VID_URL_REGEX = /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(mov|webm|mp4|wmv|&f=1)/gim;
 
 var useEncryptedGoogle = /encrypted.google.com/.test(location.hostname);
 var googleBaseURL = `https://${/google\./.test(location.hostname) ? location.hostname :
     ((useEncryptedGoogle ? "encrypted" : "www") + ".google.com")}`;
 
-gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
-GIMG_REVERSE_SEARCH_URL = `${googleBaseURL}/searchbyimage?&image_url=`;
+unsafeWindow.gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+unsafeWindow.GIMG_REVERSE_SEARCH_URL = `${googleBaseURL}/searchbyimage?&image_url=`;
 
 if (typeof GM_setClipboard !== 'undefined') {
     unsafeWindow.setClipboard = GM_setClipboard;
@@ -102,12 +98,7 @@ if (typeof GM_xmlhttpRequest !== 'undefined') {
         GM_xmlhttpRequest;
 }
 
-unsafeWindow.URL_REGEX_STR = URL_REGEX_STR;
-unsafeWindow.VID_URL_REGEX = VID_URL_REGEX;
-unsafeWindow.IMAGE_URL_REGEX = IMAGE_URL_REGEX;
-unsafeWindow.gImgSearchURL = gImgSearchURL;
-unsafeWindow.GIMG_REVERSE_SEARCH_URL = GIMG_REVERSE_SEARCH_URL;
-unsafeWindow.log = log;
+unsafeWindow.log = console.debug;
 unsafeWindow.setLog = newDebugState => debug = (typeof newDebugState === "boolean") ? newDebugState : debug;
 unsafeWindow.matchSite = matchSite;
 unsafeWindow.createElement = createElement;
@@ -157,6 +148,38 @@ unsafeWindow.fetchElement = fetchElement;
 unsafeWindow.xmlRequestElement = xmlRequestElement;
 unsafeWindow.onLoadDim = onLoadDim;
 unsafeWindow.addCss = addCss;
+
+/**
+ *	@author	https://codepen.io/frosas/
+ *	Also works with scripts from other sites if they have CORS enabled (look for the header Access-Control-Allow-Origin: *).
+ *
+ *	// Usage
+ *	var url = 'https://raw.githubusercontent.com/buzamahmooza/Helpful-Web-Userscripts/master/GM_dummy_functions.js?token=AZoN2Rl0UPDtcrOIgaESbGp_tuHy51Hmks5bpijqwA%3D%3D';
+ *	loadGitHubScript(url).then((event) => {	});
+ */
+function loadGitHubScript(url) {
+	return fetch(url).
+		then(res => res.blob()).
+		then(body => loadScript(URL.createObjectURL(body)));
+	
+	function loadScript(url) {
+		new Promise(function(resolve, reject) {
+		  var script = document.createElement('script');
+		  script.src = url;
+		  script.onload = resolve;
+		  script.onerror = function(){
+			  console.warn("couldn't load script: ", url);
+			  if(typeof reject === 'function')
+				  reject();
+		  }; // TODO Not sure it really works
+		  document.head.appendChild(script);
+		});
+	}
+}
+
+
+
+/**@deprecated doesn't actually succeed*/
 unsafeWindow.addJs = function addJs(js, id) {
     const jsScript = document.createElement('script');
     jsScript.appendChild(document.createTextNode(js));
@@ -292,7 +315,7 @@ function setStyleInHTML(el, styleProperty, styleValue) {
 
         el.setAttribute('style', newStyle);
 
-        log(
+        console.debug(
             'adding to style ', `"${styleArgument}"`,
             '\nnewStyle:', `"${newStyle}"`,
             '\nelement:', el
@@ -300,6 +323,10 @@ function setStyleInHTML(el, styleProperty, styleValue) {
     }
     return el;
 }
+Math.clamp = function (a, min, max) {
+    return a < min ? min :
+        a > max ? max : a;
+};
 
 /**
  * @param targetElement
@@ -334,24 +361,38 @@ function getGImgReverseSearchURL(url) {
     return url ? GIMG_REVERSE_SEARCH_URL + encodeURIComponent(url.trim()) : "";
 }
 
+unsafeWindow.nodeDepth = nodeDepth;
+/**
+ * returns the number of nodes between the child and parent
+ * @param child
+ * @param parent    the parent (direct or indirect) of the child element
+ * @param currentDepth used for recursion only, do NOT modify it's value
+ * @return {number}
+ */
+function nodeDepth(child, parent = document, currentDepth = 0) {
+    if (!child || !parent) throw "Both the child and parent must non-null.";
+    if (!parent.contains(child)) throw "The given parent does not contain the child.";
+
+    currentDepth++;
+    return child.parentNode == parent ?
+        currentDepth :
+        nodeDepth(child.parentNode, parent, currentDepth);
+}
+
 /**Returns the href wrapped with proxy.DuckDuckGo.com */
 function reverseDdgProxy(href) {
     var s = href;
-    var url = new URL(href);
     if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
     if (isDdgUrl(href)) {
-        s = s.trim().match(/(?<=(https:\/\/proxy\.duckduckgo\.com\/iu\/\?u=))(.+?)(?=(&f=1|$))/i);
+        s = new URL(location.href).searchParams.get('u');
     }
     // https://proxy.duckduckgo.com/iu/?u=
     if (s && s[0]) {
         return decodeURIComponent(s[0]);
     } else {
-        console.log('Was unable to reverseDDGProxy for URL:', url);
+        console.log('Was unable to reverseDDGProxy for URL:', href);
         return s;
     }
-
-    // todo: make this function use the URL object
-    // return url.searchParams.get('u');
 }
 
 unsafeWindow.regexBetween = function (precedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
@@ -435,14 +476,14 @@ function waitForElement(elementGetter, callback) {
  * @param {MouseWheelEvent} wheelEvent
  * @return {number} -1 or 1
  */
-function getWheelDelta(wheelEvent) {
+unsafeWindow.getWheelDelta = function getWheelDelta(wheelEvent) {
     // cross-browser wheel delta
     wheelEvent = window.event || wheelEvent; // old IE support
     return Math.max(-1, Math.min(1, (wheelEvent.wheelDelta || -wheelEvent.detail)));
-}
-function elementUnderMouse(wheelEvent) {
+};
+unsafeWindow.elementUnderMouse = function elementUnderMouse(wheelEvent) {
     return document.elementFromPoint(wheelEvent.clientX, wheelEvent.clientY);
-}
+};
 
 /** Create an element by typing it's inner HTML.
  For example:   var myAnchor = createElement('<a href="https://example.com">Go to example.com</a>');
@@ -462,7 +503,7 @@ function createElement(html, callback) {
 /* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
     let result = location.href.match(siteRegex);
-    if (!!result) log("Site matched regex: " + siteRegex);
+    if (!!result) console.debug("Site matched regex: " + siteRegex);
     return result;
 }
 function siteSearchUrl(query) {
@@ -471,13 +512,29 @@ function siteSearchUrl(query) {
     }
 }
 
-/**abbreviation for querySelectorAll()*/
-function qa(selector) {
-    return document.querySelectorAll(selector);
+/**
+ * removes all coded functionality to the element by removing it and reappending it's outerHTML
+ */
+function clearElementFunctions(element) {
+    const outerHTML = element.outerHTML;
+    element.after(createElement(outerHTML));
+    element.remove();
 }
-/**abbreviation for querySelector()*/
-function q(selector) {
-    return document.querySelector(selector);
+unsafeWindow.clearElementFunctions = clearElementFunctions;
+
+/**abbreviation for querySelectorAll()
+ * @param selector
+ * @param node
+ * @return {set<HTMLElement>} */
+function qa(selector, node = document) {
+    return node.querySelectorAll(selector);
+}
+/**abbreviation for querySelector()
+ * @param selector
+ * @param node
+ * @return {HTMLElement} */
+function q(selector, node = document) {
+    return node.querySelector(selector);
 }
 
 unsafeWindow.getIncrementedUrl = getIncrementedUrl;
@@ -518,7 +575,7 @@ unsafeWindow.printElementTextAttributes = printElementTextAttributes;
 function printElementTextAttributes(el) {
     console.log(
         'innerText:', el.innerText,
-        '\nOuterText:', el.outerText,
+        '\nOuterText:', el.outerHTML,
         '\nInnerHTML:', el.innerHTML,
         '\nouterHTML:', el.outerHTML
     );
@@ -537,7 +594,7 @@ function getOGZscalarUrl(zscalarUrl) {
     zscalarUrl = zscalarUrl.trim();
     let x = decodeURIComponent(('' + zscalarUrl).substring(46, zscalarUrl.indexOf('&referer')));
     // let x = decodeURIComponent(('' + zscalarUrl).substring(46, zscalarUrl.indexOf('&referer')));
-    log('Extracted ZScalar original link:', x);
+    console.debug('Extracted ZScalar original link:', x);
     return x;
 }
 
@@ -837,6 +894,33 @@ unsafeWindow.SrcSet = class SrcSet {
     }
 };
 
+unsafeWindow.cookieUtils = {
+	setCookie: function setCookie(name,value,days) {
+		var expires = "";
+		if (days) {
+			var date = new Date();
+			date.setTime(date.getTime() + (days*24*60*60*1000));
+			expires = "; expires=" + date.toUTCString();
+		}
+		document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+		return document.cookie;
+	},
+	getCookie: function getCookie(name) {
+		var nameEQ = name + "=";
+		var ca = document.cookie.split(';');
+		for(var i=0;i < ca.length;i++) {
+			var c = ca[i];
+			while (c.charAt(0)==' ') c = c.substring(1,c.length);
+			if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+		}
+		return null;
+	},
+	eraseCookie: function eraseCookie(name) {   
+		document.cookie = name+'=; Max-Age=-99999999;';
+		return document.cookie;
+	}
+};
+
 unsafeWindow.url2location = url2location;
 /**
  * Retrieves an object with parsed URL data
@@ -1012,7 +1096,7 @@ function removeDoubleSpaces(str) {
 function cleanDates(str) {
     return !!str ? removeDoubleSpaces(str.replace(/\d*\.([^.]+)\.\d*/g, ' ')) : str;
 }
-function cleanGibberish(str, minWgr) {
+function cleanGibberish(str, minWgr, debug=false) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
         let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " ")),
@@ -1029,7 +1113,7 @@ function cleanGibberish(str, minWgr) {
          * @type {number}
          */
         let wgr = (str.length - noGibberish.length) / str.length;
-        log(
+        if(debug) console.debug(
             'cleanGibberish(' + str + ')' +
             '\nOriginal:', str,
             '\nNoGibberish:', noGibberish,
@@ -1047,12 +1131,19 @@ unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*=
 
 unsafeWindow.observeDocument = function observeDocument(callback, options) {
     callback(document.body);
+    options = typeof(extend)!=='function'? {}: extend(options, {
+        singleCallbackPerMutation: false
+    });
     new MutationObserver(
         /** @param mutations */
         function mutationCallback(mutations) {
-            for (var mutation of mutations) {
-                if (!mutation.addedNodes.length) continue;
+            for (const mutation of mutations) {
+                if (!mutation.addedNodes.length)
+                    continue;
                 callback(mutation.target);
+                if (options.singleCallbackPerMutation === true) {
+                    break;
+                }
             }
         }
     ).observe(document.body, {
@@ -2508,7 +2599,7 @@ unsafeWindow.saveAs = saveAs;
             return Mousetrap;
         });
     }
-})(typeof window !== 'undefined' ? window : null, typeof  window !== 'undefined' ? document : null);
+})(typeof window !== 'undefined' ? window : null, typeof window !== 'undefined' ? document : null);
 unsafeWindow.Mousetrap = Mousetrap;
 
 unsafeWindow.fetchSimilarHeaders = fetchSimilarHeaders;
