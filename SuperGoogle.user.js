@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Super Google
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.3.1
 // @description  Open google images in page instead of new tab
 // @author       Faris Hijazi
 // @include      /https?://(www|encrypted)\.google\..*/
@@ -560,7 +560,7 @@ class ImagePanel {  // ImagePanel class
     get sTitle_Text() {
         const secondaryTitle = this.sTitle_Anchor;
         const siteHostName = getHostname(this.sTitle_Anchor.href);
-        return cleanGibberish(secondaryTitle.outerText.replace(siteHostName, ''));
+        return cleanGibberish(secondaryTitle.innerText.replace(siteHostName, ''));
     }
 
     get ris_fc_Url() {
@@ -785,7 +785,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
          for (const [selector, char] of keymap) {
          var bindEl = q(selector);
          if (!bindEl) continue;
-         bindEl.outerText = bindEl.outerText.replace(new RegExp(char, 'i'), `<u>${char}</u>`);
+         bindEl.outerHTML = bindEl.outerHTML.replace(new RegExp(char, 'i'), `<u>${char}</u>`);
          }*/
 
         // relocating the image dimensions element
@@ -2791,7 +2791,7 @@ respText:   ${res.responseText.slice(0, 100)}...`
                 } catch (e) {
                 }
 
-                const [fullMatch, mimeType1, mimeType2] = res.responseHeaders.match(/(?:content-type: )([\w]+)\/([\w\-]+)/);
+                const [t, fullMatch, mimeType1, mimeType2] = res.responseHeaders.match(/(content-type: )([\w]+)\/([\w\-]+)/);
                 const contentType = [mimeType1, mimeType2].join('/');
                 let ext = mimeTypesJSON.hasOwnProperty(contentType) && mimeTypesJSON[contentType] ?
                     mimeTypesJSON[contentType].extensions[0] :
