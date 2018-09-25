@@ -12,6 +12,7 @@
 // @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
 // @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\SuperGoogle.user.js
 // @require      https://raw.githubusercontent.com/kimmobrunfeldt/progressbar.js/master/dist/progressbar.min.js
+// @require      https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.min.js
 // @run-at       document-end
 // ==/UserScript==
 
@@ -56,11 +57,6 @@ if (typeof unsafeWindow.superGoogleScript === 'undefined') {
     void(0);
 }
 console.debug('SuperGoogleScript running');
-
-var debug = true;
-if (typeof debug === 'undefined') debug = false;
-if (typeof log === 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
-
 
 const Consts = {
     GMValues: {
@@ -553,7 +549,7 @@ class ImagePanel {  // ImagePanel class
             console.warn('Title anchor not found!');
             return;
         }
-        return cleanGibberish(this.pTitle_Anchor.outerText.replace(getHostname(this.pTitle_Anchor.href), ''));
+        return cleanGibberish(this.pTitle_Anchor.outerHTML.replace(getHostname(this.pTitle_Anchor.href), ''));
     }
     /** Secondary title
      * @return {HTMLAnchorElement, Node} */
@@ -746,7 +742,7 @@ unionPTitleAndDescrAndSTitle: ${unionPTitleAndDescrAndSTitle}`
                                 delta = getWheelDelta(wheelEvent);
 
                             if (Math.abs(delta) < 0.1) { // Do nothing if didn't scroll
-                                log("Mousewheel didn't move");
+                               console.debug("Mousewheel didn't move");
                                 return false;
                             }
                             /// Wheel definetely moved at this point
@@ -1643,9 +1639,28 @@ function injectGoogleButtons() {
         if (/q=site:/i.test(location.href) && !/tbs=rimg:/i.test(location.href)) {
             displayImages();
         }
+
+        // todo: append the element somewhere else, where it will also be appended with the web search (not only the image search)
+        // search engine dropdown
+        var searchEngineSelect = createElement(`<select id="search-engine-select">
+  <option id="google-search">Google</option>
+  <option id="yandex-search">Yandex</option>
+  <option id="ddg-search">DuckDuckGo</option>
+</select>`);
+        searchEngineSelect.onchange = function(event){
+            switch(searchEngineSelect.value.toLowerCase()) {
+                case "yandex":
+                location.assign("https://yandex.com/images/search?text=" + encodeURIComponent(new URL(location.href).searchParams.get('q')));
+                break;
+                case "duckduckgo":
+                location.assign('https://duckduckgo.com/?&kao=-1&kp=-2&k1=-1&kak=-1&atb=v50-4&t=hf&iax=images&ia=' + (/&tbm=isch/.test(location.href)?'images':'web') + '&q=' + encodeURIComponent(new URL(location.href).searchParams.get('q')) );
+                break;
+            }
+        }
+
+
         var defaultDownlodPath = "";
         /** contains the current download path, changing it will change the download path */
-
         var pathBox = createElement(`<div class="sg" style="display: inline;">
 <input id="download-path" value="${defaultDownlodPath}"><label>Download path</label>
 </div>`);
@@ -1653,7 +1668,7 @@ function injectGoogleButtons() {
         const divider = document.createElement('div');
         controlsContainer.appendChild(divider);
         // appending buttons and controls
-        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, pathBox, downloadPanel);
+        divider.after(btn_dispOgs, cbox_ShowFailedImages, cbox_GIFsOnly, cbox_UseDdgProxy, cbox_GIFsException, cbox_OnlyShowQualifiedImages, btn_animated, searchEngineSelect, pathBox, downloadPanel);
         sliderConstraintsContainer.after(satCondLabel);
         downloadPanel.appendChild(createElement(`<div id="progressbar-container"></div>`));
 
@@ -2182,7 +2197,7 @@ function tryToClickBottom_ris_image(interval) {
     const recursivelyClickLastRelImg = () => setTimeout(function () {
         const relatedImageDivs = ImagePanel.focP.ris_Divs;
         const pop = Array.from(relatedImageDivs).pop();
-        // log('recursivelyClickLastRelImg:', pop);
+        //console.debug('recursivelyClickLastRelImg:', pop);
         if (pop && pop.click) {
             pop.click();
             clearTimeout(this);
@@ -2372,7 +2387,8 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
                 minImgSizeSlider.value = parseInt(minImgSizeSlider.value) - parseInt(minImgSizeSlider.step);
             } else if (modKeys.CTRL_ONLY) { // trim left search query
                 const searchBox = q('#lst-ib');
-                var unwantedStr = searchBox.value.match(/(?<=([.:])).+?\./);
+                // var unwantedStr = searchBox.value.match(/(?<=([.:])).+?\./);
+                var unwantedStr = searchBox.split(/\.|(site:)/g).slice(1, -1).filter(x=>!!x).join('.')
                 if (!unwantedStr)
                     break;
                 searchBox.value = searchBox.value.replace(unwantedStr[0], '');
@@ -2410,7 +2426,7 @@ function onKeyDown(e) { // there will be no event if the target element is of ty
                 const focusedRelatedImageUrl = focusedPanel.ris_fc_Url;
                 if (typeof focusedPanel.mainImage !== "undefined") {
                     focusedPanel.q('a.search-by-image').click();
-                    log("focusedRelatedImageUrl:", focusedRelatedImageUrl);
+                    console.debug("focusedRelatedImageUrl:", focusedRelatedImageUrl);
                 } else {
                     console.error('Image not found', focusedRelatedImageUrl);
                 }
