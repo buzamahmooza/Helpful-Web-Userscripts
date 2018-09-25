@@ -539,23 +539,23 @@ function setThumbnail(magnetImg) {
     var smallImage = new Image();
     smallImage.src = magnetImg.getAttribute('smallSrc');
     // set to small src when loading small image
-    smallImage.onLoad = function() {
+    smallImage.onLoad = function () {
         createAndAddAttribute(magnetImg, 'small-loaded');
         magnetImg.src = magnetImg.getAttribute('smallSrc');
 
-        if(Options.userLargeThumbnails && magnetImg.getAttribute('big-loaded')) {
-        	magnetImg.src = magnetImg.getAttribute('bigSrc');
+        if (Options.userLargeThumbnails && magnetImg.getAttribute('big-loaded')) {
+            magnetImg.src = magnetImg.getAttribute('bigSrc');
         }
     };
     // creating image objects to add load listeners to them
     var bigImage = new Image();
     bigImage.src = magnetImg.getAttribute('bigSrc');
     // set to small src when loading small image
-    bigImage.onLoad = function() {
+    bigImage.onLoad = function () {
         createAndAddAttribute(magnetImg, 'big-loaded');
 
-        if(Options.userLargeThumbnails) {
-        	magnetImg.src = magnetImg.getAttribute('bigSrc');
+        if (Options.userLargeThumbnails) {
+            magnetImg.src = magnetImg.getAttribute('bigSrc');
         }
     };
 
@@ -649,7 +649,7 @@ function addImageSearchAnchor(torrentAnchor) {
          *    TV shows:   .../torrents.php?category=18
          *    code is:  18
          */
-        const categoryCode = anchor.href.match(/(?<=\/torrents\.php\?category=)(.+?)/i)[0];
+        const categoryCode = anchor.href.split('torrents.php?category=').pop();
         // a map of the
         const catMap = {
             'Movies': 'Movies',
