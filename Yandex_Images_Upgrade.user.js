@@ -26,17 +26,35 @@
 // ==/UserScript==
 
 /**
-*   Adds functionality to yandex.com/images.
-*   -Extra buttons for the image panel (download, download related, DuckDuckGo proxy, ... and more)
-*   -Display original images (by replacing image anchors links with the original image links).
-*   -Hotkeys
-*/
+ *   Adds functionality to yandex.com/images.
+ *   -Extra buttons for the image panel (download, download related, DuckDuckGo proxy, ... and more)
+ *   -Display original images (by replacing image anchors links with the original image links).
+ *   -Hotkeys
+ */
 
 
 /**/
 if (typeof unsafeWindow == "undefined") unsafeWindow = window;
-if (typeof debug == 'undefined') debug = false;
-if (typeof log == 'undefined') log = (...msg) => (debug) ? console.log('Log:', ...msg) : false;
+
+const imagePreloader = {
+    images: new Set(),
+    handleImg: function (img) {
+        if (!img || img.classList.contains("preloaded"))
+            return;
+        img.classList.add("preloaded");
+        const image = new Image(img.src);
+        image.img = img;    // save a reference to the img element
+        image.addEventListener('error', function (event) {
+            this.handleLoadError(event);
+        });
+        imagePreloader.images.add(image)
+    },
+    handleLoadError: function (event) {
+        const oldSrc = this.img.src;
+        this.img.src = Proxy.steemitimages(this.img.src);
+        console.log('Image wasn\'t loading, switching to proxy:', oldSrc, this.src, event);
+    }
+};
 
 /**abbreviation for querySelectorAll()
  * @param selector
@@ -56,28 +74,6 @@ function q(selector, node = document) {
 const Settings = {
     invertWheelRelativeImageNavigation: false
 };
-
-class P {
-    static get panel() {
-        return q('[data-bem^="{\\"pane"]');
-    }
-    static get buttonsPanel() {
-        return P.panel.querySelector('div.pane2__buttons2.pane2-sidebar__section');
-    }
-    static get buttons() {
-        /** 0: Open
-         * 1:   Other sizes and similiar
-         * 2:   Save
-         * 3:   Share */
-        const children = P.buttonsPanel.childNodes;
-        return {
-            open: P.buttonsPanel.querySelector('div.sizes > a'),
-            otherSizes: P.buttonsPanel.querySelector('div.sizes > div'),
-            save: children[2],
-            share: children[3]
-        };
-    }
-}
 
 class YandexUtils {
     static get oList() {
@@ -108,29 +104,28 @@ class YandexUtils {
             img.src = getImgJson(bx)["img_href"];
         }
     }
-    static directImageLinks() {
+    static makeDirectImageLinks() {
         for (const bx of YandexUtils.imgBxs) {
             const a = bx.querySelector('a');
-            a.href = (bx.json || getImgJson(bx))["img_href"];
+            const imgSrc = (bx.json || getImgJson(bx))["img_href"];
+            if (a.href != imgSrc)
+                a.href = imgSrc;
         }
     }
 }
 
 unsafeWindow.YandexUtils = YandexUtils;
+
 let panel = null;
 
-observeDocument(function () {
-    if (P.panel && !panel)
-        initPanel();
 
-    modifyImageBoxes();
-
-    if (P.loadMoreImagesLink) {
-        P.loadMoreImagesLink.click();
-    }
-});
+function onImageChange() {
+    console.log('onImageChange(target)');
+}
 function initPanel() {
-    panel = P.panel;
+    panel = q('[data-bem^="{\\"pane"]');
+    unsafeWindow.panel = panel;
+
     panel.__defineGetter__('buttonsPanel', function () {
         return this.querySelector('div.pane2__buttons2.pane2-sidebar__section');
     });
@@ -138,12 +133,6 @@ function initPanel() {
         return this.querySelector("img.preview2__thumb.preview2__thumb_visible_yes[src]")
     });
 
-    panel.__defineGetter__('saveButton',
-        /** this is that button with 3 dots that has the options for different resolutions
-         * @return {Element | SVGElementTagNameMap[string] | HTMLElementTagNameMap[string]} */
-        function () {
-            return q('button.button2_pin_brick-brick.button2_size_m');
-        });
     panel.__defineGetter__('titlePanel', function () {
         const titlePanel = this.querySelector('div.snippet2.snippet2_query');
         titlePanel.pTitleEl = titlePanel.querySelector('a.link_theme_normal');
@@ -151,26 +140,29 @@ function initPanel() {
         titlePanel.hostnameEl = titlePanel.querySelector('a.link_theme_outer');
         return titlePanel;
     });
-    panel.__defineGetter__('risDiv', () => q('div.tiled-images__container'));
+    panel.__defineGetter__('risDiv', function () {
+        return q('div.tiled-images__container');
+    });
+
+    panel.__defineGetter__('imagePanel', function () {
+        return this.querySelector('div.pane2__column_type_main > div.preview2_crop-position_right-bottom');
+    });
 
     panel.__defineGetter__('buttons', function () {
         /** 0: Open
          * 1:   Other sizes and similiar
          * 2:   Save
          * 3:   Share */
-        const children = this.buttonsPanel.childNodes;
+        const children = panel.buttonsPanel.childNodes;
         return {
-            open: children[0],
-            otherSizes: children[1],
-            save: children[2],
-            share: children[3]
+            open: panel.buttonsPanel.querySelector('div.sizes > a'),
+            otherSizes: panel.buttonsPanel.querySelector('div.sizes > div'),
+            diskButton: panel.buttonsPanel.querySelector('button.disk-button__button')
         };
     });
-    panel.__defineGetter__('isHasUnableToDownloadImage', function () {
-        return !!q('body > div.page-layout.page-layout_page_search.page-layout_layout_serp.serp-controller.serp-controller_infinite_yes.serp-controller_navigation_yes.serp-controller_complain_yes.serp-controller_prefetch_yes.serp-controller_height_full.navigation-controller.pane2-controller.pane2-controller_crop_yes.pane2-controller_scrollable-info_yes.pane2-controller_preload_yes.trimmer-controller.incut-controller.cbir-counter.serp-counter.i-bem.navigation-controller_js_inited.page-layout_js_inited.serp-controller_page_search.serp-controller_js_inited.pane2-controller_js_inited.incut-controller_js_inited > div.pane2.pane2_visibility_visible.pane2_flexbox_yes.pane2_color-position_yes.pane2_fullscreen_no.pane2_scrollable-info_yes.pane2_scrollable-info-everywhere.pane2_customized.pane2_direct-type_no.pane2_market_no.pane2_ajax-direct_yes.pane2-controller__pane.pane2-api.advice-controller.i-bem.pane2-api_js_inited.pane2_js_inited.pane2_rim-shown > div.pane2__wrapper > div.pane2__column.pane2__column_type_main > div.preview2.preview2_crop-position_right-bottom.preview2_like-fullscreen.pane2__preview.i-bem.preview2_js_inited.preview2_error_yes > div.preview2__error > div');
+    panel.__defineGetter__('thumbnailErrorDiv', function () {
+        return q('div.preview2__error');
     });
-    // making the down arrow clickable
-    let downloadLink = panel.buttons.open.querySelector('a');
     panel.__defineGetter__('compoundTitle', function compoundTitle() {
         return [
             panel.titlePanel.pTitleEl.innerText,
@@ -178,6 +170,9 @@ function initPanel() {
             panel.titlePanel.hostnameEl.innerText
         ].join(' - ');
     });
+
+
+    // making the down arrow clickable
     function downloadMainImage() {
         download(downloadLink.href, panel.compoundTitle, null, {
             onerror: function () {
@@ -187,6 +182,7 @@ function initPanel() {
             fileExtension: getFileExtension(downloadLink.href)
         });
     }
+    let downloadLink = panel.buttons.open;
     downloadLink.addEventListener('click', function (e) {
         downloadMainImage();
 
@@ -228,9 +224,34 @@ function initPanel() {
         }
     });
 
-
     bindKeys();
 }
+
+observeDocument(function () {
+    if (!panel)
+        initPanel();
+
+    modifyImageBoxes();
+    for(const img of qa('img:not(.preloaded)')){
+        imagePreloader.handleImg(img);
+    }
+
+    if (YandexUtils.loadMoreImagesLink) {
+        YandexUtils.loadMoreImagesLink.click();
+    }
+});
+window.addEventListener('load', function () {
+
+    new MutationObserver(function mutationCallback(mutations) {
+        onImageChange();
+    }).observe(panel.mainThumbnail, {
+        childList: false,
+        subtree: false,
+        attributes: true,
+        characterData: true
+    });
+});
+
 function bindKeys() {
 
     if (typeof Mousetrap === "undefined") {
@@ -251,7 +272,7 @@ function bindKeys() {
         105: 'numpad9'
     });
 
-    Mousetrap.bind("v", () => panel.saveButton.click());
+    Mousetrap.bind("k", () => panel.buttons.diskButton.click());
     Mousetrap.bind('x', downloadThumbnail);
 
     Mousetrap.bind("numpad2", () => panel.navigateRis(), 'keydown');
@@ -262,9 +283,6 @@ function bindKeys() {
 function downloadThumbnail() {
     download(panel.mainThumbnail.src, panel.compoundTitle);
 }
-
-unsafeWindow.P = P;
-unsafeWindow.panel = panel;
 
 function addImgBoxJson(bx) {
     if (!bx.hasOwnProperty('json'))
@@ -281,7 +299,7 @@ function modifyImageBoxes() {
 }
 //TODO: create downloadRelatedImages()
 (function () {
-    YandexUtils.directImageLinks();
+    YandexUtils.makeDirectImageLinks();
 
     // now even typing in the searchbar can trigger hotkeys
     const searchInputEl = q('input[id^="uniq"]');
@@ -319,5 +337,3 @@ function getImgJson(imgBox) {
     const jsonText = imgBox.getAttribute('data-bem');
     return JSON.parse(jsonText)["serp-item"];
 }
-
-
