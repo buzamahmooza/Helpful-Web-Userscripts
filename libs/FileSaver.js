@@ -161,7 +161,6 @@ var saveAs = saveAs || (function(view) {
         };
     }
 
-    // todo: detect chrome extensions & packaged apps
     //save_link.target = "_blank";
 
     FS_proto.abort = function() {};

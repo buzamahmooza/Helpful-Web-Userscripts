@@ -15,7 +15,7 @@ if (typeof GM_download !== 'function') {
         throw new Error('GM_xmlhttpRequest is undefined. Please set @grant GM_xmlhttpRequest at metadata block.');
     }
 
-    function GM_download (url, name) {
+    function GM_download(url, name) {
         if (url == null) return;
 
         var data = {
@@ -30,7 +30,7 @@ if (typeof GM_download !== 'function') {
                 a.setAttribute('href', url);
                 a.setAttribute('download', data.name != null ? data.name : 'filename');
                 document.documentElement.appendChild(a);
-                
+
                 // call download
                 // a.click() or CLICK the download link can't modify filename in Firefox (why?)
                 // Solution from FileSaver.js, https://github.com/eligrey/FileSaver.js/
@@ -39,7 +39,7 @@ if (typeof GM_download !== 'function') {
 
                 document.documentElement.removeChild(a);
 
-                setTimeout(function(){
+                setTimeout(function () {
                     // reduce memory usage
                     URL.revokeObjectURL(url);
                     if ('close' in blob) blob.close(); // File Blob.close() API, not supported by all the browser right now
@@ -55,8 +55,7 @@ if (typeof GM_download !== 'function') {
         if (typeof url === 'string') {
             data.url = url;
             data.name = name;
-        }
-        else {
+        } else {
             if (url instanceof Object === false) return;
 
             // as documentation, you can only use [url, name, headers, saveAs, onload, onerror] function, but we won't check them
