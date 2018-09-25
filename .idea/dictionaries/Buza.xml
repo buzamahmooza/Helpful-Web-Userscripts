@@ -6,10 +6,17 @@
       <w>Gimg</w>
       <w>NUMPAD</w>
       <w>Zscalar</w>
+      <w>disp</w>
       <w>gifs</w>
+      <w>gimg</w>
+      <w>grayscale</w>
+      <w>imgs</w>
+      <w>iterable</w>
       <w>onerror</w>
       <w>onload</w>
+      <w>reddit</w>
       <w>subpanel</w>
+      <w>zscalar</w>
     </words>
   </dictionary>
 </component>
