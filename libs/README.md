@@ -7,4 +7,4 @@ Compressing files
 ### [FileSaver.js](https://github.com/eligrey/FileSaver.js)
 Downloading and saving files
 ### [ocrad.js](https://github.com/antimatter15/ocrad.js/)
-Java text recognition library
+JS text recognition library
