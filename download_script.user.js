@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name         Downloader
-// @namespace    UserscriptDownloader
-// @version      0.5
-// @description  try to take over the world!
+// @namespace    https://github.com/buzamahmooza
+// @version      0.5.1
+// @description  A downloader script that has handy features such as: (download zip and download an array of images, download an image),
+// @description  (useful when combined with other scripts)
+// @description  Note:  if you include this script via @require, make sure to also include all the dependencies of this script (all the @require urls below)
 // @author       Faris Hijazi
 // @match        *
 // @include      *
@@ -21,27 +23,26 @@
 // @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // ==/UserScript==
 
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\JSZip.min.js
-// @require      https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.js
-// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
+/*
+ * A downloader script that has handy features such as: (download zip and download an array of images, download an image),
+ * (useful when combined with other scripts)
+ */
+
+const Config = {
+    NAME_FILES_BY_NUMBER: GM_getValue("NAME_FILES_BY_NUMBER", false),
+    MAX_DOWNLOADS: GM_getValue("MAX_DOWNLOADS", 200),// maximum number of downloads per batch
+    defaultDownloadAttempts: 2,// Default number of download attempts until giving up
+    MAIN_DIRECTORY: 'GM_Downloads',// [ ↓ ⇓ ]
+    IndividualDirectoryName: "_Misc",
+    NEST_DIRECTORIES: GM_getValue("NEST_DIRECTORIES", true),// if set to true: batch directories will be stored under the main tempDirectory.
+    ALLOW_BASE64_IMAGE_DOWNLOADS: false,
+    ALLOW_DUPES: GM_getValue("ALLOW_DUPES", true)// if set to true: batch directories will be stored under the main tempDirectory.
+};
 
 const invalidNameCharacters = '@*:"|<>\\n\\r\?';
-
 var BLACK_LIST = new Set(["https://raw.githubusercontent.com/RaitaroH/DuckDuckGo-DeepDark/master/Images/BigLogo.png"]);
-var MAX_DOWNLOADS = GM_getValue("MAX_DOWNLOADS", 200);// maximum number of downloads per batch
-var downloadAttemptsRemaining = 2;// Default number of download attempts until giving up
-var MAIN_DIRECTORY = 'GM_Downloads';// [ ↓ ⇓ ]
-var IndividualDirectoryName = "_Misc";
-var NEST_DIRECTORIES = GM_getValue("NEST_DIRECTORIES", true);// if set to true: batch directories will be stored under the main tempDirectory.
-var ALLOW_BASE64_IMAGE_DOWNLOADS = false;
-var ALLOW_DUPES = GM_getValue("ALLOW_DUPES", true);// if set to true: batch directories will be stored under the main tempDirectory.
-var IMG_MIN_WIDTH = GM_getValue("imgMinWidth", 200);
-var IMG_MIN_HEIGHT = GM_getValue("imgMinHeight", 200);
 var NAME_ATTRIBUTES = ['download-name', 'title', 'img-title', 'subtitle', 'alt', 'content', 'description', 'name'];
-var NAME_FILES_BY_NUMBER = GM_getValue("NAME_FILES_BY_NUMBER", false);
 var fileNumber = 1;
-
 
 var downloadSet;
 if (typeof downloadSet === 'undefined') {
@@ -62,13 +63,16 @@ function q(selector) {
     return document.querySelector(selector);
 }
 
-const mimeTypesJSON = typeof $ !== 'undefined' && typeof $.getJSON === "function"?
+/** mimeTypeJSON contains the mimeType to file extension database, useful for getting the extension from the mimetype */
+    // if $ exists, use the getJSON function to retrieve it from the remote db.json file, otherwise just parse the local JSON
+    // todo: remove this condition statement and just choose one, either the remote or the local, no need for both
+const mimeTypesJSON = typeof $ !== 'undefined' && typeof $.getJSON === "function" ?
     $.getJSON("https://cdn.rawgit.com/jshttp/mime-db/master/db.json",
         /** (PlainObject data, String textStatus, jqXHR jqXHR) */
         function (data, textStatus, jqXHR) {
             console.log("JQuery.getJSON()\ndata, textStatus, jqXHR :", data, textStatus, jqXHR);
-        }) :
-    parseJsonMeta();
+        })
+    : parseJsonMeta();
 
 if (false) window.addEventListener('beforeunload', function (event) {
     // merge and store the download history
@@ -100,19 +104,18 @@ function storeDownloadHistory() {
  ontimeout callback to be executed if the download failed due to a timeout
  */
 function setNameFilesByNumber(newValue) {
-    NAME_FILES_BY_NUMBER = newValue;
-    GM_getValue("NAME_FILES_BY_NUMBER", NAME_FILES_BY_NUMBER);
+    Config.NAME_FILES_BY_NUMBER = newValue;
+    GM_getValue("NAME_FILES_BY_NUMBER", Config.NAME_FILES_BY_NUMBER);
 }
 
 let downloadCount = 0;
-unsafeWindow.MAIN_DIRECTORY = MAIN_DIRECTORY;
+unsafeWindow.MAIN_DIRECTORY = Config.MAIN_DIRECTORY;
 unsafeWindow.getDownloadCount = () => downloadCount;
 unsafeWindow.setNameFilesByNumber = setNameFilesByNumber;
 unsafeWindow.download = download;
 unsafeWindow.GM_download = GM_download;
 unsafeWindow.downloadBatch = downloadBatch;
 unsafeWindow.downloadImageBatch = downloadImageBatch;
-unsafeWindow.downloadImageWithCondition = downloadImageWithCondition;
 unsafeWindow.getFileExtension = getFileExtension;
 unsafeWindow.nameFile = nameFile;
 
@@ -185,19 +188,9 @@ if (typeof JSZip !== 'undefined') {
         }
     };
 } else {
-    console.warn("JSZip is undefined in downloader script");
+    console.warn("JSZip is undefined in downloader script, if you're using this script via @require, be sure to also include its dependencies (check script @require)." +
+        "\nMost likely missing:", "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.4/jszip.min.js");
 }
-
-
-let dimensionsCondition = function (param, minWidth, minHeight) {
-    minWidth = (typeof minWidth === 'undefined') ? IMG_MIN_WIDTH : minWidth;
-    minHeight = (typeof minHeight === 'undefined') ? IMG_MIN_HEIGHT : minHeight;
-    let dim = param.split('x');
-    let w = dim[0],
-        h = dim[1];
-    console.log(param, 'Dimensions:\t', w, 'x', h);
-    return h >= minHeight && w >= minWidth;
-};
 
 /**@Parameter element the element containing the file url attribute.
  * Having the element could be helpful getting it's ATTRIBUTES (such as: "download-name") */
@@ -208,7 +201,7 @@ function download(fileUrl, fileName, directory, originalOptions) {
         onerror: function (r) {
         },
         element: {},
-        mainDirectory: MAIN_DIRECTORY,
+        mainDirectory: Config.MAIN_DIRECTORY,
         fileExtension: null
     }, originalOptions || {});
 
@@ -226,7 +219,7 @@ function download(fileUrl, fileName, directory, originalOptions) {
 
     fileUrl = getAbsoluteURI((fileUrl).replace(/["]/gi, ''));
 
-    if (/^data:image\/.{1,5};base64/.test(fileUrl) && !ALLOW_BASE64_IMAGE_DOWNLOADS) {
+    if (/^data:image\/.{1,5};base64/.test(fileUrl) && !Config.ALLOW_BASE64_IMAGE_DOWNLOADS) {
         console.error("The source is a base64-type, download was prevented:", fileUrl);
         return;
     }
@@ -234,7 +227,7 @@ function download(fileUrl, fileName, directory, originalOptions) {
         console.warn("Blacklisted URL:", fileUrl);
         return;
     }
-    if (downloadSet.has(fileUrl) && !ALLOW_DUPES) {
+    if (downloadSet.has(fileUrl) && !Config.ALLOW_DUPES) {
         throw ("Request to download duplicate file: " + fileUrl);
     }
 
@@ -282,9 +275,11 @@ function download(fileUrl, fileName, directory, originalOptions) {
     */
     let fileExtension = o.fileExtension || getFileExtension(fileUrl);
 
+    // remove duplicate extensions
+    fileName = fileName.replace(new RegExp("." + fileExtension, "gi"), "");
 
     let finalName = removeDoubleSpaces(
-        `${NEST_DIRECTORIES ? `${MAIN_DIRECTORY}/` : ''}${directory ? `${directory}/` : `${IndividualDirectoryName}/`}${fileName}.${fileExtension}`
+        `${Config.NEST_DIRECTORIES ? `${Config.MAIN_DIRECTORY}/` : ''}${directory ? `${directory}/` : `${Config.IndividualDirectoryName}/`}${fileName}.${fileExtension}`
     );
 
     // if (debug)
@@ -294,7 +289,6 @@ function download(fileUrl, fileName, directory, originalOptions) {
         '\nfileName:', fileName,
         '\nextension:', fileExtension,
         '\nFINAL_NAME:', finalName);
-
 
     /**
      * options:
@@ -340,7 +334,7 @@ function download(fileUrl, fileName, directory, originalOptions) {
                     switch (errorCurrent.toLowerCase()) {
                         case "server_failed": // fall-through
                         case "network_failed":
-                            retry(fileUrl, finalName, downloadAttemptsRemaining);
+                            retry(fileUrl, finalName, Config.defaultDownloadAttempts);
                             break;
                         case "not_whitelisted":
                             retry(
@@ -348,7 +342,7 @@ function download(fileUrl, fileName, directory, originalOptions) {
                                 finalName.substring(0,
                                     (finalName.lastIndexOf('?') > -1) ? finalName.lastIndexOf('?') : (finalName.length + '.oops.jpg')
                                 ),
-                                downloadAttemptsRemaining);
+                                Config.defaultDownloadAttempts);
                             break;
                         case "user_canceled":
                             console.log('Download canceled by user.');
@@ -443,7 +437,7 @@ function retry(fileUrl, finalName, count) {
             } else {
                 // noinspection JSUnresolvedFunction
                 GM_download({
-                    name: `${MAIN_DIRECTORY}/${nameFile(fileUrl)}.${getFileExtension(fileUrl)}`,
+                    name: `${Config.MAIN_DIRECTORY}/${nameFile(fileUrl)}.${getFileExtension(fileUrl)}`,
                     url: fileUrl,
                     onload: onload,
                     onerror: onerrorFinal
@@ -471,18 +465,15 @@ function retry(fileUrl, finalName, count) {
 }
 
 function downloadBatch(inputUrls, directory, maxDlLimit) { // download batch but with a max count limit
-    if (typeof maxDlLimit === 'undefined') maxDlLimit = MAX_DOWNLOADS;
-    else console.log('maxDownloadCount was passed:', maxDlLimit);
-    zipImages(inputUrls, `${directory} ${directory}`);
+    console.log('maxDownloadCount was passed (but all inputUrls will be downloaded anyways):', maxDlLimit);
+    directory = directory || document.title;
 
+    zipImages(inputUrls, `${directory} ${directory}`);
     if (!inputUrls) throw "input URLs null!";
 
-    directory = directory || document.title;
-    console.log('MAIN_DIRECTORY:', MAIN_DIRECTORY);
+    console.log('MAIN_DIRECTORY:', Config.MAIN_DIRECTORY);
     console.log('sub-tempDirectory:', tempDirectory);
 
-
-    let dlCount = 0;
 
     let i = 0;
     var interval = setInterval(() => {
@@ -501,31 +492,9 @@ function downloadImageBatch(inputUrls, directory) {
     zipImages(inputUrls, `${directory} ${batchName}`);
 }
 
-function downloadImageWithCondition(url, width, height, fileName, downloadDirectory, imgEl) {
-    if (url instanceof Set || Array.isArray(url)) {
-        downloadImageBatch(url);
-        return;
-    }
-
-    downloadSet.add(url);
-    // first, attempt to use the dimension ATTRIBUTES if already available
-
-    let img = new Image();
-    let dim = 'dimension not yet set';
-    img.addEventListener("load", function () {
-        dim = (`${this.naturalWidth}x${this.naturalHeight}`);
-        onLoadDim(url, function () {
-            if (dimensionsCondition(dim, width, height)) {
-                download(url, fileName, downloadDirectory, imgEl);
-            }
-        }, imgEl);
-    });
-    img.src = url;
-    return dim;
-}
 
 function nameFile(fileUrl) {
-    if (NAME_FILES_BY_NUMBER === true) return (` ${fileNumber++}`);
+    if (Config.NAME_FILES_BY_NUMBER === true) return (` ${fileNumber++}`);
 
     let fileName = 'untitled';
     try {
@@ -545,6 +514,7 @@ function getFileExtension(fileUrl) {
 }
 
 function cleanFileName(fileName, isDirectory) {
+    // file names can't include '/' or '\'
     const fileCleanerRegex = new RegExp(`[${invalidNameCharacters}${isDirectory ? '' : '\\\\/'}]|(^[\\W.]+)|(\\s\\s+)`, 'gi');
     return clearUrlGibberish(decodeURIComponent(fileName)).replace(fileCleanerRegex, ' ').trim();
 }
@@ -620,36 +590,45 @@ unsafeWindow.zipFiles = zipFiles;
 unsafeWindow.zipImages = zipImages;
 function zipImages(imgList, zipName) {
     return zipFiles(imgList, zipName, function onBadResponse(res, fileUrl) {
+        console.debug(
+            'onBadResponse()',
+            '\nfileURL:', fileUrl,
+            '\nresponse.finalURL:', res.finalUrl
+        );
+
+        // if not a proxyUrl, try to use a proxy
+        if (!isDdgUrl(res.finalUrl || res.url)) {
             console.debug(
-                'onBadResponse()',
+                'retrying with ddgproxy',
+                '\nddgpURL:', ddgProxy(fileUrl),
                 '\nfileURL:', fileUrl,
                 '\nresponse.finalURL:', res.finalUrl
             );
 
-            // if not a proxyUrl, try to use a proxy
-            if (!isDdgUrl(res.finalUrl)) {
-                console.debug(
-                    'retrying with ddgproxy',
-                    '\nddgpURL:', ddgProxy(fileUrl),
-                    '\nfileURL:', fileUrl,
-                    '\nresponse.finalURL:', res.finalUrl
-                );
-
-                // you'll get a match like this:    ["content-type: image/png", "image", "png"]
-                const [fullMatch, mimeType1, mimeType2] = res.responseHeaders.match(/(?:content-type: )([\w]+)\/([\w\-]+)/);
-                const contentType = [mimeType1, mimeType2].join('/');
-                if (/<!DOCTYPE/.test(res.responseText) || !/image/i.test(mimeType1)) {
-                    console.error('Not image data!', res.responseText);
-                    return false;
-                }
-                requestAndZipFile(ddgProxy(fileUrl), fileName);
-            } else { // if is a proxy url and it failed, just give up
-                return true;
+            // you'll get a match like this:    ["content-type: image/png", "image", "png"]
+            const [fullMatch, mimeType1, mimeType2] = res.responseHeaders.match(/content-type: ([\w]+)\/([\w\-]+)/);
+            const contentType = [mimeType1, mimeType2].join('/');
+            if (/<!DOCTYPE/.test(res.responseText) || !/image/i.test(mimeType1)) {
+                console.error('Not image data!', res.responseText);
+                return false;
             }
+            requestAndZipFile(ddgProxy(fileUrl), fileName);
+        } else { // if is a proxy url and it failed, just give up
+            return true;
         }
-    )
+    });
 }
-function zipFiles(fileUrls, zipName) {
+/**
+ *
+ * @param fileUrls  this should be an iterable containing objects, each containing the fileUrl and the desired fileName.
+ *  if empty, will use images matching this selector by default: "img.img-big"
+ *
+ *   file.fileURL = file.fileURL || file.fileUrl || file.url || file.src || file.href;
+ *   file.fileName = file.fileName || file.alt || file.title || nameFile(file.fileURL) || "Untitled image";
+ * @param zipName
+ * @return {JSZip}
+ */
+function zipFiles(fileUrls, zipName, onBadResponse) {
     const zip = new JSZip();
     zip.current = 0;
     zip.activeZipThreads = 0;
@@ -704,7 +683,7 @@ function zipFiles(fileUrls, zipName) {
         if (file.slice && file.indexOf) { // if string
             file = {fileURL: file};
         }
-        file.fileURL = file.fileURL || file.fileUrl || file.src || file.href;
+        file.fileURL = file.fileURL || file.fileUrl || file.url || file.src || file.href;
         file.fileName = file.fileName || file.alt || file.title || nameFile(file.fileURL) || "Untitled image";
         return file;
     }).filter(file => !!file);
@@ -737,7 +716,7 @@ function zipFiles(fileUrls, zipName) {
 
         GM_xmlhttpRequest({
             method: "GET",
-            url: fileUrl || "https://i.ytimg.com/vi/RO90omga8D4/maxresdefault.jpg",
+            url: fileUrl,
             responseType: 'arraybuffer',
             binary: true,
             onload: function (res) {
