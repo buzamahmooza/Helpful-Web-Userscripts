@@ -117,8 +117,8 @@ function getMagnetURIs() {
 *   gfycat, page-url to content-url
 *   @deprecated won't work cuz the url is case-sensitive, and the page url never has the same caps as the content url
 */
-// https://gfycat.com/gifs/detail/FearfulPlaintiveGrison
-// https://thumbs.gfycat.com/FearfulPlaintiveGrison-size_restricted.gif
+// https://gfycat.com/gifs/detail/FearulPlaintiveGrison
+// https://thumbs.gfycat.com/FearulPlaintiveGrison-size_restricted.gif
 function gfycatPage2GifUrl(gfycatPageUrl) {
     return "https://thumbs.gfycat.com/" + gfycatPageUrl.split('/').pop() + "-size_restricted.gif";
 }
