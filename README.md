@@ -1,7 +1,7 @@
 # Helpful-Web-Userscripts
 A bunch of user scripts that make browsing the web easier.
 
-## Installation
+## Installing Userscripts
 
 1. Make sure you have user scripts enabled in your browser (these instructions refer to the latest versions of the browser):
 
