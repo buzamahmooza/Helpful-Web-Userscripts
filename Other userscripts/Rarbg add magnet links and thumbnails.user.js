@@ -63,25 +63,20 @@
 // @include      http://rarbg-to.proxydude.xyz/
 // @include      https://rarbgproxy.org/
 // @grant        unsafeWindow
-// @grant	     GM_setValue
+// @grant        GM_setValue
 // @grant        GM_getValue
 // @icon         https://www.google.com/s2/favicons?domain=rarbg.com
-// @run-at		 document-idle
+// @run-at       document-idle
 // @updateUrl    https://gist.github.com/buzamahmooza/dccc1825be7e6a75127883a899e3a9a9/raw/
 // @require      http://code.jquery.com/jquery-latest.js
 // @require      https://unpkg.com/in-view@0.6.1/dist/in-view.min.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\libs\ocrad.js
-// ==/UserScript==
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Scraps\ocrad.min.js
-
-// @require      https://gist.github.com/buzamahmooza/6fec79f1a8cb775562f02f7ffacde3f0/raw/d44f2c8f6db21f0c54958fd78af5bb1a6ec81b3b/ocrad.min.js
+// @require      https://raw.githubusercontent.com/antimatter15/ocrad.js/master/ocrad.js
+// ==/UserScript==in.js
 
 // Original link 1:      https://greasyfork.org/scripts/12648-rarbg-add-magnet-link/code/RARBG%20-%20Add%20Magnet%20Link.user.js
 // Original link 2:      https://greasyfork.org/scripts/23493-rarbg-torrent-and-magnet-links/code/RARBG%20-%20torrent%20and%20magnet%20links.user.js
 
-// ideas:
-// [x] make a link that downloads all the images on the torrent page
-// [x] sound on mouse hover
+// todo:	Improve cross-browser compatability by replacing element.before() with element.insertBefore() or create polyfill
 
 /**
  * ok here's how it goes
