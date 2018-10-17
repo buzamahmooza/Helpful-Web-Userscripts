@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RARBG - Add Magnet Link & thumbnails!
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5.3
+// @version      0.5.4
 // @description  Add a magnet link shortcut and thumbnails of torrents.
 // @description  Also adds a google image saerch link in case you want to see more pics of the torrent.
 // @author       Cisco, forked by Faris Hijazi
