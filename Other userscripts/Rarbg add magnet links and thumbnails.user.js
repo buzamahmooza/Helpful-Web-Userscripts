@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RARBG - Add Magnet Link & thumbnails!
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5.4
+// @version      0.5.5
 // @description  Add a magnet link shortcut and thumbnails of torrents.
 // @description  Also adds a google image saerch link in case you want to see more pics of the torrent.
 // @author       Cisco, forked by Faris Hijazi
@@ -100,6 +100,14 @@
 // Cat. | File | Added | Size | S. | L. | comments	|   Uploader
 
 console.log('rarbg script running');
+
+// adding Element.before() and Element.after() (since some brwosers like MS Edge don't already have them)
+if(Element.prototype.before === undefined) Element.prototype.before = function(newNode){
+    if ( this.parentNode ) { return this.parentNode.insertBefore(newNode, this ); }
+};
+if(Element.prototype.after === undefined) Element.prototype.after = function(newNode) {
+    if ( this.parentNode ) { return this.parentNode.insertBefore(newNode, this.nextSibling); }
+};
 
 var debug = true; // debug mode (setting this to false will disable the console logging)
 
