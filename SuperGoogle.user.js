@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Super Google
 // @namespace    http://tampermonkey.net/
-// @version      0.3.1
+// @version      0.3.2
 // @description  Open google images in page instead of new tab
 // @author       Faris Hijazi
 // @include      /https?://(www|encrypted)\.google\..*/
@@ -15,8 +15,6 @@
 // @run-at       document-end
 // ==/UserScript==
 
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\Handy AF functions Faris.user.js
-// @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\SuperGoogle.user.js
 // @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // @require      https://greasyfork.org/scripts/38996-faris-handy-webdev-javascript-functions/code/Faris%20Handy%20Webdev%20JavaScript%20functions.user.js
 
@@ -1174,8 +1172,10 @@ if (!/google\..+\/save/.test(location.href)) { // TODO: find a better way of det
     window.addEventListener("load", function modifyImgsOnLoad() {
         for (const a of getImgAnchors()) {
             let img = a.querySelector('img');
-            createAndAddAttribute(img, 'download-name', getGimgDescription(img));
-            markImageOnLoad(img, a.href);
+            if(img) {
+                createAndAddAttribute(img, 'download-name', getGimgDescription(img));
+                markImageOnLoad(img, a.href);
+            }
         }
     }, true);
 } else {
