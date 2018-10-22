@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Faris Handy Webdev JavaScript functions
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.3.1
 // @description  A bunch of useful JavaScript functions
 // @description  This is not a regular script for you to run! Only use this via the @require keyword.
 // @author       Faris Hijazi
@@ -296,7 +296,7 @@ unsafeWindow.setStyleInHTML = setStyleInHTML;
  * @param {String} styleValue
  * @return el
  */
-function setStyleInHTML(el, styleProperty, styleValue) {
+function setStyleInHTML(el, styleProperty, styleValue, printVerbose) {
     styleProperty = styleProperty.trim().replace(/^.*{|}.*$/g, '');
 
     const split = styleProperty.split(':');
@@ -315,7 +315,7 @@ function setStyleInHTML(el, styleProperty, styleValue) {
 
         el.setAttribute('style', newStyle);
 
-        console.debug(
+        if(printVerbose) console.debug(
             'adding to style ', `"${styleArgument}"`,
             '\nnewStyle:', `"${newStyle}"`,
             '\nelement:', el
