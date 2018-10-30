@@ -137,6 +137,17 @@ Math.clamp = function (a, min, max) {
         a > max ? max : a;
 };
 
+function getElementsByXPath(xpath, parent) {
+  let results = [];
+  let query = document.evaluate(xpath,
+      parent || document,
+      null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+  for (let i=0, length=query.snapshotLength; i<length; ++i) {
+    results.push(query.snapshotItem(i));
+  }
+  return results;
+}
+
 const SearchEngines = {
     google: {
         name: "Google",
@@ -224,14 +235,40 @@ if (matchSite(/\/torrent\//)) {
         i++;
     }
     if (debug) console.log(`You should see ${i} thumbnails now.`);
+
+    // remove VPN row
+    const vpnR = q("body > table:nth-child(6) > tbody > tr > td:nth-child(2) > div > table > tbody > tr:nth-child(2) > td > div > table > tbody > tr:nth-child(2)");
+    if(vpnR){ vpnR.remove(); }
+
+    // fullres for imagecurl.com
+    const imgcurlImg = q('img[src^="https://imagecurl.com/images/"]');
+    if(imgcurlImg) {
+        const fullres = imgcurlImg.src.replace("_thumb", "");
+        imgcurlImg.src = fullres;
+        imgcurlImg.closest('a').href = fullres;
+        imgcurlImg.style["max-width"] = "100%";
+    }
+    // fullres for imagefruit.com
+    const imagefruitImg = q('img[src^="https://www.imagefruit.com/tn/t"]');
+    if(imagefruitImg) {
+        const fullres = imagefruitImg.src.replace("/tn/t", "/tn/i");
+        imagefruitImg.src = fullres;
+        imagefruitImg.closest('a').href = fullres;
+        imagefruitImg.style["max-width"] = "100%";
+    }
+
+    // putting the "Description:" row before the "Others:" row
+    getElementsByXPath('(//tr[contains(., "Poster\:")])[last()]')[0].after(getElementsByXPath('(//tr[contains(., "Description\:")])[last()]')[0]);
+
     void(0);
 }
 
 // this is the selector for the element to append a page to it once it's in view
-if (typeof inView !== "undefined")
+if (typeof inView !== "undefined") {
     inView('body > div:nth-child(7)').on('enter', function () {
         appendPage(currentDocument.querySelector('a[title="next page"]'));
     });
+}
 
 clickToVerifyBrowser();
 
@@ -258,6 +295,21 @@ const onLoad = function () {
     // remove annoying search description
     if (q("#SearchDescription"))
         q("#SearchDescription").remove();
+
+    // remove annoying signup form that doesn't work
+    q('form[action="/login"]').remove();
+    q('body > table:nth-child(5) > tbody > tr > td > table > tbody > tr > td.header4').remove();
+
+
+    // remove recommended torrents
+    const recTor = q('tr > [valign="top"] > [onmouseout="return nd();"]');
+    if(recTor) recTor.closest('div').remove();
+    // remove "recommended torrents" title
+    const recTitle = getElementsByXPath('(//text()[contains(., "Recommended torrents \:")])/../../..')[0];
+    if(recTitle) recTitle.remove();
+
+    // scroll the table to view (top of screen will be the first torrent)
+    q("body > table:nth-child(6) > tbody > tr > td:nth-child(2) > div > table > tbody > tr:nth-child(1) > td > table.lista2t").scrollIntoView();
 
 
     observeDocument((target) => {
