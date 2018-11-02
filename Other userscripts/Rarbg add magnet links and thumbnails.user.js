@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RARBG - Add Magnet Link & thumbnails!
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5.7
+// @version      0.5.8
 // @description  Add a magnet link shortcut and thumbnails of torrents.
 // @description  Also adds a google image saerch link in case you want to see more pics of the torrent.
 // @author       Cisco, forked by Faris Hijazi
@@ -121,30 +121,30 @@ const TORRENT_ICO = "https://dyncdn.me/static/20/img/16x16/download.png";
 const MAGNET_ICO = "https://dyncdn.me/static/20/img/magnet.gif";
 const trackers = 'http%3A%2F%2Ftracker.trackerfix.com%3A80%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2710&tr=udp%3A%2F%2F9.rarbg.to%3A2710';
 
-const Options = GM_getValue("RarbgOptions",
-    {
-        thumbnailLink: "ml",    //options:  "ml", "tor", "img", "page"
-        addThumbnails: true,	// if set to false, the content thumbnails will not be used, magnet or torrent thumbnails will be used isntead
-        showGeneratedSearchQuery: false,
-        addCategoryWithSearch: true,
-        userLargeThumbnails: true,
-        defaultImageSearchEngine: "google"
-    }
-);
+const Options = GM_getValue("RarbgOptions", {
+    thumbnailLink: "ml", //options:  "ml", "tor", "img", "page"
+    addThumbnails: true, // if set to false, the content thumbnails will not be used, magnet or torrent thumbnails will be used isntead
+    showGeneratedSearchQuery: false,
+    addCategoryWithSearch: true,
+    userLargeThumbnails: true,
+    defaultImageSearchEngine: "google",
+    mirrors: ["http://rarbgmirror.xyz", "https://rarbgproxy.org", "https://rarbgunblock.com", "http://rarbg-to.proxydude.red", "https://rarbgprx.org", "http://rarbg-to.pbproxy.red", "http://rarbg.bypassed.team", "https://rarbg.unblocker.win", "http://rarbg-to.proxydude.xyz", "http://rarbg.com.torrentprox.com", "http://rarbg-to.pbproxy2.co", "https://www.rarbg.is"]
+});
+
 window.addEventListener("unload", function () {
     GM_setValue("RarbgOptions", Options);
 });
 
 Math.clamp = function (a, min, max) {
     return a < min ? min :
-        a > max ? max : a;
+    a > max ? max : a;
 };
 
 function getElementsByXPath(xpath, parent) {
     let results = [];
     let query = document.evaluate(xpath,
-        parent || document,
-        null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                                  parent || document,
+                                  null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
     for (let i = 0, length = query.snapshotLength; i < length; ++i) {
         results.push(query.snapshotItem(i));
     }
@@ -189,7 +189,7 @@ if (!tbodyEl) {
 }
 
 const nextPage = document.querySelector('a[title="next page"]'),
-    prevPage = document.querySelector('a[title="previous page"]');
+      prevPage = document.querySelector('a[title="previous page"]');
 var torrents = document.querySelectorAll('a[onmouseover][href^="/torrent/"]');
 
 (function addColumnHeader() {
@@ -224,8 +224,8 @@ if (matchSite(/\/torrent\//)) {
     for (const torrent of torrents) {
         //creating and adding thumbnails
         const cell = document.createElement('td'),
-            thumbnailLink = document.createElement('a'),
-            thumbnailImg = document.createElement('img');
+              thumbnailLink = document.createElement('a'),
+              thumbnailImg = document.createElement('img');
         thumbnailLink.href = torrent.href;
 
         cell.classList.add('magnet-cell');
@@ -243,12 +243,12 @@ if (matchSite(/\/torrent\//)) {
         torrent.closest('tr').after(cell);
         // language=CSS
         addCss(`magnet-cell img.preview-image {
-            width: -webkit-fill-available !important;
-            max-width: none !important;
-            max-height: none !important;
-            padding: 5px 5px;
-            margin-bottom: 20px;
-        }`);
+width: -webkit-fill-available !important;
+max-width: none !important;
+max-height: none !important;
+padding: 5px 5px;
+margin-bottom: 20px;
+}`);
         thumbnailImg.style["width"] = "auto";
         thumbnailImg.style["max-height"] = "none";
         thumbnailImg.style["max-width"] = "none";
@@ -356,6 +356,40 @@ var title = 'DL&nbsp;ML',
     if (mainTable) mainTable.scrollIntoView();
 
 
+
+        // adding a dropdown list for mirrors
+    (function addMirrorsDropdown(){
+        const blankTab = document.querySelector('td.header:nth-child(1)');
+        const mirrorsTab = document.createElement('td');
+        mirrorsTab.className = 'header3';
+        mirrorsTab.innerText = "Switch to mirror site:";
+        const mirrorsSelect = document.createElement('select');
+        mirrorsTab.appendChild(mirrorsSelect);
+
+        for(const mirror of Options.mirrors) {
+            const option = document.createElement('option');
+            option.value = mirror;
+            option.innerText = createElement(`<a href="${mirror}"></a>`).hostname;
+            if(option.innerText === location.hostname) continue;
+
+            option.onclick = function(){
+                const split = location.href.split('/').slice(2);
+                split[0] = this.value;
+                location.assign(split.join('/'));
+            };
+
+            mirrorsSelect.appendChild(option);
+        }
+
+        const option = document.createElement('option');
+        option.innerText = location.hostname;
+        option.setAttribute('selected', "");
+        mirrorsSelect.appendChild(option);
+
+        blankTab.after(mirrorsTab);
+    })();
+
+
     observeDocument((target) => {
         dealWithTorrents(target);
 
@@ -389,7 +423,7 @@ if (!!x)
 
 function cleanSymbols(str) {
     return !!str ? removeDoubleSpaces(cleanDates(str).replace(/[-!$%^&*()_+|~=`{}\[\]";'<>?,.\/]|(\s\s+)/gim, ' ')
-        .replace(/rarbg|\.com|#|x264|DVDRip|720p|1080p|2160p|MP4|IMAGESET|FuGLi|SD|KLEENEX|BRRip|XviD|MP3|XVID|BluRay|HAAC|WEBRip|DHD|rartv|KTR|YAPG|[^0-9a-zA-z]/gi, " ")).trim() : str;
+                                      .replace(/rarbg|\.com|#|x264|DVDRip|720p|1080p|2160p|MP4|IMAGESET|FuGLi|SD|KLEENEX|BRRip|XviD|MP3|XVID|BluRay|HAAC|WEBRip|DHD|rartv|KTR|YAPG|[^0-9a-zA-z]/gi, " ")).trim() : str;
 }
 
 function solveCaptcha() {
@@ -419,78 +453,78 @@ function fixCss() {
     // language=CSS
     cssBlock.innerText = `
 table.lista2t tr.lista2 td {
-    border-bottom: 1px solid #fff;
-    min-width: 40px;
+border-bottom: 1px solid #fff;
+min-width: 40px;
 }
 
 .magnet-cell img.preview-image {
-    width: ${!Options.addThumbnails ? width * 0.5 : !Options.userLargeThumbnails ? width : width * 1.3}px;
-    max-width: ${maxwidth * 1.4}px;
-    max-height: ${(!Options.userLargeThumbnails ? width : maxwidth * 1.4) * 1.5}px;
-    padding: 5px 5px;
+width: ${!Options.addThumbnails ? width * 0.5 : !Options.userLargeThumbnails ? width : width * 1.3}px;
+max-width: ${maxwidth * 1.4}px;
+max-height: ${(!Options.userLargeThumbnails ? width : maxwidth * 1.4) * 1.5}px;
+padding: 5px 5px;
 }
 
 .magnet-cell {
-    text-align: center;
-    max-width: ${maxwidth}px;
-    max-height: ${maxheight}px;
+text-align: center;
+max-width: ${maxwidth}px;
+max-height: ${maxheight}px;
 }
 a.torrent-ml, a.torrent-dl{
-	display: table-cell;	
-	padding: 5px;
+display: table-cell;
+padding: 5px;
 }
 a.torrent-ml > img, a.torrent-dl > img {
-    width: 40px;
+width: 40px;
 }
 
 a.gs:link {
-    color: red;
+color: red;
 }
 
 a.gs:visited {
-    color: green;
+color: green;
 }
 
 a.gs:hover {
-    color: hotpink;
+color: hotpink;
 }
 
 a.gs:active {
-    color: blue;
+color: blue;
 }
 
 a.gs {
-    font-size: 8px;
-    padding: 5px 5px;
-    padding: 20px;
-    display: -webkit-box;
-    background-color: #b7b7b73b;
-    margin: 10px;
+font-size: 8px;
+padding: 5px 5px;
+padding: 20px;
+display: -webkit-box;
+background-color: #b7b7b73b;
+margin: 10px;
 }
 
 .zoom {
-    padding: 50px;
-    transition: transform .2s; /* Animation */
-    margin: 0 auto;
+padding: 50px;
+transition: transform .2s; /* Animation */
+margin: 0 auto;
 }
 
 .zoom:hover {
-    transform: scale(1.5); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
+transform: scale(1.5); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
 }
 
 td.lista {
-    color: #000;
-    font-size: 10pt;
-    font-family: sans-serif;
+color: #000;
+font-size: 10pt;
+font-family: sans-serif;
 }
 
 tr.lista2 > td.lista > a[onmouseover] {
-    font-size: 15px !important;
-    padding: 20px !important;
-    display: -webkit-box !important;
-    background-color: rgba(183, 183, 183, 0.23) !important;
-    margin: 10px !important;
-    font-family: sans-serif !important;
+font-size: 15px !important;
+padding: 20px !important;
+display: -webkit-box !important;
+background-color: rgba(183, 183, 183, 0.23) !important;
+margin: 10px !important;
+font-family: sans-serif !important;
 }
 `;
 }
@@ -515,9 +549,9 @@ function observeDocument(callback) {
         }
     })
         .observe(document.body, {
-            childList: true, subtree: true,
-            attributes: false, characterData: false
-        });
+        childList: true, subtree: true,
+        attributes: false, characterData: false
+    });
 }
 
 /**
@@ -533,8 +567,8 @@ function dealWithTorrents(node) {
     for (var i = 0; i < torrents.length; i++) {
         //creating and adding the elements
         const cell = document.createElement('td'),
-            thumbnailLink = document.createElement('a'),
-            thumbnailImg = document.createElement('img');
+              thumbnailLink = document.createElement('a'),
+              thumbnailImg = document.createElement('img');
 
         switch (Options.thumbnailLink) {
             case "ml":
@@ -689,9 +723,9 @@ function getLargeThumbnail(smallThumbUrl) {
     // Big pic:		http://dyncdn.me/mimages/316661/poster_opt.jpg
     return smallThumbUrl
         .replace('over_opt', 'poster_opt') // movie thumbnail replacement
-        // other thumbnail replacement
+    // other thumbnail replacement
         .replace('static/over', 'posters2/' + smallThumbUrl.replace(/(.*?)over\//, '').charAt(0)) //put "posters2" + the first character after the '/'
-        ;
+    ;
 }
 function createAndAddAttribute(node, attributeName, attributeValue) {
     if (!node) {
@@ -720,14 +754,14 @@ function extractMouseoverThumbnail(torrentAnchor) {
 }
 function addImageSearchAnchor(torrentAnchor) {
     const searchTd = document.createElement('td'),
-        searchLink = document.createElement('a')
+          searchLink = document.createElement('a')
     ;
     searchTd.style = "border-top-width: 10px; padding-top: 10px;";
 
     let searchQuery = cleanSymbols(torrentAnchor.title || torrentAnchor.innerText) //replacing common useless torrent terms
-        // replace dates (numbers with dots between them)
-            .replace(/\s\s+/g, ' ')	// removes double spaces
-            .trim()
+    // replace dates (numbers with dots between them)
+    .replace(/\s\s+/g, ' ')	// removes double spaces
+    .trim()
     ;
 
     /**
@@ -884,7 +918,7 @@ function clickToVerifyBrowser() {
     Mousetrap.bind(["ctrl+s"], (e) => {// saves an html file containing the data
         let text = document.title + '\t' + Date.now() +
             '\n' + location.href
-            + '\n\n\n';
+        + '\n\n\n';
         for (const row of document.querySelectorAll('table > tbody > tr.lista2')) {
             const a = row.querySelector('a[onmouseover]');
             text += 'Title: ' + (a.title || a.innerText) +
@@ -944,7 +978,7 @@ function appendColumn() {
     document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td:nth-child(3)')
         .forEach(fixCellCss);
     var oldColumn = Array.from(document.querySelectorAll('.lista2t > tbody > tr[class="lista2"] > td a[title]'))
-        .map(a => a.parentElement);		// torrent links row
+    .map(a => a.parentElement);		// torrent links row
     // populate the cells in the new column with DL and ML links
     return Array.from(oldColumn).map(appendColumnSingle);
 }
@@ -970,8 +1004,8 @@ function addDlAndMl(torrentAnchor, cellNode) {
     // matches anything containing "over/*.jpg" *: anything
     const anchorOuterHTML = cellNode.firstChild.outerHTML;
     const hash = (/over\/(.*)\.jpg\\/).test(anchorOuterHTML) ?
-        anchorOuterHTML.match(/over\/(.*)\.jpg\\/)[1] :
-        undefined;
+          anchorOuterHTML.match(/over\/(.*)\.jpg\\/)[1] :
+    undefined;
 
     let title = cellNode.firstChild.innerText;
 
@@ -979,8 +1013,8 @@ function addDlAndMl(torrentAnchor, cellNode) {
     console.log('magnetUri:', magnetUriStr);
     const ml = createElement(
         hash !== undefined ?
-            (`<a class="torrent-ml" href="${magnetUriStr}"><img src="${MAGNET_ICO}"></a>`) :
-            '&nbsp;&nbsp;&nbsp;&nbsp;'
+        (`<a class="torrent-ml" href="${magnetUriStr}"><img src="${MAGNET_ICO}"></a>`) :
+        '&nbsp;&nbsp;&nbsp;&nbsp;'
     );
     console.log('magnetLink button:', ml);
     torrentAnchor.appendChild(ml); // magnet ink
