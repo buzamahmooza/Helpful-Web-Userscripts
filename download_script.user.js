@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Downloader
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5.2
+// @version      0.5.3
 // @description  A downloader script that has handy features such as: (download zip and download an array of images, download an image),
 // @description  (useful when combined with other scripts)
 // @description  Note:  if you include this script via @require, make sure to also include all the dependencies of this script (all the @require urls below)
@@ -40,7 +40,7 @@ const Config = {
     ALLOW_DUPES: GM_getValue("ALLOW_DUPES", true)// if set to true: batch directories will be stored under the main tempDirectory.
 };
 
-const invalidNameCharacters = '@*:"|<>\\n\\r\?' + '\u200f';
+const invalidNameCharacters = '@*:"|<>\\n\\r\?\~' + '\u200f';
 var BLACK_LIST = new Set(["https://raw.githubusercontent.com/RaitaroH/DuckDuckGo-DeepDark/master/Images/BigLogo.png"]);
 var NAME_ATTRIBUTES = ['download-name', 'title', 'img-title', 'subtitle', 'alt', 'content', 'description', 'name'];
 var fileNumber = 1;
