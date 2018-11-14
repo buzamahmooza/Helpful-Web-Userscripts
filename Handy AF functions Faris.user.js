@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Faris Handy Webdev JavaScript functions
 // @namespace    http://tampermonkey.net/
-// @version      0.3.3
+// @version      0.3.4
 // @description  A bunch of useful JavaScript functions
 // @description  This is not a regular script for you to run! Only use this via the @require keyword.
 // @author       Faris Hijazi
@@ -459,8 +459,7 @@ function waitForElement(elementGetter, callback) {
         }
 
         var node = (typeof(elementGetter) === 'function') ? elementGetter() :
-            (typeof(elementGetter) === "string") ? document.querySelector(elementGetter) :
-                elementGetter;
+            document.querySelector(elementGetter);
         try {
             if (node) {
                 if (node.length) {
