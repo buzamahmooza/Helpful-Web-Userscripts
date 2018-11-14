@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Faris Handy Webdev JavaScript functions
 // @namespace    http://tampermonkey.net/
-// @version      0.3.1
+// @version      0.3.3
 // @description  A bunch of useful JavaScript functions
 // @description  This is not a regular script for you to run! Only use this via the @require keyword.
 // @author       Faris Hijazi
@@ -13,10 +13,23 @@
 // @grant        unsafeWindow
 // @grant        window.close
 // @grant        window.focus
-// @run-at		 document-start
+// @run-at       document-start
 // @include      *
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // ==/UserScript==
+
+
+// adding Element.before() and Element.after() (since some brwosers like MS Edge don't already have them)
+if (Element.prototype.before === undefined) Element.prototype.before = function (newNode) {
+    if (this.parentNode) {
+        return this.parentNode.insertBefore(newNode, this);
+    }
+};
+if (Element.prototype.after === undefined) Element.prototype.after = function (newNode) {
+    if (this.parentNode) {
+        return this.parentNode.insertBefore(newNode, this.nextSibling);
+    }
+};
 
 /**/
 if (typeof unsafeWindow === "undefined") unsafeWindow = window;
@@ -121,8 +134,8 @@ unsafeWindow.isIterable = obj => obj != null && typeof obj[Symbol.iterator] == '
 unsafeWindow.GM_setValue = GM_setValue;
 unsafeWindow.GM_getValue = GM_getValue;
 
-unsafeWindow.q = q;
-unsafeWindow.qa = qa;
+// unsafeWindow.q = q;
+// unsafeWindow.qa = qa;
 unsafeWindow.siteSearchUrl = siteSearchUrl;
 unsafeWindow.getAbsoluteURI = getAbsoluteURI;
 
@@ -135,6 +148,18 @@ unsafeWindow.openAllLinks = function () {
             window.open(link.href);
         }
     });
+};
+
+
+unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
+    let results = [];
+    let query = document.evaluate(xpath,
+        parent || document,
+        null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+    for (let i = 0, length = query.snapshotLength; i < length; ++i) {
+        results.push(query.snapshotItem(i));
+    }
+    return results;
 };
 
 /**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
@@ -150,33 +175,30 @@ unsafeWindow.onLoadDim = onLoadDim;
 unsafeWindow.addCss = addCss;
 
 /**
- *	@author	https://codepen.io/frosas/
- *	Also works with scripts from other sites if they have CORS enabled (look for the header Access-Control-Allow-Origin: *).
+ *    @author    https://codepen.io/frosas/
+ *    Also works with scripts from other sites if they have CORS enabled (look for the header Access-Control-Allow-Origin: *).
  *
- *	// Usage
- *	var url = 'https://raw.githubusercontent.com/buzamahmooza/Helpful-Web-Userscripts/master/GM_dummy_functions.js?token=AZoN2Rl0UPDtcrOIgaESbGp_tuHy51Hmks5bpijqwA%3D%3D';
- *	loadGitHubScript(url).then((event) => {	});
+ *    // Usage
+ *    var url = 'https://raw.githubusercontent.com/buzamahmooza/Helpful-Web-Userscripts/master/GM_dummy_functions.js?token=AZoN2Rl0UPDtcrOIgaESbGp_tuHy51Hmks5bpijqwA%3D%3D';
+ *    loadGitHubScript(url).then((event) => {	});
  */
 function loadGitHubScript(url) {
-	return fetch(url).
-		then(res => res.blob()).
-		then(body => loadScript(URL.createObjectURL(body)));
-	
-	function loadScript(url) {
-		new Promise(function(resolve, reject) {
-		  var script = document.createElement('script');
-		  script.src = url;
-		  script.onload = resolve;
-		  script.onerror = function(){
-			  console.warn("couldn't load script: ", url);
-			  if(typeof reject === 'function')
-				  reject();
-		  }; // TODO Not sure it really works
-		  document.head.appendChild(script);
-		});
-	}
-}
+    return fetch(url).then(res => res.blob()).then(body => loadScript(URL.createObjectURL(body)));
 
+    function loadScript(url) {
+        return new Promise(function (resolve, reject) {
+            var script = document.createElement('script');
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = function () {
+                console.warn("couldn't load script: ", url);
+                if (typeof reject === 'function')
+                    reject();
+            }; // TODO Not sure it really works
+            document.head.appendChild(script);
+        });
+    }
+}
 
 
 /**@deprecated doesn't actually succeed*/
@@ -296,7 +318,7 @@ unsafeWindow.setStyleInHTML = setStyleInHTML;
  * @param {String} styleValue
  * @return el
  */
-function setStyleInHTML(el, styleProperty, styleValue, printVerbose) {
+function setStyleInHTML(el, styleProperty, styleValue) {
     styleProperty = styleProperty.trim().replace(/^.*{|}.*$/g, '');
 
     const split = styleProperty.split(':');
@@ -315,7 +337,7 @@ function setStyleInHTML(el, styleProperty, styleValue, printVerbose) {
 
         el.setAttribute('style', newStyle);
 
-        if(printVerbose) console.debug(
+        console.debug(
             'adding to style ', `"${styleArgument}"`,
             '\nnewStyle:', `"${newStyle}"`,
             '\nelement:', el
@@ -423,30 +445,25 @@ function includeJs(src) {
     return script;
 }
 
-//TODO: fix and test it
 /**@WIP
- * @param {function} elementGetter a function to get the wanted element (or event a condition function)
+ * @param {function, string} elementGetter a function to get the wanted element (or event a condition function)
  * that will be called to test if the element has appeared yet. (should return true only when the element appears)
  * @param callback  the elementGetter will be passed as the first argument
  * @return {MutationObserver}
  */
 function waitForElement(elementGetter, callback) {
-    const observer = new MutationObserver(function (mutations, me) {
-        // mutations.forEach(function (mutation) {
-        // if (!mutation.addedNodes) return false;
-
+    const observerCallback = function (mutations, me) {
         function handleSuccess(node) {
-            // console.debug('Wanted node found:', node);
             callback(node);
             me.disconnect();
         }
 
-        // for (let i = 0; i < mutation.addedNodes.length; i++) {
-        //     var node = mutation.addedNodes[i];
-        var node = (typeof(elementGetter) === 'function') ? elementGetter() : q(elementGetter);
+        var node = (typeof(elementGetter) === 'function') ? elementGetter() :
+            (typeof(elementGetter) === "string") ? document.querySelector(elementGetter) :
+                elementGetter;
         try {
             if (node) {
-                if (node.length !== undefined && node.length !== 0) {
+                if (node.length) {
                     for (const n of node)
                         handleSuccess(n);
                 } else if (node.length === undefined) {
@@ -456,9 +473,10 @@ function waitForElement(elementGetter, callback) {
         } catch (e) {
             console.warn(e);
         }
-        // }
-        // });
-    });
+    };
+
+    const observer = new MutationObserver(observerCallback);
+    observerCallback(null, observer);
 
     observer.observe(document.body, {
         childList: true
@@ -467,7 +485,6 @@ function waitForElement(elementGetter, callback) {
         , characterData: false
     });
     return observer;
-    // stop watching using: observer.disconnect();
 }
 
 /**
@@ -537,22 +554,21 @@ function q(selector, node = document) {
     return node.querySelector(selector);
 }
 
-unsafeWindow.getIncrementedUrl = getIncrementedUrl;
+unsafeWindow.incrementUrl = incrementUrl;
 /** Returns a modified url as a string, either incremented(++) or decremented(--)
  * @param {string} href  the input url you want to modify
  * @param {number} incrAmount (optional) the amount to increment.
  *  Default:  increment by 1 (++).
  *  If the result in the url becomes negative, it will be overridden to 0.
  * @return {string} incremented/decremented url string */
-function getIncrementedUrl(href, incrAmount) {
+function incrementUrl(href, incrAmount) {
     var e, s;
     let IB = incrAmount ? incrAmount : 1;
 
     function isDigit(c) {
         return ("0" <= c && c <= "9")
     }
-    var match = href.match(/&f=1$/);
-    var tip = !!match ? match[0] : "";
+    const tip = location.href.match(/([&?]|$).*$/)[0];
     let L = href.replace(tip, "");
     let LL = L.length;
     for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
@@ -785,10 +801,22 @@ function fetchDoc(url, callback) {
                 callback(doc);
         });
 }
+function testUrls(urls, successUrls) {
+    successUrls = successUrls || new Set();
+    for (const url of urls) fetch(url, {
+        mode: 'no-cors',
+        method: 'get'
+    }).then((text) => {
+        console.log('Sucessfully fetched url:', url);
+        successUrls.add(url);
+    }).catch((res) => {
+        console.error("Failed to fetch url:", url);
+    });
+}
 /**Opens the url, then performs a callback giving it the document element
  * @param {string} url
  * @param {function} callback   passes: (doc, url, args) to the callback function when the response is complete
- * @param {o} args  Options object.
+ * @param {object} args  Options object.
  *                  "args":   Arguments to pass to the callback (Array or Object type)
  * @returns returns the callback result
  */
@@ -895,30 +923,30 @@ unsafeWindow.SrcSet = class SrcSet {
 };
 
 unsafeWindow.cookieUtils = {
-	setCookie: function setCookie(name,value,days) {
-		var expires = "";
-		if (days) {
-			var date = new Date();
-			date.setTime(date.getTime() + (days*24*60*60*1000));
-			expires = "; expires=" + date.toUTCString();
-		}
-		document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-		return document.cookie;
-	},
-	getCookie: function getCookie(name) {
-		var nameEQ = name + "=";
-		var ca = document.cookie.split(';');
-		for(var i=0;i < ca.length;i++) {
-			var c = ca[i];
-			while (c.charAt(0)==' ') c = c.substring(1,c.length);
-			if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-		}
-		return null;
-	},
-	eraseCookie: function eraseCookie(name) {   
-		document.cookie = name+'=; Max-Age=-99999999;';
-		return document.cookie;
-	}
+    setCookie: function setCookie(name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        return document.cookie;
+    },
+    getCookie: function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    },
+    eraseCookie: function eraseCookie(name) {
+        document.cookie = name + '=; Max-Age=-99999999;';
+        return document.cookie;
+    }
 };
 
 unsafeWindow.url2location = url2location;
@@ -1096,7 +1124,7 @@ function removeDoubleSpaces(str) {
 function cleanDates(str) {
     return !!str ? removeDoubleSpaces(str.replace(/\d*\.([^.]+)\.\d*/g, ' ')) : str;
 }
-function cleanGibberish(str, minWgr, debug=false) {
+function cleanGibberish(str, minWgr, debug = false) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
         let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " ")),
@@ -1113,7 +1141,7 @@ function cleanGibberish(str, minWgr, debug=false) {
          * @type {number}
          */
         let wgr = (str.length - noGibberish.length) / str.length;
-        if(debug) console.debug(
+        if (debug) console.debug(
             'cleanGibberish(' + str + ')' +
             '\nOriginal:', str,
             '\nNoGibberish:', noGibberish,
@@ -1131,7 +1159,7 @@ unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*=
 
 unsafeWindow.observeDocument = function observeDocument(callback, options) {
     callback(document.body);
-    options = typeof(extend)!=='function'? {}: extend(options, {
+    options = typeof(extend) !== 'function' ? {} : extend(options, {
         singleCallbackPerMutation: false
     });
     new MutationObserver(
@@ -2676,6 +2704,22 @@ function fetchUsingProxy(url, callback) {
         .then(callback)
         .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
 }
+
+
+unsafeWindow.getUnusualWindowObjects = function getUnusualWindowObjects(compareWindow = window) {
+    const plainWindowKeylist = ["postMessage", "blur", "focus", "close", "frames", "self", "window", "parent", "opener", "top", "length", "closed", "location", "document", "origin", "name", "history", "locationbar", "menubar", "personalbar", "scrollbars", "statusbar", "toolbar", "status", "frameElement", "navigator", "customElements", "external", "screen", "innerWidth", "innerHeight", "scrollX", "pageXOffset", "scrollY", "pageYOffset", "screenX", "screenY", "outerWidth", "outerHeight", "devicePixelRatio", "clientInformation", "screenLeft", "screenTop", "defaultStatus", "defaultstatus", "styleMedia", "onanimationend", "onanimationiteration", "onanimationstart", "onsearch", "ontransitionend", "onwebkitanimationend", "onwebkitanimationiteration", "onwebkitanimationstart", "onwebkittransitionend", "isSecureContext", "onabort", "onblur", "oncancel", "oncanplay", "oncanplaythrough", "onchange", "onclick", "onclose", "oncontextmenu", "oncuechange", "ondblclick", "ondrag", "ondragend", "ondragenter", "ondragleave", "ondragover", "ondragstart", "ondrop", "ondurationchange", "onemptied", "onended", "onerror", "onfocus", "oninput", "oninvalid", "onkeydown", "onkeypress", "onkeyup", "onload", "onloadeddata", "onloadedmetadata", "onloadstart", "onmousedown", "onmouseenter", "onmouseleave", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onmousewheel", "onpause", "onplay", "onplaying", "onprogress", "onratechange", "onreset", "onresize", "onscroll", "onseeked", "onseeking", "onselect", "onstalled", "onsubmit", "onsuspend", "ontimeupdate", "ontoggle", "onvolumechange", "onwaiting", "onwheel", "onauxclick", "ongotpointercapture", "onlostpointercapture", "onpointerdown", "onpointermove", "onpointerup", "onpointercancel", "onpointerover", "onpointerout", "onpointerenter", "onpointerleave", "onafterprint", "onbeforeprint", "onbeforeunload", "onhashchange", "onlanguagechange", "onmessage", "onmessageerror", "onoffline", "ononline", "onpagehide", "onpageshow", "onpopstate", "onrejectionhandled", "onstorage", "onunhandledrejection", "onunload", "performance", "stop", "open", "alert", "confirm", "prompt", "print", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "captureEvents", "releaseEvents", "getComputedStyle", "matchMedia", "moveTo", "moveBy", "resizeTo", "resizeBy", "getSelection", "find", "webkitRequestAnimationFrame", "webkitCancelAnimationFrame", "fetch", "btoa", "atob", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "createImageBitmap", "scroll", "scrollTo", "scrollBy", "onappinstalled", "onbeforeinstallprompt", "crypto", "ondevicemotion", "ondeviceorientation", "ondeviceorientationabsolute", "indexedDB", "webkitStorageInfo", "sessionStorage", "localStorage", "chrome", "visualViewport", "speechSynthesis", "webkitRequestFileSystem", "webkitResolveLocalFileSystemURL", "openDatabase", "applicationCache", "caches", "global", "WebUIListener", "cr", "assert", "assertNotReached", "assertInstanceof", "$", "getSVGElement", "announceAccessibleMessage", "getUrlForCss", "parseQueryParams", "setQueryParam", "findAncestorByClass", "findAncestor", "swapDomNodes", "disableTextSelectAndDrag", "isRTL", "getRequiredElement", "queryRequiredElement", "appendParam", "createElementWithClassName", "ensureTransitionEndEvent", "scrollTopForDocument", "setScrollTopForDocument", "scrollLeftForDocument", "setScrollLeftForDocument", "HTMLEscape", "elide", "quoteString", "listenOnce", "hasKeyModifiers", "recomputeLayoutWidth", "ntp"];
+    const farisScriptKeylist = ["log", "JSZip", "URL_REGEX_STR", "IMAGE_URL_REGEX", "VID_URL_REGEX", "gImgSearchURL", "GIMG_REVERSE_SEARCH_URL", "setClipboard", "GM_setClipboard", "GM_xmlhttpRequest", "setLog", "matchSite", "createElement", "loadScript", "ddgProxy", "getOGZscalarUrl", "reverseDdgProxy", "isDdgUrl", "targetIsInput", "createAndAddAttribute", "getGImgReverseSearchURL", "toDdgProxy", "isIterable", "GM_setValue", "GM_getValue", "q", "qa", "siteSearchUrl", "getAbsoluteURI", "getHostname", "openAllLinks", "fetchElement", "xmlRequestElement", "onLoadDim", "addCss", "addJs", "observe", "gfycatPage2GifUrl", "preloader", "waitForElement", "includeJs", "disableStyles", "createAndGetNavbar", "setStyleInHTML", "nodeDepth", "regexBetween", "extend", "getWheelDelta", "elementUnderMouse", "clearElementFunctions", "getIncrementedUrl", "printElementTextAttributes", "loadModule", "getElementsWithText", "fetchDoc", "SrcSet", "cookieUtils", "url2location", "freezeGif", "removeClickListeners", "removeDoubleSpaces", "cleanGibberish", "isBase64ImageData", "cleanDates", "downloadScripts", "escapeEncodedChars", "getCssImages", "observeDocument", "observeIframe", "observeAllFrames", "iterateOverURLPattern", "saveAs", "Mousetrap", "fetchSimilarHeaders", "fetchUsingProxy", "getModKeys", "KeyEvent", "downloadSet", "storeDownloadHistory", "MAIN_DIRECTORY", "getDownloadCount", "setNameFilesByNumber", "download", "GM_download", "downloadBatch", "downloadImageBatch", "downloadImageWithCondition", "getFileExtension", "nameFile", "makeTextFile", "anchorClick", "saveByAnchor", "zipFiles", "zipImages", "vidkeysScriptLoaded"];
+    const referenceKeylist = new Set(plainWindowKeylist.concat(farisScriptKeylist)); // combine both lists
+
+    const unusualObjects = {};
+    // iterate over window keys, if this key isn't in the plainWindowKeylist, then add it to the unusuals list
+    for (const key of Object.keys(compareWindow)) {
+        if (!referenceKeylist.has(key)) {
+            unusualObjects[key] = compareWindow[key]; // add to the unusualObjects
+        }
+    }
+    return unusualObjects;
+};
 
 unsafeWindow.getModKeys = getModifierKeys;
 unsafeWindow.KeyEvent = {
