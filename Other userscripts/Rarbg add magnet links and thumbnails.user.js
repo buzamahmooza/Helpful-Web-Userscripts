@@ -72,7 +72,7 @@
 // @require      https://unpkg.com/in-view@0.6.1/dist/in-view.min.js
 // @require      https://raw.githubusercontent.com/antimatter15/ocrad.js/master/ocrad.js
 // @require      https://raw.githubusercontent.com/ccampbell/mousetrap/master/mousetrap.min.js
-// ==/UserScript==in.js
+// ==/UserScript==
 
 // Original link 1:      https://greasyfork.org/scripts/12648-rarbg-add-magnet-link/code/RARBG%20-%20Add%20Magnet%20Link.user.js
 // Original link 2:      https://greasyfork.org/scripts/23493-rarbg-torrent-and-magnet-links/code/RARBG%20-%20torrent%20and%20magnet%20links.user.js
@@ -308,7 +308,7 @@ if (matchSite(/\/torrent\//)) {
         const rowsObj = {};
         ["Title:", "Genres:", "Actors:", "Stars:", "Series:", "Plot:", "Tags:"].forEach(row => {
             let rowContent = getRow(row)[0];
-            if(rowContent)
+            if (rowContent)
                 rowsObj[row] = rowContent.innerText;
         });
         const rowsText = JSON.stringify(rowsObj);
@@ -317,12 +317,12 @@ if (matchSite(/\/torrent\//)) {
         zip.file(document.title + " (summary).txt", new Blob([summary], {type: 'text/plain'}));
 
         var zipped = false;
-        zip.onGenZip = function(){
+        zip.onGenZip = function () {
             zipped = true;
         };
 
-        setTimeout(function(){
-            if(!zipped) {
+        setTimeout(function () {
+            if (!zipped) {
                 console.log('zip timedout, forcing download');
                 zip.genZip();
             }
