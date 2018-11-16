@@ -4,7 +4,7 @@
 // @version      0.5.9
 // @description  Add a magnet link shortcut and thumbnails of torrents.
 // @description  Also adds a google image saerch link in case you want to see more pics of the torrent.
-// @author       Cisco, forked by Faris Hijazi
+// @author       Faris Hijazi, with some code from https://greasyfork.org/en/users/2160-darkred
 // @include      /https?:\/\/.{0,8}rarbg.*\.\/*/
 // @include      https://rarbg.to/*
 // @include      http://rarbgmirror.xyz/*
@@ -74,8 +74,7 @@
 // @require      https://raw.githubusercontent.com/ccampbell/mousetrap/master/mousetrap.min.js
 // ==/UserScript==
 
-// Original link 1:      https://greasyfork.org/scripts/12648-rarbg-add-magnet-link/code/RARBG%20-%20Add%20Magnet%20Link.user.js
-// Original link 2:      https://greasyfork.org/scripts/23493-rarbg-torrent-and-magnet-links/code/RARBG%20-%20torrent%20and%20magnet%20links.user.js
+// AddColumn and add magnetLinks code taken from:      https://greasyfork.org/scripts/23493-rarbg-torrent-and-magnet-links/code/RARBG%20-%20torrent%20and%20magnet%20links.user.js
 
 /**
  * ok here's how it goes
