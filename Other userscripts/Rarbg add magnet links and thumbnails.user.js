@@ -5,7 +5,7 @@
 // @description  Add a magnet link shortcut and thumbnails of torrents.
 // @description  Also adds a google image saerch link in case you want to see more pics of the torrent.
 // @author       Cisco, forked by Faris Hijazi
-// @include      /https?:\/\/.*rarbg.*\.\/*/
+// @include      /https?:\/\/.{0,8}rarbg.*\.\/*/
 // @include      https://rarbg.to/*
 // @include      http://rarbgmirror.xyz/*
 // @include      https://rarbgunblock.com/*
