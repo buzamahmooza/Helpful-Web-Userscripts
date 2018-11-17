@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Downloader
 // @namespace    https://github.com/buzamahmooza
-// @version      0.5.3
+// @version      0.5.
 // @description  A downloader script that has handy features such as: (download zip and download an array of images, download an image),
 // @description  (useful when combined with other scripts)
 // @description  Note:  if you include this script via @require, make sure to also include all the dependencies of this script (all the @require urls below)
@@ -71,7 +71,7 @@ const mimeTypesJSON = typeof $ !== 'undefined' && typeof $.getJSON === "function
     $.getJSON("https://cdn.rawgit.com/jshttp/mime-db/master/db.json",
         /** (PlainObject data, String textStatus, jqXHR jqXHR) */
         function (data, textStatus, jqXHR) {
-            console.log("JQuery.getJSON()\ndata, textStatus, jqXHR :", data, textStatus, jqXHR);
+            console.debug("JQuery.getJSON()\ndata, textStatus, jqXHR :", data, textStatus, jqXHR);
         })
     : parseMetaJson();
 
