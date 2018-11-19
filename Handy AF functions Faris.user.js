@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Faris Handy Webdev JavaScript functions
 // @namespace    http://tampermonkey.net/
-// @version      0.3.4
+// @version      0.3.3
 // @description  A bunch of useful JavaScript functions
 // @description  This is not a regular script for you to run! Only use this via the @require keyword.
 // @author       Faris Hijazi
@@ -459,7 +459,8 @@ function waitForElement(elementGetter, callback) {
         }
 
         var node = (typeof(elementGetter) === 'function') ? elementGetter() :
-            document.querySelector(elementGetter);
+            (typeof(elementGetter) === "string") ? document.querySelector(elementGetter) :
+                elementGetter;
         try {
             if (node) {
                 if (node.length) {
@@ -468,14 +469,17 @@ function waitForElement(elementGetter, callback) {
                 } else if (node.length === undefined) {
                     handleSuccess(node);
                 }
+                return true;
             }
+            return false;
         } catch (e) {
             console.warn(e);
         }
     };
 
     const observer = new MutationObserver(observerCallback);
-    observerCallback(null, observer);
+    if (observerCallback(null, observer))
+        return;
 
     observer.observe(document.body, {
         childList: true
@@ -2188,6 +2192,10 @@ unsafeWindow.saveAs = saveAs;
          *
          * @param {Function} callback
          * @param {Event} e
+         * @param combo
+         * @param sequence
+         * @param combo
+         * @param sequence
          * @returns void
          */
         function _fireCallback(callback, e, combo, sequence) {
@@ -2668,9 +2676,9 @@ function headers2Object(headers) {
     if (!headers) return {};
     const jsonParseEscape = function (str) {
         return str.replace(/\n/g, "\\n")
-            .replace(/\'/g, "\\'")
-            .replace(/\"/g, '\\"')
-            .replace(/\&/g, "\\&")
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"')
+            .replace(/&/g, "\\&")
             .replace(/\r/g, "\\r")
             .replace(/\t/g, "\\t")
             .replace(/\f/g, "\\f");
@@ -2870,6 +2878,13 @@ function mapObject(o) {
     }
     return map;
 }
+function object2Map(obj) {
+    const map = new Map();
+    for (const key in obj) {
+        map.set(key, obj[key]);
+    }
+    return map;
+}
 function getObjOfType(targetInstance, parentObj) {
     var list = [];
     for (const o in parentObj) if (o instanceof targetInstance) {
@@ -2877,6 +2892,7 @@ function getObjOfType(targetInstance, parentObj) {
     }
     return list;
 }
+
 function getNestedMembers(parentObject, targetType, list) {
     if (!parentObject) {
         console.error("parentObject is not defined:", parent);
@@ -2896,4 +2912,56 @@ function getNestedMembers(parentObject, targetType, list) {
         }
     }
     return list;
+}
+/** https://stackoverflow.com/a/3579651/7771202 */
+function sortByFrequencyAndRemoveDuplicates(array) {
+    var frequency = {}, value;
+
+    // compute frequencies of each value
+    for (var i = 0; i < array.length; i++) {
+        value = array[i];
+        if (value in frequency) {
+            frequency[value]++;
+        }
+        else {
+            frequency[value] = 1;
+        }
+    }
+
+    // make array from the frequency object to de-duplicate
+    var uniques = [];
+    for (value in frequency) {
+        uniques.push(value);
+    }
+
+    // sort the uniques array in descending order by frequency
+    function compareFrequency(a, b) {
+        return frequency[b] - frequency[a];
+    }
+
+    return uniques.sort(compareFrequency);
+}
+
+/**
+ * starting from the beginning, find the array segment that is equal
+ * @param lists
+ * @param equals
+ * @return {Array}
+ */
+function findLongestCommonSegment(lists, equals) {
+    if (typeof equals !== "function") equals = (a, b) => a == b;
+
+    const minLength = lists.map(list => list.length).reduce((l1, l2) => Math.min(l1, l2));
+    const result = [];
+
+    for (var i = 0; i < minLength; i++) { // iterate elements
+        var compareVal = lists[0][i];
+        for (var j = 0; j < lists.length; j++) { // check this element for each list
+            if (!equals(lists[j][i], compareVal)) {
+                return result;
+            }
+        }
+        result.push(compareVal);
+    }
+    return result;
 }
