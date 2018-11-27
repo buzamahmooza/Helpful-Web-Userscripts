@@ -1,13 +1,21 @@
 # Rarbg add thumbnails and torrent/magnet links
 ## Features
-- Autosolve captcha, and bypass the "Click to verify browser" page
-- Infinite scrolling
-- Disable some adds/redirect links (where the entire page is covered with an invisible redirect button)
-- Dropdown list to go to other Rarbg mirrors
 - Show thumbnails
 - Show magnet link and torrent links
 - Add image search links for torrents
-- Color torrent rows red/green depending on seeders count
+- Color torrent rows red/green depending on seeders count<br />
+<img src="Screenshot_Rarbg_general.png?raw=true" alt="General Screenshot" height="400"/>
+
+- Dropdown list to go to other Rarbg mirrors<br />
+
+<img src="Screenshot_Rarbg_mirrorDropdown.png?raw=true" alt="Dropdown list to go to other Rarbg mirrors" height="300"/>
+
+- Autosolve captcha, and bypass the "Click to verify browser" page
+- Download all torrrents button
+<img src="Screenshot_Rarbg_download_all_torrents.png" alt="Download all torrrents button" height="350"/>
+
+- Infinite scrolling
+- Disable some adds/redirect links (where the entire page is covered with an invisible redirect button)
 
 # Keyboard shortcuts
 - Press ```/``` to focus search bar
