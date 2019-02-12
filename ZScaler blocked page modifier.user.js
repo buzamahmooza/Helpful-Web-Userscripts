@@ -141,10 +141,10 @@ function go() {
         `<a id="urlAnchor" class="myAnchors" href="${ogUrl}">${ogUrl}"</a>`
     );
     const siteSearchAnchor = createElement(
-        `<a id="siteSearchAnchor" class="myAnchors" href="${IMG_SEARCH_URL + decodeURI('site:' + getHostname(ogUrl))}">search: "site:${decodeURI(getHostname(ogUrl))}"</a>`
+        `<a id="siteSearchAnchor" class="myAnchors" href="${IMG_SEARCH_URL + encodeURIComponent('site:' + getHostname(ogUrl))}">search: "site:${encodeURIComponent(getHostname(ogUrl))}"</a>`
     );
     const siteSearchUrlAnchor = createElement(
-        `<a id="siteSearchUrlAnchor" class="myAnchors" href="${IMG_SEARCH_URL}site:${decodeURI(ogUrl)}">Image search: "${ogUrl}"</a>`);
+        `<a id="siteSearchUrlAnchor" class="myAnchors" href="${IMG_SEARCH_URL}site:${encodeURIComponent(ogUrl)}">Image search: "${ogUrl}"</a>`);
     const toDdgAnchor = createElement(
         '<a id="toDdgAnchor" class="myAnchors" ' +
         'href="' + ddgProxy(ogUrl) + '">' + // href
@@ -174,10 +174,6 @@ function go() {
         'porn|nud|adult': [
         	'https://st.depositphotos.com/1628578/3901/v/950/depositphotos_39016261-stock-illustration-xxx-icon.jpg',
         	'https://pngimage.net/wp-content/uploads/2018/06/18-icon-png-2.png',
-            // 'http://66.media.tumblr.com/8216a515547c9e7b8f1c375c9a0506ed/tumblr_n41s02Dmv41rk49tdo3_500.gif',
-            // 'http://66.media.tumblr.com/9b09aa211b37f9c537edc6d20be5ebda/tumblr_ntwzxkFlog1sg0ns8o6_r1_500.gif',
-            // 'http://33.media.tumblr.com/34b9fbdcb540fd054c6b517bc61d2770/tumblr_nnh254i43s1snhcz1o7_500.gif',
-            // 'http://66.media.tumblr.com/6aade38c0b501b669fe8afb4ddb4e495/tumblr_nf5ys3Gqbx1twdj1wo1_1280.jpg'
         ],
         'polit': [],
         'relige': []
