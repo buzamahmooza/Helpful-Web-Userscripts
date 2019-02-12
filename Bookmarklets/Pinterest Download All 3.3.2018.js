@@ -1,7 +1,10 @@
+
+/*not working*/
 if(typeof download !== 'function') {
 	alert("The download function was not found on this page, please run the 'downoader' script using tampermonkey."); void(0);
+	return;
 }
-if(/www\.pinterest\./.test(location.href)){
+if(/www\.pinterest\./.test(location.hostname)){
     var imgBoxes = document.querySelectorAll('._qk._2h._ql');
     console.log('ImgBoxes:', imgBoxes);
     if(confirm('Download '+imgBoxes.length+' images?'))

@@ -86,39 +86,3 @@ if (confirm(`Download ${fileAnchors.length} files to?\nDirectory: ${directory}`)
         style.disabled = true;
     }
 })();
-
-
-/**Open all torrents*/
-(function () {
-    openAllTorrentLinks();
-    for (const mURI of getMagnetURIs()) {
-        window.open(mURI, "_blank");
-    }
-})();
-function openAllTorrentLinks() {
-    for (const link of document.links) {
-        const isTorrentLink = link.href.search("/torrent/") != -1 ||
-            link.href.search("http://itorrents.org/torrent/") != -1 ||
-            link.href.search("https://rarbg.to/download.php?") != -1;
-        if (isTorrentLink) {
-            window.open(link.href, "_blank");
-        }
-    }
-}
-function getMagnetURIs() {
-    const mURIs = [];
-    for (const link of document.links) if (/magnet[:_\-+%?=&;.0-9a-zA-Z]*/mi.test(link.href)) mURIs.push(link.href);
-    return mURIs;
-}
-
-
-
-/**
-*   gfycat, page-url to content-url
-*   @deprecated won't work cuz the url is case-sensitive, and the page url never has the same caps as the content url
-*/
-// https://gfycat.com/gifs/detail/FearfulPlaintiveGrison
-// https://thumbs.gfycat.com/FearfulPlaintiveGrison-size_restricted.gif
-function gfycatPage2GifUrl(gfycatPageUrl) {
-    return "https://thumbs.gfycat.com/" + gfycatPageUrl.split('/').pop() + "-size_restricted.gif";
-}
