@@ -6,10 +6,10 @@
 // @author       You
 // @match        *
 // @include      *
-// @grant        unsafeWindow
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-start
+// @require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
 // ==/UserScript==
 
 // @require      file:///C:\Users\faris\Dropbox\Apps\Tampermonkey\Scripts\DuckDuckGo Unblocker Proxy.user.js
@@ -95,7 +95,7 @@ addCss(`
 `);
 
 var SrcSet;
-if (typeof SrcSet === "undefined") {
+if (typeof SrcSet === 'undefined') {
     SrcSet = {};
     /** A class containing static functions to manipulate the srcset attribute */
     /**
@@ -172,7 +172,7 @@ function whiteListSite(url) {
     const stored = new Set(GM_getValue('whiteListedSites', ['www.pornhugo.com']));
     stored.add(url);
     GM_setValue('whiteListedSites', Array.from(stored));
-    console.log("DDGP unblockable site added:", url);
+    console.log('DDGP unblockable site added:', url);
 }
 
 
@@ -183,7 +183,7 @@ function whiteListSite(url) {
             console.log('Auto run DDGP for this page.');
             go();
         }
-        if (location.hostname !== "proxy.duckduckgo.com") {
+        if (location.hostname !== 'proxy.duckduckgo.com') {
             console.debug('Reverse-DDGp generated HOSTNAME:', HOSTNAME);
         }
     }
@@ -200,66 +200,65 @@ function whiteListSite(url) {
         const modKeys = getModifierKeys(e);
         if (modKeys.targetIsInput) return;
 
-        switch (key) {
-            case 118: // F7
-                printState();
-                if (modKeys.NONE) {
-                    console.log('Sending a DDGP pulse to the document element.');
-                    go();
-                    return false;
-                }
-                proxyOn = !proxyOn;
-                if (modKeys.CTRL_ONLY) { // ctrl key
-                    if (confirm(`Turn DDGP unblocker ${stateStr()}?`)) {
-                        GM_setValue('proxyOn', proxyOn);
-                        if (proxyOn) go();
-                        return;
-                    }
-                } else if (modKeys.SHIFT_ONLY) { // Shift+F7:   Revert changes
-                    if (isDdgUrl(location.href)) {// change the page URL if it's been proxied
-                        location.assign(reverseDdgProxy(location.href));
-                    }
 
-                } else if (modKeys.ALT_ONLY) { // alt key
-                    const resultingDomainName = prompt(`Turn on DDGP unblocker for this domain?`, HOSTNAME);
-                    if (!!resultingDomainName) {
-                        whiteListSite(resultingDomainName);
-                        go();
-                    }
-                }
-                /*
-                if (proxyOn && !isDdgUrl(location.href))
-                    location.assign(ddgProxy(location.href));
-                */
 
-                /*if (document.cookie.indexOf("ddg_ubl;") === -1) {
-                    document.cookie += " ddg_ubl;";
-                    window.location.reload();
-                } else {
-                    console.debug("No need to reload the page, seems that you've already been here");
-                }*/
+        proxyOn = !proxyOn;
+        if (modKeys.SHIFT_ONLY) { // Shift+F7:   Revert changes
+            if (isDdgUrl(location.href)) {// change the page URL if it's been proxied
+                location.assign(reverseDdgProxy(location.href));
+            }
+
+        } else if (modKeys.ALT_ONLY) { // alt key
+            const resultingDomainName = prompt(`Turn on DDGP unblocker for this domain?`, HOSTNAME);
+            if (!!resultingDomainName) {
+                whiteListSite(resultingDomainName);
                 go();
-                break;
-            case KeyEvent.DOM_VK_P: // P
-                if (modKeys.SHIFT_ONLY) {
-                    console.log('addDdgpHrefs');
-                    (function addDdgHrefs() {
-                        document.querySelectorAll('[href]').forEach(function (e) { /*adds an image of the href*/
-                            if (e.classList.contains('ddg-link') || /proxy\.duckduckgo/.test(e.href)) {
-                                console.error('Not gonna make this into ddg cuz it is already ddg: ', e.href);
-                                return;
-                            }
-                            var clone = e.cloneNode(false);
-                            e.classList.add('ddg-link');
-                            clone.href = ddgProxy(e.href);
-                            clone.innerText += '(DDG)';
-                            e.after(clone);
-                            console.log('Adding ddgLink:', e.href, '\nNew:' + clone.href);
-                        });
-                    })();
-                }
-                break;
+            }
         }
+        /*
+        if (proxyOn && !isDdgUrl(location.href))
+            location.assign(ddgProxy(location.href));
+        */
+
+        /*if (document.cookie.indexOf("ddg_ubl;") === -1) {
+            document.cookie += " ddg_ubl;";
+            window.location.reload();
+        } else {
+            console.debug("No need to reload the page, seems that you've already been here");
+        }*/
+
+
+        Mousetrap.bind('shift+p', function(){
+            console.log('addDdgpHrefs');
+            (function addDdgHrefs() {
+                for (const e of document.querySelectorAll('[href]')) { /*adds an image of the href*/
+                    if (e.classList.contains('ddg-link') || /proxy\.duckduckgo/.test(e.href)) {
+                        console.error('Not gonna make this into ddg cuz it is already ddg: ', e.href);
+                        break;
+                    }
+                    var clone = e.cloneNode(false);
+                    e.classList.add('ddg-link');
+                    clone.href = ddgProxy(e.href);
+                    clone.innerText += '(DDG)';
+                    e.after(clone);
+                    console.log('Adding ddgLink:', e.href, '\nNew:' + clone.href);
+                }
+            })();
+        });
+
+        Mousetrap.bind('ctrl+f7', function () {
+            printState();
+            if (confirm(`Turn DDGP unblocker ${stateStr()}?`)) {
+                GM_setValue('proxyOn', proxyOn);
+                if (proxyOn) go();
+            }
+        });
+        Mousetrap.bind('f7', function () {
+            printState();
+            console.log('Sending a DDGP pulse to the document element.');
+            go();
+        });
+
     });
 })();
 
@@ -298,6 +297,7 @@ function go() {
             }
         }
     };
+
     observeAllFrames(handleElement);
     // not gonna happen
     if (false) {
@@ -380,17 +380,17 @@ function ddgReplaceAllAttributes(el) {
          console.warn('no attributes for element:', el);
          return;
      }*/
-
-    for (const attrName of el.attributes) {
-        if (el.hasAttribute(attrName)) {
-            const attrValue = el.getAttribute(attrName);
-            if (/magnet:\?/.test(attrValue)) {
-                console.debug('not gonna replace this attribute:', attrValue);
-                continue;
+    if (el.attributes && el.attributes.length)
+        for (const attrName of el.attributes) {
+            if (el.hasAttribute(attrName)) {
+                const attrValue = el.getAttribute(attrName);
+                if (/magnet:\?/.test(attrValue)) {
+                    console.debug('not gonna replace this attribute:', attrValue);
+                    continue;
+                }
+                ddgReplaceAttribute(el, attrName, attrValue);
             }
-            ddgReplaceAttribute(el, attrName, attrValue);
         }
-    }
 }
 
 
@@ -417,7 +417,7 @@ function ddgReplaceAttribute(el, attrName, attrValue) {
     }
 
     //  adding og links to anchors
-    if (el.tagName == "A" && !el.classList.contains('proxy-og-link')) {
+    if (el.tagName == 'A' && !el.classList.contains('proxy-og-link')) {
         appendOgLink(el, attrValue);
     }
 
@@ -600,4 +600,46 @@ function getModifierKeys(keyEvent) {
                 if (target === ignore || ignore.contains(target)) return true;
         })()
     };
+}
+
+
+/**
+ * Appends a style element to the head of the document containing the given cssStr text
+ * @param cssStr
+ * @param id
+ * @return {HTMLStyleElement}
+ */
+function addCss(cssStr, id) {
+    const style = document.createElement('style');
+    if (style.styleSheet) {
+        style.styleSheet.cssText = cssStr;
+    } else {
+        style.appendChild(document.createTextNode(cssStr));
+    }
+    if (!!id) style.id = id;
+    style.classList.add('addCss');
+    return document.getElementsByTagName('head')[0].appendChild(style);
+}
+
+function getHostname(href, keepPrefix) {
+    const a = document.createElement('a');
+    a.href = href;
+    // if (keepPrefix) console.debug("getHostname href =", href);
+    return a.hostname;
+}
+
+/**Returns the href wrapped with proxy.DuckDuckGo.com */
+function reverseDdgProxy(href) {
+    var s = href;
+    if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
+    if (isDdgUrl(href)) {
+        s = new URL(location.href).searchParams.get('u');
+    }
+    // https://proxy.duckduckgo.com/iu/?u=
+    if (s && s[0]) {
+        return decodeURIComponent(s[0]);
+    } else {
+        console.debug('Was unable to reverseDDGProxy for URL:', href);
+        return s;
+    }
 }
