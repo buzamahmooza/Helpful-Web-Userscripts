@@ -33,6 +33,33 @@
  */
 
 
+/*
+* fun fact: there's an object called Ya which is the main js object of the yandex page
+* Ya.Images.ThumbsStore._data contains the data of the images, an object containing keys, those keys correspond to the element
+* id on each imagebox,
+*
+*
+IMAGE_ID:
+    dups: {
+        broken: {
+            http://www##example2##com/image##jpg: true
+            https://##example1##com/image##jpg: true
+        }
+    }
+    fittedItem: {
+        crop: null
+        height: 190
+        newHeight: 170
+        newWidth: 226
+        rowHeight: 169
+        width: 253.53125
+    }
+    images: Array(3)
+        0: {url: "https://example1.com/image.jpg", fileSizeInBytes: 230007, w: 1500, h: 1125}
+        1: {url: "https://example1.com/image.jpg", fileSizeInBytes: 230007, w: 1500, h: 1125}
+        2: {url: "https://example2.com/image.jpg", fileSizeInBytes: 94852, w: 1500, h: 1125}
+
+* */
 /**/
 if (typeof unsafeWindow == "undefined") unsafeWindow = window;
 
@@ -72,7 +99,7 @@ function q(selector, node = document) {
 }
 
 const Settings = {
-    invertWheelRelativeImageNavigation: false
+    invertWheelRelativeImageNavigation: true
 };
 
 class YandexUtils {
@@ -80,9 +107,7 @@ class YandexUtils {
         var list = [];
         for (const bx of this.imgBxs) {
             const json = getImgJson(bx);
-            const src = json.img_href;
-            const title = json.snippet.title.replace("&quot;", '"');
-            list.push({src: src, title: title});
+            list.push({'src': json.img_href, 'title': json.snippet.title.replace("&quot;", '"')});
         }
         return list;
     }
@@ -232,7 +257,7 @@ observeDocument(function () {
         initPanel();
 
     modifyImageBoxes();
-    for(const img of qa('img:not(.preloaded)')){
+    for (const img of qa('img:not(.preloaded)')) {
         imagePreloader.handleImg(img);
     }
 
@@ -240,11 +265,11 @@ observeDocument(function () {
         YandexUtils.loadMoreImagesLink.click();
     }
 });
-window.addEventListener('load', function () {
 
-    new MutationObserver(function mutationCallback(mutations) {
-        onImageChange();
-    }).observe(panel.mainThumbnail, {
+
+// wait for mainThumbnail
+waitForElement("img.preview2__thumb.preview2__thumb_visible_yes[src]", function (element) {
+    new MutationObserver(onImageChange).observe(panel.mainThumbnail, {
         childList: false,
         subtree: false,
         attributes: true,
@@ -311,7 +336,7 @@ function modifyImageBoxes() {
 })();
 
 
-/**
+/*
  {
      reqid: ,
      freshness: ,

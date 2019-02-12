@@ -3,12 +3,12 @@
 // @namespace    https://github.com/buzamahmooza
 // @version      0.7
 // @description  Adds keyboard shortcuts to HTML5 videos.
-//               Left Click:  Toggle Pause/Play
-//               F or dblClk: Toggle Fullscreen
-//               SpaceBar:    Toggle Pause/Play
-//               Left/Right:  Navigate back/forward
-//               -,[ / =,]:   - / + Playback speed
-//               Zero (0):    Reset playback speed
+// @description  Left Click:  Toggle Pause/Play
+// @description  F or dblClk: Toggle Fullscreen
+// @description  SpaceBar:    Toggle Pause/Play
+// @description  Left/Right:  Navigate back/forward
+// @description  -,[ / =,]:   - / + Playback speed
+// @description  Zero (0):    Reset playback speed
 // @author       Faris Hijazi
 // @match        *
 // @include      *
@@ -96,7 +96,7 @@ function toggleFullScreen(element) {
 }
 
 function keydown(e, vid) {
-    vid = vid || getVisibleVideo || this;
+    vid = vid || getVisibleVideo() || this;
     console.debug('keydown for video:', vid, e);
     var calcTimeIncr = () => (vid.duration < timeIncr / 3 ? vid.duration * 0.07 : timeIncr),
         calcVolIncr = () => ((vid.volume - volIncr < 0) ? 0 : (vid.volume + volIncr > 1) ? 1 : volIncr)
