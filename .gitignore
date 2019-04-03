@@ -218,3 +218,7 @@ pip-log.txt
 
 
 Scraps/
+
+\.idea/
+
+\.vscode/
