@@ -112,27 +112,111 @@ if (typeof GM_xmlhttpRequest !== 'undefined') {
 }
 
 unsafeWindow.log = console.debug;
-unsafeWindow.setLog = newDebugState => debug = (typeof newDebugState === "boolean") ? newDebugState : debug;
+unsafeWindow.setLog = newDebugState => (typeof newDebugState === "boolean") ? newDebugState : function (arguments) {
+    console.log(arguments);
+};
 unsafeWindow.matchSite = matchSite;
 unsafeWindow.createElement = createElement;
 unsafeWindow.loadScript = loadScript;
-unsafeWindow.Proxy = {
-    fileStack: url => (`https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/${encodeURIComponent(url.trim())}`),
-    steemitimages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? (`https://steemitimages.com/0x0/${url.trim()}`) : url,
-    ddg: ddgProxy
-};
-unsafeWindow.ddgProxy = ddgProxy;
+unsafeWindow.PProxy = (function () {
+    function isDdgUrl(url) {
+        return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
+    }
+    
+    /**Returns the href wrapped with proxy.DuckDuckGo.com */
+    function reverseDdgProxy(href) {
+        // if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
+        if (!isDdgUrl(href)) {
+            return href;
+        }
+        return new URL(location.href).searchParams.get('u');
+    }
+
+    /**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
+    var ddgProxy = function (url) {
+        return isDdgUrl(url) || /^(javascript)/i.test(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
+    };
+
+    ddgProxy.isDdgUrl = isDdgUrl;
+    ddgProxy.reverseDdgProxy = reverseDdgProxy;
+
+    return {
+        fileStack: url => ('https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/' + encodeURIComponent(url.trim())),
+        steemitimages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? ('https://steemitimages.com/0x0/' + url.trim()) : url,
+        ddg: ddgProxy,
+        ddgProxy: ddgProxy,
+    };
+})();
+
+
+unsafeWindow.ddgProxy = PProxy.ddg;
 unsafeWindow.getOGZscalarUrl = getOGZscalarUrl;
-unsafeWindow.reverseDdgProxy = reverseDdgProxy;
-unsafeWindow.isDdgUrl = isDdgUrl;
+unsafeWindow.reverseDdgProxy = PProxy.ddg.reverseDdgProxy;
+unsafeWindow.isDdgUrl = PProxy.ddg.isDdgUrl;
 unsafeWindow.targetIsInput = targetIsInput;
 unsafeWindow.createAndAddAttribute = createAndAddAttribute;
 unsafeWindow.getGImgReverseSearchURL = getGImgReverseSearchURL;
 
+unsafeWindow.ImgUtils = {
+    uriToImageData: function uriToImageData(uri) {
+        return new Promise(function (resolve, reject) {
+            if (uri == null) return reject();
+            var canvas = document.createElement('canvas'),
+                context = canvas.getContext('2d'),
+                image = new Image();
+            image.addEventListener('load', function () {
+                canvas.width = image.width;
+                canvas.height = image.height;
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(context.getImageData(0, 0, canvas.width, canvas.height));
+            }, false);
+            image.src = uri;
+        });
+    },
+    getBase64Image: function getBase64Image(img, excludeUrlProtocol = false) {
+        // Create an empty canvas element
+        var canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Copy the image contents to the canvas
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        var dataURL = canvas.toDataURL('image/png');
+
+        return excludeUrlProtocol && dataURL.replace(/^data:image\/(png|jpg);base64,/, '') || dataURL;
+    },
+    imageToImageData: function imageToImageData(srcImg) {
+        var img = $(srcImg);
+        var context = document.createElement('canvas').getContext('2d');
+        context.drawImage(img[0], 0, 0);
+
+        return context.getImageData(0, 0, img.width(), img.height());
+    },
+    imageDataToImage: function imageDataToImage(imagedata) {
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = imagedata.width;
+        canvas.height = imagedata.height;
+        ctx.putImageData(imagedata, 0, 0);
+
+        var image = new Image();
+        image.src = canvas.toDataURL();
+        return image;
+    }
+};
+
 unsafeWindow.toDdgProxy = () => location.href = ddgProxy(location.href);
 unsafeWindow.isIterable = obj => obj != null && typeof obj[Symbol.iterator] == 'function';
-unsafeWindow.GM_setValue = GM_setValue;
-unsafeWindow.GM_getValue = GM_getValue;
+unsafeWindow.GM_setValue = typeof (GM_setValue) !== "undefined" ? GM_setValue : function () {
+    console.error("GM_setValue is not defined, you may need to import it or include it in the @grants meta block");
+};
+unsafeWindow.GM_getValue = typeof (GM_getValue) !== "undefined" ? GM_getValue : function () {
+    console.error("GM_getValue is not defined, you may need to import it or include it in the @grants meta block");
+};
+unsafeWindow.GM_setClipboard = typeof (GM_setClipboard) !== "undefined" ? GM_setClipboard : function () {
+    console.error("GM_setClipboard is not defined, you may need to import it or include it in the @grants meta block");
+};
 
 // unsafeWindow.q = q;
 // unsafeWindow.qa = qa;
@@ -161,11 +245,6 @@ unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
     }
     return results;
 };
-
-/**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
-function ddgProxy(href) {
-    return isDdgUrl(href) || /^(javascript)/i.test(href) ? href : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(href)}&f=1`);
-}
 
 /**Opens the url via fetch(), then performs a callback giving it the document element*/
 unsafeWindow.fetchElement = fetchElement;
@@ -401,26 +480,10 @@ function nodeDepth(child, parent = document, currentDepth = 0) {
         nodeDepth(child.parentNode, parent, currentDepth);
 }
 
-/**Returns the href wrapped with proxy.DuckDuckGo.com */
-function reverseDdgProxy(href) {
-    var s = href;
-    if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
-    if (isDdgUrl(href)) {
-        s = new URL(location.href).searchParams.get('u');
-    }
-    // https://proxy.duckduckgo.com/iu/?u=
-    if (s && s[0]) {
-        return decodeURIComponent(s[0]);
-    } else {
-        console.log('Was unable to reverseDDGProxy for URL:', href);
-        return s;
-    }
-}
-
 unsafeWindow.regexBetween = function (precedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
     return new RegExp(`(?<=(${precedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions);
 };
-unsafeWindow.extend = typeof($) == 'undefined' ? null : $.extend;
+unsafeWindow.extend = typeof ($) == 'undefined' ? null : $.extend;
 
 function preloader(imgUrls) {
     console.log('imgs passed:', imgUrls);
@@ -840,9 +903,6 @@ function fetchElement(url, callback, args) {
     );
 }
 
-function isDdgUrl(url) {
-    return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
-}
 
 function unicodeToChar(text) {
     return text.replace(/\\u[\dA-F]{4}/gim,
