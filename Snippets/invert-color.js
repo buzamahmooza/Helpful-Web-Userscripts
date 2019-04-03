@@ -65,3 +65,19 @@ function invertColor(hex, bw) {
     // pad each with zeros and return
     return "#" + padZero(r) + padZero(g) + padZero(b);
 }
+
+function hexToRgb(c) {
+    if (c[0] === '#') c = c.substr(1);
+    var r = parseInt(c.slice(0, 2), 16),
+        g = parseInt(c.slice(2, 4), 16),
+        b = parseInt(c.slice(4, 6), 16);
+    return [r, g, b];
+}
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
