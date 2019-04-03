@@ -38,7 +38,7 @@ JavaScript:
     function dlFirstVid(doc, url) {
         var vid = doc.querySelector('#player_el');
         console.log('vid:', vid);
-        var url = vid.src ? vid.src : vid;
+        url = vid.src ? vid.src : vid;
         if (!url) url = vid.querySelector('source').src;
         var name = doc.querySelector('[itemprop="description"]').getAttribute('content');
         /*if(confirm("download "+name+"?"))*/

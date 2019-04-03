@@ -7,6 +7,7 @@
 // @include      *
 // @icon         https://alivingperson.files.wordpress.com/2010/09/blocked_200px.png
 // @grant        none
+// @noframes
 // ==/UserScript==
 
 
