@@ -16,6 +16,7 @@
 // @run-at       document-start
 // @include      *
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @noframes
 // ==/UserScript==
 
 
@@ -304,12 +305,14 @@ unsafeWindow.includeJs = includeJs;
  * @param id
  * @return {HTMLStyleElement}
  */
-function addCss(cssStr, id) {
-    const style = document.createElement('style');
+function addCss(cssStr, id = '') {
+    // check if already exists
+    const style = document.getElementById(id) || document.createElement('style');
+
     if (style.styleSheet) {
         style.styleSheet.cssText = cssStr;
     } else {
-        style.appendChild(document.createTextNode(cssStr));
+        style.innerText = cssStr;
     }
     if (!!id) style.id = id;
     style.classList.add('addCss');
@@ -347,7 +350,7 @@ function createAndGetNavbar(callback) {
         }
 
         div#topnav-content {
-            margin-left: 115px;
+            margin-left: 5px;
             padding: 10px;
             font-family: inherit;
             font-stretch: extra-condensed;
@@ -394,10 +397,10 @@ unsafeWindow.setStyleInHTML = setStyleInHTML;
  *  setStyleByHTML(el, "{ background-image : url(http://www.example.com/cool.png) }")
  * @param {HTMLElement} el
  * @param {String} styleProperty
- * @param {String} styleValue
- * @return el
+ * @param {String} [styleValue='']
+ * @return {HTMLElement} el
  */
-function setStyleInHTML(el, styleProperty, styleValue) {
+function setStyleInHTML(el, styleProperty, styleValue = '') {
     styleProperty = styleProperty.trim().replace(/^.*{|}.*$/g, '');
 
     const split = styleProperty.split(':');
@@ -415,12 +418,6 @@ function setStyleInHTML(el, styleProperty, styleValue) {
             `${styleText} ${styleArgument}`;
 
         el.setAttribute('style', newStyle);
-
-        console.debug(
-            'adding to style ', `"${styleArgument}"`,
-            '\nnewStyle:', `"${newStyle}"`,
-            '\nelement:', el
-        );
     }
     return el;
 }
@@ -521,8 +518,8 @@ function waitForElement(elementGetter, callback) {
             me.disconnect();
         }
 
-        var node = (typeof(elementGetter) === 'function') ? elementGetter() :
-            (typeof(elementGetter) === "string") ? document.querySelector(elementGetter) :
+        var node = (typeof (elementGetter) === 'function') ? elementGetter() :
+            (typeof (elementGetter) === "string") ? document.querySelector(elementGetter) :
                 elementGetter;
         try {
             if (node) {
@@ -532,14 +529,17 @@ function waitForElement(elementGetter, callback) {
                 } else if (node.length === undefined) {
                     handleSuccess(node);
                 }
+                return true;
             }
+            return false;
         } catch (e) {
             console.warn(e);
         }
     };
 
     const observer = new MutationObserver(observerCallback);
-    observerCallback(null, observer);
+    if (observerCallback(null, observer))
+        return;
 
     observer.observe(document.body, {
         childList: true
@@ -853,9 +853,9 @@ function xmlRequestElement(url, callback) {
 unsafeWindow.fetchDoc = fetchDoc;
 function fetchDoc(url, callback) {
     fetch(url, {
-            mode: 'no-cors',
-            method: 'get'
-        }
+        mode: 'no-cors',
+        method: 'get'
+    }
     ).then((res) => res.text())
         .then((text) => {
             var doc = document.createElement('html');
@@ -889,17 +889,17 @@ function fetchElement(url, callback, args) {
         response => response.text() // .json(), etc.
         // same as function(response) {return response.text();}
     ).then(function (html) {
-            var doc = document.implementation.createHTMLDocument('');
-            doc.open();
-            doc.write(html);
-            doc.close();
-            try {
-                return callback(doc, url, args);
-            } catch (e) {
-                console.error(e);
-                return (html);
-            }
+        var doc = document.implementation.createHTMLDocument('');
+        doc.open();
+        doc.write(html);
+        doc.close();
+        try {
+            return callback(doc, url, args);
+        } catch (e) {
+            console.error(e);
+            return (html);
         }
+    }
     );
 }
 
@@ -1155,7 +1155,7 @@ unsafeWindow.cleanDates = cleanDates;
 
 unsafeWindow.downloadScripts = function downloadScripts() {
     var scriptUrls = Array.from(document.querySelectorAll('script'))
-        .map(script => script.src ? script.src : window.URL.createObjectURL(new Blob([script.innerHTML], {type: 'text/plain'}))
+        .map(script => script.src ? script.src : window.URL.createObjectURL(new Blob([script.innerHTML], { type: 'text/plain' }))
         );
     zipFiles(scriptUrls);
 };
@@ -1219,7 +1219,7 @@ unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*=
 
 unsafeWindow.observeDocument = function observeDocument(callback, options) {
     callback(document.body);
-    options = typeof(extend) !== 'function' ? {} : extend(options, {
+    options = typeof (extend) !== 'function' ? {} : extend(options, {
         singleCallbackPerMutation: false
     });
     new MutationObserver(
@@ -1235,11 +1235,11 @@ unsafeWindow.observeDocument = function observeDocument(callback, options) {
             }
         }
     ).observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            characterData: false
-        }
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: false
+    }
     );
 };
 unsafeWindow.observeIframe = function observeIframe(iframe, observerInit, observerOptions, args) {
@@ -1427,6 +1427,13 @@ unsafeWindow.iterateOverURLPattern = function iterateOverURLPattern(inputURL) {
     return urls;
 };
 
+/** removes all coded functionality to the element by removing it and reappending it's outerHTML */
+function sanitizeElement(element) {
+    const outerHTML = element.outerHTML;
+    element.after(createElement(outerHTML));
+    element.remove();
+}
+
 /*
     CSS for top navbars:
 
@@ -1612,12 +1619,12 @@ var saveAs = saveAs || (function (view) {
 
     FS_proto.error =
         FS_proto.onwritestart =
-            FS_proto.onprogress =
-                FS_proto.onwrite =
-                    FS_proto.onabort =
-                        FS_proto.onerror =
-                            FS_proto.onwriteend =
-                                null;
+        FS_proto.onprogress =
+        FS_proto.onwrite =
+        FS_proto.onabort =
+        FS_proto.onerror =
+        FS_proto.onwriteend =
+        null;
 
     return saveAs;
 }(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this));
@@ -2249,6 +2256,10 @@ unsafeWindow.saveAs = saveAs;
          *
          * @param {Function} callback
          * @param {Event} e
+         * @param combo
+         * @param sequence
+         * @param combo
+         * @param sequence
          * @returns void
          */
         function _fireCallback(callback, e, combo, sequence) {
@@ -2498,7 +2509,7 @@ unsafeWindow.saveAs = saveAs;
             self._callbacks[info.key] = self._callbacks[info.key] || [];
 
             // remove an existing match if there is one
-            _getMatches(info.key, info.modifiers, {type: info.action}, sequenceName, combination, level);
+            _getMatches(info.key, info.modifiers, { type: info.action }, sequenceName, combination, level);
 
             // add this call back to the array
             // if it is a sequence put it at the beginning
@@ -2729,9 +2740,9 @@ function headers2Object(headers) {
     if (!headers) return {};
     const jsonParseEscape = function (str) {
         return str.replace(/\n/g, "\\n")
-            .replace(/\'/g, "\\'")
-            .replace(/\"/g, '\\"')
-            .replace(/\&/g, "\\&")
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"')
+            .replace(/&/g, "\\&")
             .replace(/\r/g, "\\r")
             .replace(/\t/g, "\\t")
             .replace(/\f/g, "\\f");
@@ -2931,6 +2942,13 @@ function mapObject(o) {
     }
     return map;
 }
+function object2Map(obj) {
+    const map = new Map();
+    for (const key in obj) {
+        map.set(key, obj[key]);
+    }
+    return map;
+}
 function getObjOfType(targetInstance, parentObj) {
     var list = [];
     for (const o in parentObj) if (o instanceof targetInstance) {
@@ -2938,6 +2956,7 @@ function getObjOfType(targetInstance, parentObj) {
     }
     return list;
 }
+
 function getNestedMembers(parentObject, targetType, list) {
     if (!parentObject) {
         console.error("parentObject is not defined:", parent);
@@ -2957,4 +2976,56 @@ function getNestedMembers(parentObject, targetType, list) {
         }
     }
     return list;
+}
+/** https://stackoverflow.com/a/3579651/7771202 */
+function sortByFrequencyAndRemoveDuplicates(array) {
+    var frequency = {}, value;
+
+    // compute frequencies of each value
+    for (var i = 0; i < array.length; i++) {
+        value = array[i];
+        if (value in frequency) {
+            frequency[value]++;
+        }
+        else {
+            frequency[value] = 1;
+        }
+    }
+
+    // make array from the frequency object to de-duplicate
+    var uniques = [];
+    for (value in frequency) {
+        uniques.push(value);
+    }
+
+    // sort the uniques array in descending order by frequency
+    function compareFrequency(a, b) {
+        return frequency[b] - frequency[a];
+    }
+
+    return uniques.sort(compareFrequency);
+}
+
+/**
+ * starting from the beginning, find the array segment that is equal
+ * @param lists
+ * @param equals
+ * @return {Array}
+ */
+function findLongestCommonSegment(lists, equals) {
+    if (typeof equals !== "function") equals = (a, b) => a == b;
+
+    const minLength = lists.map(list => list.length).reduce((l1, l2) => Math.min(l1, l2));
+    const result = [];
+
+    for (var i = 0; i < minLength; i++) { // iterate elements
+        var compareVal = lists[0][i];
+        for (var j = 0; j < lists.length; j++) { // check this element for each list
+            if (!equals(lists[j][i], compareVal)) {
+                return result;
+            }
+        }
+        result.push(compareVal);
+    }
+    return result;
 }
