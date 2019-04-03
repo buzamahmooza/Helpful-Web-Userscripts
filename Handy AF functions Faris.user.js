@@ -247,6 +247,17 @@ unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
     return results;
 };
 
+unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
+    let results = [];
+    let query = document.evaluate(xpath,
+        parent || document,
+        null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+    for (let i = 0, length = query.snapshotLength; i < length; ++i) {
+        results.push(query.snapshotItem(i));
+    }
+    return results;
+};
+
 /**Opens the url via fetch(), then performs a callback giving it the document element*/
 unsafeWindow.fetchElement = fetchElement;
 /**Opens the url via xmlhttpRequest, then performs a callback giving it the document element*/
