@@ -50,4 +50,4 @@
         for (const link of links)
             window.open(link.href, '_blank');
     }
-})()
+})();

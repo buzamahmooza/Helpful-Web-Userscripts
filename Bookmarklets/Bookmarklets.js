@@ -79,6 +79,7 @@ if (confirm(`Download ${fileAnchors.length} files to?\nDirectory: ${directory}`)
         }
     }
 })();
+void(0);
 
 /** Clear all styles */
 (function () {
@@ -86,3 +87,4 @@ if (confirm(`Download ${fileAnchors.length} files to?\nDirectory: ${directory}`)
         style.disabled = true;
     }
 })();
+void(0);
