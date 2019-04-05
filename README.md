@@ -20,6 +20,13 @@ These are scripts that have made my browsing easier and have been my personal pr
 
 You should read the scripts `@description` for a brief summray, or check the comments on the script page on GitHub.
 
+## External libraries
+
+- [Mousetrap.js](https://github.com/ccampbell/mousetrap) Shortcuts and hotkeys binding
+- [JSZip](https://github.com/Stuk/jszip) Compressing files
+- [FileSaver.js](https://github.com/eligrey/FileSaver.js) Downloading and saving files
+- [ocrad.js](https://github.com/antimatter15/ocrad.js/) JS text recognition library
+
 ## Ideas
 
 - [ ] Make a wrapper for `GM_xmlhttprequest()` as `GM_fetch()`
