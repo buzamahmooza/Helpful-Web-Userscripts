@@ -14,8 +14,8 @@
 // @grant        window.close
 // @grant        window.focus
 // @run-at       document-start
+// @require      http://code.jquery.com/jquery-latest.min.js
 // @include      *
-// @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @noframes
 // ==/UserScript==
 
@@ -40,82 +40,100 @@ unsafeWindow.IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?
 // /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(jpg|png|jpeg|gif|tiff|&f=1)/gim;
 unsafeWindow.VID_URL_REGEX = /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(mov|webm|mp4|wmv|&f=1)/gim;
 
-var useEncryptedGoogle = /encrypted.google.com/.test(location.hostname);
-var googleBaseURL = `https://${/google\./.test(location.hostname) ? location.hostname :
-    ((useEncryptedGoogle ? "encrypted" : "www") + ".google.com")}`;
 
-unsafeWindow.gImgSearchURL = `${googleBaseURL}/search?&hl=en&tbm=isch&q=`;
-unsafeWindow.GIMG_REVERSE_SEARCH_URL = `${googleBaseURL}/searchbyimage?&image_url=`;
+
+const GoogleUtils = (function () {
+    const url = {};
+
+    url.isOnEncryptedGoogle = /encrypted.google.com/.test(location.hostname);
+    url.googleBaseURL = `https://${/google\./.test(location.hostname) ? location.hostname :
+        ((url.isOnEncryptedGoogle ? 'encrypted' : 'www') + '.google.com')}`;
+    url.gImgSearchURL = `${url.googleBaseURL}/search?&hl=en&tbm=isch&q=`;
+    url.reverseImageSearchUrl = `${url.googleBaseURL}/searchbyimage?&image_url=`;
+    url.getGImgReverseSearchURL = _url => _url ? url.reverseImageSearchUrl + encodeURIComponent(_url.trim()) : '';
+
+    return {url: url};
+})();
+
 
 if (typeof GM_setClipboard !== 'undefined') {
     unsafeWindow.setClipboard = GM_setClipboard;
     unsafeWindow.GM_setClipboard = GM_setClipboard;
 }
 if (typeof GM_xmlhttpRequest !== 'undefined') {
-    unsafeWindow.GM_xmlhttpRequest =
-        /**
-         * Description
-         GM_xmlhttpRequest is a cross-origin version of XMLHttpRequest. The beauty of this function is that a user script can make requests that do not use the same-origin policy, creating opportunities for powerful mashups.
+    
+    /**
+     * Response callback
+     * @callback scriptish_response_callback
+     * @param {number} responseCode
+     * @param {string} responseMessage
+     */
 
-         Restrictions
-         GM_xmlhttpRequest restricts access to the http, https, ftp, data, blob, and moz-blob protocols.
-
-         If a script uses one or more @domains then the GM_xmlhttpRequest api will be restricted to those domains.
-
-         If the url provided does not pass the above criteria then a error will be thrown when calling GM_xmlhttpRequest
-
-         Arguments
-         Object details
-         A single object with properties defining the request behavior.
-
-         String method: Optional. The HTTP method to utilize. Currently only "GET" and "POST" are supported. Defaults to "GET".
-         String url: The URL to which the request will be sent. This value may be relative to the page the user script is running on.
-         Function onload: Optional. A function called if the request finishes successfully. Passed a Scriptish response object (see below).
-         Function onerror: Optional. A function called if the request fails. Passed a Scriptish response object (see below).
-         Function onreadystatechange: Optional. A function called whenever the request's readyState changes. Passed a Scriptish response object (see below).
-         String data: Optional. Content to send as the body of the request.
-         Object headers: Optional. An object containing headers to be sent as part of the request.
-         Boolean binary: Optional. Forces the request to send data as binary. Defaults to false.
-         Boolean makePrivate: Optional. Forces the request to be a private request (same as initiated from a private window). (0.1.9+)
-         Boolean mozBackgroundRequest: Optional. If true security dialogs will not be shown, and the request will fail. Defaults to true.
-         String user: Optional. The user name to use for authentication purposes. Defaults to the empty string "".
-         String password: Optional. The password to use for authentication purposes. Defaults to the empty string "".
-         String overrideMimeType: Optional. Overrides the MIME type returned by the server.
-         Boolean ignoreCache: Optional. Forces a request to the server, bypassing the cache. Defaults to false.
-         Boolean ignoreRedirect: Optional. Forces the request to ignore both temporary and permanent redirects.
-         Boolean ignoreTempRedirect: Optional. Forces the request to ignore only temporary redirects.
-         Boolean ignorePermanentRedirect: Optional. Forces the request to ignore only permanent redirects.
-         Boolean failOnRedirect: Optional. Forces the request to fail if a redirect occurs.
-         Integer redirectionLimit: Optional. Range allowed: 0-10. Forces the request to fail if a certain number of redirects occur.
-         Note: A redirectionLimit of 0 is equivalent to setting failOnRedirect to true.
-         Note: If both are set, redirectionLimit will take priority over failOnRedirect.
-
-         Note: When ignore*Redirect is set and a redirect is encountered the request will still succeed, and subsequently call onload. failOnRedirect or redirectionLimit exhaustion, however, will produce an error when encountering a redirect, and subsequently call onerror.
-
-         Response Object
-         This is the response object passed to the onload, onerror, and onreadystatechange callbacks described for the details object above.
-
-         String responseText: The response to the request in text form.
-         String responseJSON: If the content type is JSON (example: application/json, text/x-json, and more..) then responseJSON will be available.
-         Integer readyState: The state of the request. Refer to https://developer.mozilla.org/en/XMLHttpRequest#Properties
-         String responseHeaders: The string value of all response headers. null if no response has been received.
-         Integer status: The HTTP status code from the server. null if the request hasn't yet completed, or resulted in an error.
-         String statusText: The entire HTTP status response string from the server. null if the request hasn't yet completed, or resulted in an error.
-         String finalUrl: The final URL used for the request. Takes redirects into account. null if the request hasn't yet completed, or resulted in an error.
-         For "onprogress" only:
-
-         Boolean lengthComputable: Whether it is currently possible to know the total size of the response.
-         Integer loaded: The number of bytes loaded thus far.
-         Integer total: The total size of the response.
-         Returns
-         */
-        GM_xmlhttpRequest;
+    /**
+    * GM_xmlhttpRequest is a cross-origin version of XMLHttpRequest. The beauty of this function is that a user script can make requests that do not use the same-origin policy, creating opportunities for powerful mashups.
+    * 
+    * Restrictions
+    * GM_xmlhttpRequest restricts access to the http, https, ftp, data, blob, and moz-blob protocols.
+    * 
+    * If a script uses one or more @domains then the GM_xmlhttpRequest api will be restricted to those domains.
+    * 
+    * If the url provided does not pass the above criteria then a error will be thrown when calling GM_xmlhttpRequest
+    * 
+    * Arguments
+    * Object details
+    * A single object with properties defining the request behavior.
+    * 
+    * @param {String} method: Optional. The HTTP method to utilize. Currently only "GET" and "POST" are supported. Defaults to "GET".
+    * @param {String} url: The URL to which the request will be sent. This value may be relative to the page the user script is running on.
+    * @param {scriptish_response_callback} onload: Optional. A function called if the request finishes successfully. Passed a Scriptish response object (see below).
+    * @param {scriptish_response_callback} onerror: Optional. A function called if the request fails. Passed a Scriptish response object (see below).
+    * @param {scriptish_response_callback} onreadystatechange: Optional. A function called whenever the request's readyState changes. Passed a Scriptish response object (see below).
+    * @param {String} data: Optional. Content to send as the body of the request.
+    * @param {Object} headers: Optional. An object containing headers to be sent as part of the request.
+    * @param {Boolean} binary: Optional. Forces the request to send data as binary. Defaults to false.
+    * @param {Boolean} makePrivate: Optional. Forces the request to be a private request (same as initiated from a private window). (0.1.9+)
+    * @param {Boolean} mozBackgroundRequest: Optional. If true security dialogs will not be shown, and the request will fail. Defaults to true.
+    * @param {String} user: Optional. The user name to use for authentication purposes. Defaults to the empty string "".
+    * @param {String} password: Optional. The password to use for authentication purposes. Defaults to the empty string "".
+    * @param {String} overrideMimeType: Optional. Overrides the MIME type returned by the server.
+    * @param {Boolean} ignoreCache: Optional. Forces a request to the server, bypassing the cache. Defaults to false.
+    * @param {Boolean} ignoreRedirect: Optional. Forces the request to ignore both temporary and permanent redirects.
+    * @param {Boolean} ignoreTempRedirect: Optional. Forces the request to ignore only temporary redirects.
+    * @param {Boolean} ignorePermanentRedirect: Optional. Forces the request to ignore only permanent redirects.
+    * @param {Boolean} failOnRedirect: Optional. Forces the request to fail if a redirect occurs.
+    * @param {Integer} redirectionLimit: Optional. Range allowed: 0-10. Forces the request to fail if a certain number of redirects occur.
+    * Note: A redirectionLimit of 0 is equivalent to setting failOnRedirect to true.
+    * Note: If both are set, redirectionLimit will take priority over failOnRedirect.
+    * 
+    * Note: When ignore*Redirect is set and a redirect is encountered the request will still succeed, and subsequently call onload. failOnRedirect or redirectionLimit exhaustion, however, will produce an error when encountering a redirect, and subsequently call onerror.
+    * 
+    * Response Object
+    * This is the response object passed to the onload, onerror, and onreadystatechange callbacks described for the details object above.
+    * 
+    * @param {Object} ResponseObj the response object
+    * @param {String} ResponseObj.responseText: The response to the request in text form.
+    * @param {String} ResponseObj.responseJSON: If the content type is JSON (example: application/json, text/x-json, and more..) then responseJSON will be available.
+    * @param {Integer} ResponseObj.readyState: The state of the request. Refer to https://developer.mozilla.org/en/XMLHttpRequest#Properties
+    * @param {String} ResponseObj.responseHeaders: The string value of all response headers. null if no response has been received.
+    * @param {Integer} ResponseObj.status: The HTTP status code from the server. null if the request hasn't yet completed, or resulted in an error.
+    * @param {String} ResponseObj.statusText: The entire HTTP status response string from the server. null if the request hasn't yet completed, or resulted in an error.
+    * @param {String} ResponseObj.finalUrl: The final URL used for the request. Takes redirects into account. null if the request hasn't yet completed, or resulted in an error.
+    * 
+    * For "onprogress" only:
+    * 
+    * @param {Boolean} lengthComputable: Whether it is currently possible to know the total size of the response.
+    * @param {Integer} loaded: The number of bytes loaded thus far.
+    * @param {Integer} total: The total size of the response.
+    * Returns
+    */
+    unsafeWindow.GM_xmlhttpRequest = GM_xmlhttpRequest;
 }
 
 unsafeWindow.log = console.debug;
 unsafeWindow.setLog = newDebugState => (typeof newDebugState === "boolean") ? newDebugState : function (arguments) {
     console.log(arguments);
 };
+unsafeWindow.unsafeWindow = unsafeWindow;
 unsafeWindow.matchSite = matchSite;
 unsafeWindow.createElement = createElement;
 unsafeWindow.loadScript = loadScript;
@@ -156,7 +174,7 @@ unsafeWindow.reverseDdgProxy = PProxy.ddg.reverseDdgProxy;
 unsafeWindow.isDdgUrl = PProxy.ddg.isDdgUrl;
 unsafeWindow.targetIsInput = targetIsInput;
 unsafeWindow.createAndAddAttribute = createAndAddAttribute;
-unsafeWindow.getGImgReverseSearchURL = getGImgReverseSearchURL;
+unsafeWindow.getGImgReverseSearchURL = GoogleUtils.url.getGImgReverseSearchURL;
 
 unsafeWindow.ImgUtils = {
     uriToImageData: function uriToImageData(uri) {
@@ -247,17 +265,6 @@ unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
     return results;
 };
 
-unsafeWindow.getElementsByXPath = function getElementsByXPath(xpath, parent) {
-    let results = [];
-    let query = document.evaluate(xpath,
-        parent || document,
-        null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-    for (let i = 0, length = query.snapshotLength; i < length; ++i) {
-        results.push(query.snapshotItem(i));
-    }
-    return results;
-};
-
 /**Opens the url via fetch(), then performs a callback giving it the document element*/
 unsafeWindow.fetchElement = fetchElement;
 /**Opens the url via xmlhttpRequest, then performs a callback giving it the document element*/
@@ -271,7 +278,7 @@ unsafeWindow.addCss = addCss;
  *
  *    // Usage
  *    var url = 'https://raw.githubusercontent.com/buzamahmooza/Helpful-Web-Userscripts/master/GM_dummy_functions.js?token=AZoN2Rl0UPDtcrOIgaESbGp_tuHy51Hmks5bpijqwA%3D%3D';
- *    loadGitHubScript(url).then((event) => {	});
+ *    loadGitHubScript(url).then((event) => {    });
  */
 function loadGitHubScript(url) {
     return fetch(url).then(res => res.blob()).then(body => loadScript(URL.createObjectURL(body)));
@@ -465,10 +472,6 @@ function observe(targetElement, callback, options) {
     return mutationObserver;
 }
 
-function getGImgReverseSearchURL(url) {
-    // console.debug('gImgReverseSearchURL=', gImgReverseSearchURL);
-    return url ? GIMG_REVERSE_SEARCH_URL + encodeURIComponent(url.trim()) : "";
-}
 
 unsafeWindow.nodeDepth = nodeDepth;
 /**
@@ -491,7 +494,11 @@ function nodeDepth(child, parent = document, currentDepth = 0) {
 unsafeWindow.regexBetween = function (precedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
     return new RegExp(`(?<=(${precedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions);
 };
-unsafeWindow.extend = typeof ($) == 'undefined' ? null : $.extend;
+
+// if(typeof ($) !== 'undefined') {
+//     unsafeWindow.$ = $;
+//     unsafeWindow.extend = $.extend;
+// }
 
 function preloader(imgUrls) {
     console.log('imgs passed:', imgUrls);
@@ -501,9 +508,9 @@ function preloader(imgUrls) {
         // create object
         let imageObj = new Image();
         imageObj.src = url;
-        imageObj.onload = (function () {
+        imageObj.onload = function () {
             console.log('ImageLoaded:', this.src, this);
-        });
+        };
         imgObjs.push(imageObj);
     }
 }
@@ -590,6 +597,9 @@ function createElement(html, callback) {
         callback.call(null, element);
 
     return element;
+}
+unsafeWindow.htmlToElements = function htmlToElements(html) {
+    return new DOMParser().parseFromString(html, 'text/html').body.childNodes
 }
 /* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
@@ -1124,8 +1134,8 @@ function getIframeDoc(iframe) {
 
 unsafeWindow.removeClickListeners = removeClickListeners;
 function removeClickListeners(selector) {
-    if (!!unsafeWindow.$) {
-        unsafeWindow.$(!selector ? "*" : selector)
+    if (!!$) {
+        $(!selector ? "*" : selector)
             .unbind("click")
             .off("click")
             .removeAttr("onclick");
@@ -1198,12 +1208,12 @@ function cleanDates(str) {
 function cleanGibberish(str, minWgr, debug = false) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
-        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " ")),
-            /**
-             * The minimum word2gibberish ratio to exit the loop
-             * @type {number|*}
-             */
-            minWgr = 0.4 || minWgr;
+        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " "));
+        /**
+         * The minimum word2gibberish ratio to exit the loop
+         * @type {number|*}
+         */
+        minWgr = 0.4 || minWgr;
         if (noGibberish.length < 3) return str;
         /**
          * WGR: Word to Gibberish Ratio (between 0 and 1)
@@ -1228,31 +1238,60 @@ function cleanGibberish(str, minWgr, debug = false) {
 var getCssImage = (element) => !element ? null : element.style["background-image"].replace(/(['"]?\)$)|(^url\(["']?)/g, '');
 unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*="background-image"]')).map(getCssImage);
 
-unsafeWindow.observeDocument = function observeDocument(callback, options) {
+
+/**
+ * @param {function} callback -
+ * @param {Object} options
+ * @param {boolean} [options.singleCallbackPerMutation=false]
+ *
+ * @param {string[]} [options.attributeFilter=[]] Optional - An array of specific attribute names to be monitored. If this property isn't included, changes to all attributes cause mutation notifications. No default value.
+ * @param {boolean} [options.attributeOldValue=false] Optional - Set to true to record the previous value of any attribute that changes when monitoring the node or nodes for attribute changes; see Monitoring attribute values in MutationObserver for details on watching for attribute changes and value recording. No default value.
+ * @param {boolean} [options.attributes=false] Optional - Set to true to watch for changes to the value of attributes on the node or nodes being monitored. The default value is false.
+ * @param {boolean} [options.characterData=false] Optional - Set to true to monitor the specified target node or subtree for changes to the character data contained within the node or nodes. No default value.
+ * @param {boolean} [options.characterDataOldValue=false] Optional - Set to true to record the previous value of a node's text whenever the text changes on nodes being monitored. For details and an example, see Monitoring text content changes in MutationObserver. No default value.
+ * @param {boolean} [options.childList=false] Optional - Set to true to monitor the target node (and, if subtree is true, its descendants) for the addition or removal of new child nodes. The default is false.
+ * @param {boolean} [options.subtree=false] Optional -
+ */
+function observeDocument(callback, options) {
     callback(document.body);
-    options = typeof (extend) !== 'function' ? {} : extend(options, {
-        singleCallbackPerMutation: false
-    });
-    new MutationObserver(
-        /** @param mutations */
-        function mutationCallback(mutations) {
-            for (const mutation of mutations) {
-                if (!mutation.addedNodes.length)
-                    continue;
-                callback(mutation.target);
-                if (options.singleCallbackPerMutation === true) {
-                    break;
+    if ($ && typeof ($.extend) === 'function') {
+        options = $.extend({
+            singleCallbackPerMutation: false,
+
+            attributeFilter: [],
+            attributeOldValue: true,
+            attributes: true,
+            characterData: false,
+            characterDataOldValue: false,
+            childList: true,
+            subtree: true,
+        }, options);
+    }
+    
+    var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
+    if (MutationObserver) {
+        var observer = new MutationObserver(
+            function mutationCallback(mutations) {
+                for (const mutation of mutations) {
+                    if (!mutation.addedNodes.length)
+                        continue;
+                    callback(mutation.target);
+                    if (options.singleCallbackPerMutation === true) {
+                        break;
+                    }
                 }
             }
-        }
-    ).observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        characterData: false
+        );
+        return observer.observe(document.body, options);
+    } else {
+        document.addEventListener('DOMAttrModified', callback, false);
+        document.addEventListener('DOMNodeInserted', callback, false);
     }
-    );
-};
+}
+
+
+
+unsafeWindow.observeDocument = observeDocument;
 unsafeWindow.observeIframe = function observeIframe(iframe, observerInit, observerOptions, args) {
     // older browsers don't get responsive iframe height, for now
     if (!window.MutationObserver) return;
@@ -3017,26 +3056,25 @@ function sortByFrequencyAndRemoveDuplicates(array) {
     return uniques.sort(compareFrequency);
 }
 
-/**
- * starting from the beginning, find the array segment that is equal
- * @param lists
- * @param equals
- * @return {Array}
- */
-function findLongestCommonSegment(lists, equals) {
-    if (typeof equals !== "function") equals = (a, b) => a == b;
-
-    const minLength = lists.map(list => list.length).reduce((l1, l2) => Math.min(l1, l2));
-    const result = [];
-
-    for (var i = 0; i < minLength; i++) { // iterate elements
-        var compareVal = lists[0][i];
-        for (var j = 0; j < lists.length; j++) { // check this element for each list
-            if (!equals(lists[j][i], compareVal)) {
-                return result;
-            }
+//TODO: test this out, try to use it, maybe it'll replace `waitForElement()`
+function elementReady(selector) {
+    return new Promise((resolve, reject) => {
+        let el = document.querySelector(selector);
+        if (el) {
+            resolve(el);
         }
-        result.push(compareVal);
-    }
-    return result;
+
+        new MutationObserver((mutationRecords, observer) => {
+            // Query for elements matching the specified selector
+            Array.from(document.querySelectorAll(selector)).forEach((element) => {
+                resolve(element);
+                //Once we have resolved we don't need the observer anymore.
+                observer.disconnect();
+            });
+        })
+            .observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+    });
 }
