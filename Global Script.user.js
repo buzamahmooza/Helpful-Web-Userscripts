@@ -282,7 +282,7 @@ const bindPageNavigators = false;
         // removeClickListeners();
 
         (function executeUrlParamsEval() {
-        	if(typeof URL !== 'function') return;
+            if (typeof URL !== 'function') return;
             const evalStr = new URL(location.href).searchParams.get('eval');
             if (evalStr) {
                 console.log('evaluating URL searchParams:', `"${evalStr}"`);
@@ -309,12 +309,12 @@ function removeClickListeners(selector) {
  * @param selector
  * @param node
  * @return {set<HTMLElement>} */
-function qa(selector, node=document) { return node.querySelectorAll(selector); }
+function qa(selector, node = document) { return node.querySelectorAll(selector); }
 /**abbreviation for querySelector()
  * @param selector
  * @param node
  * @return {HTMLElement} */
-function q(selector, node=document) { return node.querySelector(selector); }
+function q(selector, node = document) { return node.querySelector(selector); }
 
 function addListenersToPages() {
     // press ctrl+shift click an image to download it
@@ -368,13 +368,13 @@ function addListenersToPages() {
                 console.debug('incr URL up');
             }
         });
-		
-		// execute selection as JavaScript
-		Mousetrap.bind(["ctrl+shift+r"], function evaluateSelection(){
-			const selection = window.getSelection ? window.getSelection() : document.getSelection(),
+
+        // execute selection as JavaScript
+        Mousetrap.bind(["ctrl+shift+r"], function evaluateSelection() {
+            const selection = window.getSelection ? window.getSelection() : document.getSelection(),
                 selectionText = selection.toString();
-			eval(selection);
-		});
+            eval(selection);
+        });
 
         // open longest video
         function getLongestVideoUrl() {
@@ -447,7 +447,7 @@ function addListenersToPages() {
         });
 
         Mousetrap.bind("?", () => {
-			// todo:	fix this, make a universla function to expose the function names or at least the function code
+            // todo:	fix this, make a universla function to expose the function names or at least the function code
             console.log('show shortcuts!');
         });
         /*Mousetrap.bind("ctrl+shift+`", () => {
@@ -501,7 +501,7 @@ function addListenersToPages() {
             function _knowyourmeme_DlAll(confirmWithUser) {
                 if (!confirmWithUser || confirm(`Download [${document.querySelectorAll('img[data-src]').length}] images?`)) {
                     var dls = Array.from(document.querySelectorAll('img[data-src]')).map(
-                        img => ({url: img.getAttribute('src').replace('masonry', 'original'), name: img.alt})
+                        img => ({ url: img.getAttribute('src').replace('masonry', 'original'), name: img.alt })
                     );
                     for (const dl of dls) {
                         download(dl.url, dl.name, `${location.hostname} - ${document.title}`);
@@ -530,33 +530,33 @@ function addListenersToPages() {
         }
         // youtube
         else if (matchSite("youtube.com")) {
-			Mousetrap.bind(["r 1"], function(){
-				console.warn('"r 1" hotkey NOT IMPLEMENTED');
-			});
+            Mousetrap.bind(["r 1"], function () {
+                console.warn('"r 1" hotkey NOT IMPLEMENTED');
+            });
         }
         // tumblr
         else if (matchSite("tumblr.com")) {
             if (matchSite('tumblr.com/archive')) {
                 Mousetrap.bind(["alt+s"], function downloadTumblrArchive() {
-                        (function downloadTumblrArchive() {
-                            var urls = Array.from(document.querySelectorAll('div.post')).map(post => {
-                                try {
-                                    return post.querySelector('div[data-imageurl]').getAttribute('data-imageurl').replace(/_250\./, '_1280.');
-                                } catch (r) {
-                                    console.error(r);
-                                }
-                            }).filter(url => !!url);
-
-                            if (confirm(`Download ${urls.length} images?`)) {
-                                zipImages(urls);
+                    (function downloadTumblrArchive() {
+                        var urls = Array.from(document.querySelectorAll('div.post')).map(post => {
+                            try {
+                                return post.querySelector('div[data-imageurl]').getAttribute('data-imageurl').replace(/_250\./, '_1280.');
+                            } catch (r) {
+                                console.error(r);
                             }
-                        })();
-                    }
+                        }).filter(url => !!url);
+
+                        if (confirm(`Download ${urls.length} images?`)) {
+                            zipImages(urls);
+                        }
+                    })();
+                }
                 );
             }
         }
         else if (matchSite("audioblocks.com")) {
-        	Mousetrap.bind(["d"], () => {
+            Mousetrap.bind(["d"], () => {
                 download(q('audio').src);
                 console.log('Download post');
             });
@@ -696,7 +696,7 @@ function addListenersToPages() {
             function dlPinterest() {
                 if (typeof download !== 'function') {
                     alert("The download function was not found on this page, please run the 'downoader' script using tampermonkey.");
-                    void(0);
+                    void (0);
                 }
                 var imgBoxes = document.querySelectorAll('div.pinWrapper');
                 console.log('ImgBoxes:', imgBoxes);
@@ -758,7 +758,43 @@ function addListenersToPages() {
             Mousetrap.bind(["e"], () => q('a[aria-label^="Edit"]').click());
             // Mousetrap.bind(["??? idk what this does"], () => document.querySelectorAll('div.edit.container > div.form-actions > button, #submit-file, .btn-primary').forEach(elt => elt.click())
         }
-        else if (matchSite("https://photos.google.com")) {
+        else if (matchSite(/https:\/\/(docs|sheets).google.com/)) {
+            var hidePanel = function(){
+                if (document.querySelector('button[name="returnToDrive"]')) {
+                    const panel = document.querySelector('body > div.modal-dialog.docs-dialog.docs-restore-dialog');
+                    const dim = document.querySelector('body > div.modal-dialog-bg.docs-restore-dialog-bg');
+                    // panel && panel.remove();
+                    // dim && dim.remove();
+                    if(panel) panel.style.display = 'none';
+                    if(dim) dim.style.display = 'none';
+                }
+            }
+
+            var getter = () => {
+                string = `File is in trash
+To access this file, take it out of the trash.
+
+If this file is shared, collaborators can still make a copy of it until it's permanently deleted. Learn more
+Go to Docs home screen
+Take out of trash`.replace(/\n/g, '');
+                return getElementsByXPath(`/html/body/div[contains(., "${string}")]`);
+            }
+            waitForElement('button[name="returnToDrive"]', function (els) {
+                var el = els.length ? els[0] : els;
+                var escBtn = el.cloneNode();
+                escBtn.innerText = 'Cancel';
+                escBtn.setAttribute('name', 'CancelTrash');
+                el.parentElement.appendChild(escBtn);
+                escBtn.onclick = hidePanel;
+            });
+            // window.addEventListener('keyup', function (e) {
+            //     if (e.key === 27) { // escape
+            //         e.preventDefault();
+            //         e.stopImmediatePropagation();
+            //     }
+            // });
+
+        } else if (matchSite("https://photos.google.com")) {
             Mousetrap.bind(["del"], () => {
                 // var selected = document.querySelectorAll('.WjVZdb .R1sU4e');
                 // var threeDotsBtn = document.querySelector('#ow651 > content > span > svg');
@@ -1139,7 +1175,7 @@ function getOffset(el) {
         _y += el.offsetTop - el.scrollTop;
         el = el.offsetParent;
     }
-    return {top: _y, left: _x};
+    return { top: _y, left: _x };
 }
 // when you're done with the link, be sure to clean it for garbage collection (link=null;)
 function urlToAnchor(url) {
