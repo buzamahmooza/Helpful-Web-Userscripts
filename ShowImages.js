@@ -3,6 +3,9 @@
  */
 //BOOKMARK: was last fixing the issue:
 //TODO: the same image changes its src many times and it's causing many requests, find the reason and fix it (probably from the `fireNextErrorHandler()`)
+// TODO: -[ ] add the ability to load images via another loaderImage object
+// TODO: -[ ] fix the handler list, right now it's just a single handler
+// TODO: -[ ] fix borders not being set on success or on failure, only for proxy
 
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
@@ -30,20 +33,77 @@
     };
 
     const PProxy = (function () {
-        function isDdgUrl(url) {
-            return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
+
+        class ProxyInterface {
+            constructor() {
+                throw Error('Static class cannot be instantiated');
+            }
+            static get color() {
+                return '#00000';
+            }
+            static test(url) {
+            }
+            static proxy(url) {
+            }
+            static reverse(proxyUrl) {
+            }
         }
+
         /**Returns a DuckDuckGo proxy url (attempts to unblock the url)*/
-        var ddgProxy = function (url) {
-            return isDdgUrl(url) || /^(javascript)/i.test(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
-        };
-        ddgProxy.isDdgUrl = isDdgUrl;
+        class DDG extends ProxyInterface {
+            static get color() {
+                return '#FFA500';
+            }
+            static test(url) {
+                return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
+            }
+            static proxy(url) {
+                return DDG.test(url) || /^(javascript)/i.test(url) ? url : (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url)}&f=1`);
+            }
+            static isDdgUrl() {
+                new Error('This function "isDdgUrl()" is deprecated, use "PProxy.DDG.test()" instead');
+            }
+            static reverse(url) {
+                // if (isZscalarUrl(url)) s = getOGZscalarUrl(url); // extra functionality:
+                if (!DDG.test(url)) {
+                    return url;
+                }
+                return new URL(location.href).searchParams.get('u');
+            }
+        }
+
+        class FileStack extends ProxyInterface {
+            static get color() {
+                return '#acb300';
+            }
+            static test(url) {
+                return /https:\/\/process\.filestackapi\.com\/.+\//.test(url);
+            }
+            static proxy(url) {
+                return 'https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/' + encodeURIComponent(url.trim());
+            }
+            static reverse(url) {
+            }
+        }
+
+        class SteemitImages extends ProxyInterface {
+            static get color() {
+                return '#0074B3';
+            }
+            static test(url) {
+                return /https:\/\/steemitimages\.com\/0x0\//.test(url);
+            }
+            static proxy(url) {
+                return /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? ('https://steemitimages.com/0x0/' + url.trim()) : url;
+            }
+            static reverse(url) {
+            }
+        }
 
         return {
-            fileStack: url => ('https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/' + encodeURIComponent(url.trim())),
-            steemitimages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? ('https://steemitimages.com/0x0/' + url.trim()) : url,
-            ddg: ddgProxy,
-            ddgProxy: ddgProxy,
+            FileStack: FileStack,
+            SteemitImages: SteemitImages,
+            DDG: DDG,
         };
     })();
 
@@ -56,9 +116,10 @@
      * @author gilly3 - https://stackoverflow.com/a/33019709/7771202
      *
      * @param {HTMLElement|Node} img the image you want to load
+     * @param src
      * @returns {Promise}
      */
-    function loadPromise(img, src='') {
+    function loadPromise(img, src = '') {
         if (img.src && img.complete) {
             return (img.naturalWidth > 0) ?
                 Promise.resolve(img) :
@@ -74,16 +135,16 @@
                 reject(new Error('image failed loading'));
             }, false);
 
-            if (img.src) {
-                var loaderImage = new Image();
+            var loaderImage = new Image();
+            if (!img.src && src)
                 loaderImage.onload = (e) => {
+                    img.src = src;
                     resolve(img);
-                }
-                loaderImage.onerror = (e) => {
-                    reject(new Error('image failed loading', img.src));
                 };
-                loaderImage.src = img.src;
-            }
+            loaderImage.onerror = (e) => {
+                reject(new Error('image failed loading ' + img.src));
+            };
+            loaderImage.src = img.src;
         });
     }
 
@@ -93,7 +154,22 @@
 
         opts = extend({
             parent: null,
-            onLoad: function () { },
+            onSuccess: function (img) {
+                _im.successfulUrls.add(img.src);
+
+                if (/\.(gif)($|\?)/i.test(img.anchor) || /\.(gif)($|\?)/i.test(img.oldSrc)) {
+                    // language=CSS
+                    setBorderWithColor(img, '#5d00b3');
+                    img.classList.add(_im.parent.ClassNames.DISPLAY_ORIGINAL_GIF);
+                } else {
+                    // language=CSS
+                    setBorderWithColor(img, '#04b300');
+                    img.classList.add(_im.parent.ClassNames.DISPLAY_ORIGINAL);
+                }
+
+            },
+            onLoad: function (e) {
+            },
             onErrorHandlers: [],
         }, opts);
 
@@ -101,12 +177,13 @@
         _im._images = new Set();
         _im.parent = opts.parent;
         _im.onErrorHandlers = opts.onErrorHandlers || [];
+        _im.onSuccess = opts.onSuccess;
     }
     /**
      * Fires the next error handler depending on imgEl.handlerIndex and increments it.
      * Also binds to the next handler
      * @this {ImageManager} the image manager
-     * @param {HTMLImageElement} img the image that has failed loading
+     * @param {HTMLImageElement} imgEl - the image that has failed loading
      * @param {Event} event
      * Must contain:
      *  {number} imgEl.handlerIndex
@@ -148,12 +225,10 @@
      *  load = loading:    image still loading
      *  load = "error":  image failed to load
      * @param imgEl
-     * @param onError
-     * @param onLoad
+     * @param src
      */
     ImageManager.prototype.addHandlers = function (imgEl, src) {
         var _im = this;
-        var showImages = _im.parent;
 
         if (!imgEl || imgEl.getAttribute('loaded') === 'loading' || imgEl.handlerIndex > 0)
             return;
@@ -164,7 +239,9 @@
         // 3- for each onerror, there's an error handler, imgEl.handlerIndex indicates which handler is next
         // 4- until we get to the last handler, and that'd be to mark the image as [loaded="error"]
 
-        imgEl.__defineSetter__('oldSrc', function(value) {
+        var anchor = imgEl.anchor || imgEl.closest('a[href]');
+
+        imgEl.__defineSetter__('oldSrc', function (value) {
             this._oldSrc = value;
             this.setAttribute('oldSrc', value);
         });
@@ -180,7 +257,6 @@
         var onload;
         var onerror;
 
-        var anchor = imgEl.anchor || imgEl.closest('a[href]');
 
         function tryNextHandler(img) {
             img = img.imgEl || img;
@@ -197,7 +273,7 @@
 
             try {
                 tryNextHandler(img).then(img => {
-                    onload.call(imgEl);
+                    onload.call(img);
                 });
             } catch (e) {
                 console.error(e);
@@ -210,6 +286,7 @@
             if (_isImageOk(img)) {
                 img.setAttribute('loaded', 'true');
                 img.style.display = '';
+                _im.onSuccess(img);
             } else { // if it didn't load or width==0:
                 onerror.call(imgEl, event);
             }
@@ -254,23 +331,16 @@
     class ShowImages {
         constructor(options) {
             var self = this || ShowImages;
-
-            self.ClassNames = {
-                DISPLAY_ORIGINAL: "display-original-" + "mainThumbnail",
-                DISPLAY_ORIGINAL_GIF: "display-original-" + "-gif",
-                FAILED: "display-original-" + "-failed",
-                FAILED_DDG: "display-original-" + "-ddg-failed",
-            };
             // TODO: define the options and the default values
             options = extend({
-                imagesFilter: (img, anchor) => !img.classList.contains(this.ClassNames.DISPLAY_ORIGINAL) &&
+                imagesFilter: (img, anchor) => !img.classList.contains(self.ClassNames.DISPLAY_ORIGINAL) &&
                     // !img.closest('.' + this.ClassNames.DISPLAY_ORIGINAL) &&
                     // /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(anchor.href) &&
                     !img.classList.contains('irc_mut') && // @google specific
                     !/^data:/.test(anchor.href),
             }, options);
 
-            for(const key of Object.keys(options)) {
+            for (const key of Object.keys(options)) {
                 self[key] = options[key];
             }
             this.imagesFilter = options.imagesFilter;
@@ -278,23 +348,24 @@
             //TODO: do dis
             var im_options = {
                 parent: self,
-                onLoad: function () { },
+                onLoad: function () {
+                },
                 onErrorHandlers: (function getDefaultHandlers() {
                     function handler1(event, imageManager) {
                         const img = this;
                         img.src = img.oldSrc || img.src;
 
-                        useProxy(img, PProxy.steemitimages, imageManager);
+                        useProxy(img, PProxy.SteemitImages.proxy);
 
                         return loadPromise(img);
                     }
                     function handler2(event, imageManager) {
                         const img = this;
                         img.src = img.oldSrc || img.src;
-                        useProxy(img, PProxy.ddgProxy, imageManager);
+                        useProxy(img, PProxy.DDG.proxy);
                         return loadPromise(img);
                     }
-                    function useProxy(imgEl, proxy, imageManager) {
+                    function useProxy(imgEl, proxy) {
                         const anchor = imgEl.anchor || imgEl.closest('a[href]');
                         const proxyUrl = proxy(anchor.href);
 
@@ -308,22 +379,22 @@
 
                         //Make borders ORANGE
                         // language=CSS
-                        setBorder(imgEl, '{border: 2px #FFA500 solid}');
+                        setBorderWithColor(imgEl, proxy.color);
                     }
-                    function handleProxyError(event, imageManager) {
+                    function handleProxyError(event) {
                         const img = this;
                         img.src = img.oldSrc || img.src; // return the src back to normal
-                        markNotFound(img, imageManager);
+                        markNotFound(img);
                         img.classList.add(self.ClassNames.FAILED_DDG);
                     }
                     /**puts red borders around the mainImage.
                      * @param node
                      */
-                    function markNotFound(node, imageManager) {
+                    function markNotFound(node) {
                         node.classList.add(self.ClassNames.FAILED);
                         node.setAttribute('loaded', 'error');
                         // language=CSS
-                        setBorder(node, '{border: 2px #b90004 solid}');
+                        setBorderWithColor(node, '#b90004');
                         self.ImageManager.successfulUrls.delete(node.src);
                     }
                     return [handler1, handler2, handleProxyError];
@@ -332,36 +403,15 @@
             self.ImageManager = new ImageManager(im_options);
         }
 
-        /**
-         * searches for child thumbnails and replaces the ones found (calls `replaceImgSrc` and/or `replaceThumbWithVid`)
-         * replaces the src, `ImageManager.addHandlers(img, img.src);`
-         *
-         * @param {HTMLElement} node could be an image or any node containing an image
-         */
-        displayOriginalImage(node) {
-            var self = this;
-            if (node.matches("a[href] img[src]")) {
-                const img = node;
-                const result = this.replaceImgSrc(img);
-                if(result) {
-                    if (/\.(gif)($|\?)/i.test(img.anchor)) {
-                        img.classList.add(self.ClassNames.DISPLAY_ORIGINAL_GIF);
-                    }
-                }
+        get ClassNames() {
+            return {
+                DISPLAY_ORIGINAL: 'display-original-' + 'mainThumbnail',
+                DISPLAY_ORIGINAL_GIF: 'display-original-' + '-gif',
+                FAILED: 'display-original-' + '-failed',
+                FAILED_DDG: 'display-original-' + '-ddg-failed',
             }
-            for (const img of node.querySelectorAll("a[href] img[src]")) {
-                const result = this.replaceImgSrc(img);
-                if(result) {
-                    if (/\.(gif)($|\?)/i.test(img.anchor)) {
-                        img.classList.add(self.ClassNames.DISPLAY_ORIGINAL_GIF);
-                    }
-                }
-            }
-            for (const vidThumb of node.querySelectorAll("a[href] > img")) {
-                this.replaceThumbWithVid(vidThumb);
-            }
-        }
-        replaceThumbWithVid(vidThumb) {
+        };
+        static replaceThumbWithVid(vidThumb) {
             const anchor = vidThumb.closest('[href], source');
             const href = anchor.href;
             if (/\.(mov|mp4|avi|webm|flv|wmv)($|\?)/i.test(href)) { // if the link is to a video
@@ -371,6 +421,35 @@
                 const vidEl = createElement(`<video ${videoOptions} name="media" src="${href}"  type="video/webm" style="width:${vidThumb.clientWidth * 2}px;">`);
                 anchor.after(vidEl);
                 anchor.remove();
+            }
+        }
+        /**
+         * searches for child thumbnails and replaces the ones found (calls `replaceImgSrc` and/or `replaceThumbWithVid`)
+         * replaces the src, `ImageManager.addHandlers(img, img.src);`
+         *
+         * @param {HTMLElement} node could be an image or any node containing an image
+         */
+        displayOriginalImage(node) {
+            var self = this;
+            if (node.matches('a[href] img[src]')) {
+                const img = node;
+                const result = this.replaceImgSrc(img);
+                if (result) {
+                    if (/\.(gif)($|\?)/i.test(img.anchor)) {
+                        img.classList.add(self.ClassNames.DISPLAY_ORIGINAL_GIF);
+                    }
+                }
+            }
+            for (const img of node.querySelectorAll('a[href] img[src]')) {
+                const result = this.replaceImgSrc(img);
+                if (result) {
+                    if (/\.(gif)($|\?)/i.test(img.anchor)) {
+                        img.classList.add(self.ClassNames.DISPLAY_ORIGINAL_GIF);
+                    }
+                }
+            }
+            for (const vidThumb of node.querySelectorAll('a[href] > img')) {
+                ShowImages.replaceThumbWithVid(vidThumb);
             }
         }
         // TODO: turn this to a promise
@@ -402,7 +481,7 @@
          */
         displayImages() {
             observeDocument(node => this.displayOriginalImage(node));
-            qa('iframe').forEach(iframe => iframe.querySelectorAll("a[href] img[src]").forEach(this.replaceImgSrc));
+            qa('iframe').forEach(iframe => iframe.querySelectorAll('a[href] img[src]').forEach(this.replaceImgSrc));
         }
     }
 
@@ -437,6 +516,12 @@
     function q(selector) {
         return document.querySelector(selector);
     }
+
+    function setBorderWithColor(el, color = '{color: #5d00b3;}') {
+        color = color.replace('{color: ', '').replace(';}', '');
+        // language=CSS
+        return setBorder(el, '{border-radius: 2px; border: 3px ' + color + ' solid}');
+    }
     /**
      * Sets the CSS border property of an image or it's container if it exists
      * @param el
@@ -444,10 +529,10 @@
      * @return {boolean}
      */
     function setBorder(el, borderArgs) {
-        if (!el.classList.contains("irc_mi")) {// Condition to improve performance only for Google.com
+        if (!el.classList.contains('irc_mi')) {// Condition to improve performance only for Google.com
             var container = el.closest('div');
 
-            if (container && !container.classList.contains("irc_mimg") && !container.classList.contains("irc_mutc")) { // @Google-Specific
+            if (container && !container.classList.contains('irc_mimg') && !container.classList.contains('irc_mutc')) { // @Google-Specific
                 setStyleInHTML(container, borderArgs);
                 // setStyleInHTML(el, "border", "none !important");
             } else {
@@ -466,7 +551,7 @@
      * @param {String} [styleValue='']
      * @return {HTMLElement} el
      */
-    function setStyleInHTML(el, styleProperty, styleValue = "") {
+    function setStyleInHTML(el, styleProperty, styleValue = '') {
         styleProperty = styleProperty.trim().replace(/^.*{|}.*$/g, '');
 
         const split = styleProperty.split(':');
