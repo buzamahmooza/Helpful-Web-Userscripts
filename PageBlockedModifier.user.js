@@ -14,9 +14,9 @@
 // window.addEventListener("load", go, true);
 
 Proxy = {
-    fileStack: url => ("https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/" + encodeURIComponent(url.trim())),
-    steemitimages: url => ("https://steemitimages.com/0x0/" + url.trim()),
-    ddg: url => /^https:\/\/proxy\.duckduckgo\.com/.test(url) || /^(javascript)/i.test(url) ? href :
+    FileStack: url => ("https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/" + encodeURIComponent(url.trim())),
+    SteemitImages: url => ("https://steemitimages.com/0x0/" + url.trim()),
+    DDG: url => /^https:\/\/proxy\.duckduckgo\.com/.test(url) || /^(javascript)/i.test(url) ? href :
         (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url.trim())}&f=1`)
 };
 
@@ -52,9 +52,9 @@ function go() {
 
     const proxies = createElement(`<div class="proxy">
     <h3>Proxies</h3>
-    <li><a class="proxy_ddg" href="${Proxy.ddg(location.href)}">DuckDuckGo</a></li>
-    <li><a class="proxy_steemitimages" href="${Proxy.steemitimages(location.href)}">SteemitImages</a></li>
-    <li><a class="proxy_fileStack" href="${Proxy.fileStack(location.href)}">Filestack</a></li>
+    <li><a class="proxy_ddg" href="${Proxy.DDG(location.href)}">DuckDuckGo</a></li>
+    <li><a class="proxy_steemitimages" href="${Proxy.SteemitImages(location.href)}">SteemitImages</a></li>
+    <li><a class="proxy_fileStack" href="${Proxy.FileStack(location.href)}">Filestack</a></li>
 </div>`);
 
     const ss = (getHostname(location.href));

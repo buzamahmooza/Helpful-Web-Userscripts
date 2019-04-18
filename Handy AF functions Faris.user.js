@@ -160,18 +160,17 @@ unsafeWindow.PProxy = (function () {
     ddgProxy.reverseDdgProxy = reverseDdgProxy;
 
     return {
-        fileStack: url => ('https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/' + encodeURIComponent(url.trim())),
-        steemitimages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? ('https://steemitimages.com/0x0/' + url.trim()) : url,
-        ddg: ddgProxy,
-        ddgProxy: ddgProxy,
+        FileStack: url => ('https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/' + encodeURIComponent(url.trim())),
+        SteemitImages: url => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(url) ? ('https://steemitimages.com/0x0/' + url.trim()) : url,
+        DDG: ddgProxy,
     };
 })();
 
 
-unsafeWindow.ddgProxy = PProxy.ddg;
+unsafeWindow.ddgProxy = PProxy.DDG;
 unsafeWindow.getOGZscalarUrl = getOGZscalarUrl;
-unsafeWindow.reverseDdgProxy = PProxy.ddg.reverseDdgProxy;
-unsafeWindow.isDdgUrl = PProxy.ddg.isDdgUrl;
+unsafeWindow.reverseDdgProxy = PProxy.DDG.reverseDdgProxy;
+unsafeWindow.isDdgUrl = PProxy.DDG.isDdgUrl;
 unsafeWindow.targetIsInput = targetIsInput;
 unsafeWindow.createAndAddAttribute = createAndAddAttribute;
 unsafeWindow.getGImgReverseSearchURL = GoogleUtils.url.getGImgReverseSearchURL;

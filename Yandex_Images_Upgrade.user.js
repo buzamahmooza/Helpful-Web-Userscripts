@@ -78,7 +78,7 @@ const imagePreloader = {
     },
     handleLoadError: function (event) {
         const oldSrc = this.img.src;
-        this.img.src = Proxy.steemitimages(this.img.src);
+        this.img.src = Proxy.SteemitImages(this.img.src);
         console.log('Image wasn\'t loading, switching to proxy:', oldSrc, this.src, event);
     }
 };
@@ -202,7 +202,7 @@ function initPanel() {
         download(downloadLink.href, panel.compoundTitle, null, {
             onerror: function () {
                 console.log('onerror called, downloading mainThumbnail instead:', panel.mainThumbnail);
-                download(Proxy.steemitimages(downloadLink.href), panel.compoundTitle);
+                download(Proxy.SteemitImages(downloadLink.href), panel.compoundTitle);
             },
             fileExtension: getFileExtension(downloadLink.href)
         });

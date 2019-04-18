@@ -63,7 +63,7 @@
                 };
                 return this.proxy(href);
             },
-            steemitimages: function (href) {
+            SteemitImages: function (href) {
                 this.is = (href2) => new URL(href2 || href).hostname == "steemitimages.com";
                 this.reverse = (href2) => this.is(href2) ? decodeURIComponent(href2.split('/').pop()) : href2;
                 this.proxy = (href2) => /\.(jpg|jpeg|tiff|png|gif)($|\?)/i.test(href2) && !this.is(href2) ? `https://steemitimages.com/0x0/${href2.trim()}` : href2;
@@ -184,7 +184,7 @@
     })();
 
     const url = (function () {
-        var location_href = (/^localhost\:/.test(location.host)) ? // if localhost, try inferring the url from the majoraty of the links
+        var location_href = (/^localhost:/.test(location.host)) ? // if localhost, try inferring the url from the majoraty of the links
             (function () {
                 return mode(getAllUrlsInPage().map(href => new URL(href).hostname)); // most frequently occurred hostname
             })()

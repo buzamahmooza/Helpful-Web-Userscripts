@@ -23,9 +23,9 @@
     const IMG_SEARCH_URL = 'https://www.google.com/search?&tbm=isch&q=';
 
     const Proxy = {
-        fileStack: url => ("https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/" + encodeURIComponent(url.trim())),
-        steemitimages: url => ("https://steemitimages.com/0x0/" + url.trim()),
-        ddg: url => /^https:\/\/proxy\.duckduckgo\.com/.test(url) || /^(javascript)/i.test(url) ? href :
+        FileStack: url => ("https://process.filestackapi.com/AhTgLagciQByzXpFGRI0Az/" + encodeURIComponent(url.trim())),
+        SteemitImages: url => ("https://steemitimages.com/0x0/" + url.trim()),
+        DDG: url => /^https:\/\/proxy\.duckduckgo\.com/.test(url) || /^(javascript)/i.test(url) ? href :
             (`https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(url.trim())}&f=1`)
     };
 
@@ -110,7 +110,7 @@
         window['fkzscaler'] = true;
 
         if (options.attemptToRedirectToProxy && isImage) {
-            const prx = Proxy.steemitimages(ogUrl);
+            const prx = Proxy.SteemitImages(ogUrl);
             console.log('Going to proxy:', ogUrl, '->', prx);
             window.open(prx);
         }
