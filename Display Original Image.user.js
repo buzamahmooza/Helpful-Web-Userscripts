@@ -13,6 +13,7 @@
 //@grant        window.close
 //@grant        window.focus
 //@run-at       document-idle
+//@require      http://code.jquery.com/jquery-latest.min.js
 //@require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.4/jszip.min.js
 //@require      https://raw.githubusercontent.com/kimmobrunfeldt/progressbar.js/master/dist/progressbar.min.js
 //@require      https://github.com/buzamahmooza/Helpful-Web-Userscripts/raw/master/Handy%20AF%20functions%20Faris.user.js
@@ -355,7 +356,7 @@
     }
 
     div.${ClassNames.FAILED_DDG}:not(.irc_mimg):not(.irc_mutc) {
-        border: 2px #FFA500 solid;
+        border: 3px #FFA500 solid;
     }` :
                 ` /*set borders*/
     img.${ClassNames.DISPLAY_ORIGINAL}:not(.irc_mi) {
@@ -370,46 +371,6 @@
         border: 2px #FFA500 solid;
     }
     `);
-
-
-        /* Overlay CSS for highlighting selected images */
-        // language=CSS
-        addCss(`.highlight, .drop-shadow {
-        filter: drop-shadow(8px 8px 10px gray) !important;
-    }
-
-    .blur.in {
-        -webkit-transition: all 0.1s ease-in !important;
-        /*-webkit-filter: blur(6px) !important;*/
-        transform: scale(0.7) !important;
-        opacity: 0.3 !important;
-    }
-
-    .blur.out:not(.in) {
-        -webkit-filter: blur(0px) !important;
-        /*filter: blur(0px) !important;*/
-        transform: scale(1) !important;
-        opacity: 1 !important;
-        -webkit-transition: all 0.25s ease-out !important;
-        transition: all 0.25s ease-out !important;
-    }
-
-    .transparent {
-        opacity: 0.4 !important;
-    }
-
-    .sg-too-small {
-
-    }
-
-    .sg-too-small-hide {
-        display: none !important;
-    }
-
-    .hide-img {
-        display: none !important;
-    }`, 'filters-style');
-        /* "border-bottom: 1px dotted black;" is for if you want dots under the hover-able text */
     }
 
 })();
