@@ -49,6 +49,72 @@
   * @param details.abort - function to be called to cancel this download
   */
  GM_download = GM_download;
+ 
+/**
+ * Response callback
+ * @callback scriptish_response_callback
+ * @param {number} responseCode
+ * @param {string} responseMessage
+ */
+/**
+ * GM_xmlhttpRequest is a cross-origin version of XMLHttpRequest. The beauty of this function is that a user script can make requests that do not use the same-origin policy, creating opportunities for powerful mashups.
+ * 
+ * Restrictions
+ * GM_xmlhttpRequest restricts access to the http, https, ftp, data, blob, and moz-blob protocols.
+ * 
+ * If a script uses one or more @domains then the GM_xmlhttpRequest api will be restricted to those domains.
+ * 
+ * If the url provided does not pass the above criteria then a error will be thrown when calling GM_xmlhttpRequest
+ * 
+ * Arguments
+ * Object details
+ * A single object with properties defining the request behavior.
+ * 
+ * @param {String} method: Optional. The HTTP method to utilize. Currently only "GET" and "POST" are supported. Defaults to "GET".
+ * @param {String} url: The URL to which the request will be sent. This value may be relative to the page the user script is running on.
+ * @param {scriptish_response_callback} onload: Optional. A function called if the request finishes successfully. Passed a Scriptish response object (see below).
+ * @param {scriptish_response_callback} onerror: Optional. A function called if the request fails. Passed a Scriptish response object (see below).
+ * @param {scriptish_response_callback} onreadystatechange: Optional. A function called whenever the request's readyState changes. Passed a Scriptish response object (see below).
+ * @param {String} data: Optional. Content to send as the body of the request.
+ * @param {Object} headers: Optional. An object containing headers to be sent as part of the request.
+ * @param {Boolean} binary: Optional. Forces the request to send data as binary. Defaults to false.
+ * @param {Boolean} makePrivate: Optional. Forces the request to be a private request (same as initiated from a private window). (0.1.9+)
+ * @param {Boolean} mozBackgroundRequest: Optional. If true security dialogs will not be shown, and the request will fail. Defaults to true.
+ * @param {String} user: Optional. The user name to use for authentication purposes. Defaults to the empty string "".
+ * @param {String} password: Optional. The password to use for authentication purposes. Defaults to the empty string "".
+ * @param {String} overrideMimeType: Optional. Overrides the MIME type returned by the server.
+ * @param {Boolean} ignoreCache: Optional. Forces a request to the server, bypassing the cache. Defaults to false.
+ * @param {Boolean} ignoreRedirect: Optional. Forces the request to ignore both temporary and permanent redirects.
+ * @param {Boolean} ignoreTempRedirect: Optional. Forces the request to ignore only temporary redirects.
+ * @param {Boolean} ignorePermanentRedirect: Optional. Forces the request to ignore only permanent redirects.
+ * @param {Boolean} failOnRedirect: Optional. Forces the request to fail if a redirect occurs.
+ * @param {Integer} redirectionLimit: Optional. Range allowed: 0-10. Forces the request to fail if a certain number of redirects occur.
+ * Note: A redirectionLimit of 0 is equivalent to setting failOnRedirect to true.
+ * Note: If both are set, redirectionLimit will take priority over failOnRedirect.
+ * 
+ * Note: When ignore*Redirect is set and a redirect is encountered the request will still succeed, and subsequently call onload. failOnRedirect or redirectionLimit exhaustion, however, will produce an error when encountering a redirect, and subsequently call onerror.
+ * 
+ * Response Object
+ * This is the response object passed to the onload, onerror, and onreadystatechange callbacks described for the details object above.
+ * 
+ * @param {Object} ResponseObj the response object
+ * @param {String} ResponseObj.responseText: The response to the request in text form.
+ * @param {String} ResponseObj.responseJSON: If the content type is JSON (example: application/json, text/x-json, and more..) then responseJSON will be available.
+ * @param {Integer} ResponseObj.readyState: The state of the request. Refer to https://developer.mozilla.org/en/XMLHttpRequest#Properties
+ * @param {String} ResponseObj.responseHeaders: The string value of all response headers. null if no response has been received.
+ * @param {Integer} ResponseObj.status: The HTTP status code from the server. null if the request hasn't yet completed, or resulted in an error.
+ * @param {String} ResponseObj.statusText: The entire HTTP status response string from the server. null if the request hasn't yet completed, or resulted in an error.
+ * @param {String} ResponseObj.finalUrl: The final URL used for the request. Takes redirects into account. null if the request hasn't yet completed, or resulted in an error.
+ * 
+ * For "onprogress" only:
+ * 
+ * @param {Boolean} lengthComputable: Whether it is currently possible to know the total size of the response.
+ * @param {Integer} loaded: The number of bytes loaded thus far.
+ * @param {Integer} total: The total size of the response.
+ * Returns
+ */
+GM_xmlhttpRequest = GM_xmlhttpRequest;
+
 
 // Note: directory names should include the trailing "/" path terminato
 const Config = $.extend({
@@ -341,7 +407,7 @@ function download(fileUrl, fileName, directory = '', originalOptions = {}) {
         onload: function onload() {
             console.log('Download finished', finalName, "\n" + fileUrl);
             downloadSet.add(fileUrl);
-
+            // FIXME: error always appears stating that o.onload isn't a function
             o.onload();
         },
         onerror: function (r) {
