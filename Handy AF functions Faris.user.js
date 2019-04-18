@@ -14,7 +14,7 @@
 // @grant        window.close
 // @grant        window.focus
 // @run-at       document-start
-// @require      http://code.jquery.com/jquery-latest.min.js
+// @require      https://code.jquery.com/jquery-3.4.0.min.js
 // @include      *
 // @noframes
 // ==/UserScript==
@@ -33,13 +33,12 @@ if (Element.prototype.after === undefined) Element.prototype.after = function (n
 };
 
 /**/
-if (typeof unsafeWindow === "undefined") unsafeWindow = window;
+if (typeof unsafeWindow === 'undefined') unsafeWindow = window;
 
 unsafeWindow.URL_REGEX_STR = `(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?`;
 unsafeWindow.IMAGE_URL_REGEX = new RegExp(`(//|http(s?:))[\\d\\w?%\\-_/\\\\=.]+?\\.(jpg|png|jpeg|gif|tiff|&f=1)`, 'gim');
 // /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(jpg|png|jpeg|gif|tiff|&f=1)/gim;
 unsafeWindow.VID_URL_REGEX = /(\/\/|http(s?:))[\d\w?%\-_\/\\=.]+?\.(mov|webm|mp4|wmv|&f=1)/gim;
-
 
 
 const GoogleUtils = (function () {
@@ -61,7 +60,6 @@ if (typeof GM_setClipboard !== 'undefined') {
     unsafeWindow.GM_setClipboard = GM_setClipboard;
 }
 if (typeof GM_xmlhttpRequest !== 'undefined') {
-    
     /**
      * Response callback
      * @callback scriptish_response_callback
@@ -130,7 +128,7 @@ if (typeof GM_xmlhttpRequest !== 'undefined') {
 }
 
 unsafeWindow.log = console.debug;
-unsafeWindow.setLog = newDebugState => (typeof newDebugState === "boolean") ? newDebugState : function (arguments) {
+unsafeWindow.setLog = newDebugState => (typeof newDebugState === 'boolean') ? newDebugState : function (arguments) {
     console.log(arguments);
 };
 unsafeWindow.unsafeWindow = unsafeWindow;
@@ -141,7 +139,7 @@ unsafeWindow.PProxy = (function () {
     function isDdgUrl(url) {
         return /^https:\/\/proxy\.duckduckgo\.com/.test(url);
     }
-    
+
     /**Returns the href wrapped with proxy.DuckDuckGo.com */
     function reverseDdgProxy(href) {
         // if (isZscalarUrl(href)) s = getOGZscalarUrl(href); // extra functionality:
@@ -226,14 +224,14 @@ unsafeWindow.ImgUtils = {
 
 unsafeWindow.toDdgProxy = () => location.href = ddgProxy(location.href);
 unsafeWindow.isIterable = obj => obj != null && typeof obj[Symbol.iterator] == 'function';
-unsafeWindow.GM_setValue = typeof (GM_setValue) !== "undefined" ? GM_setValue : function () {
-    console.error("GM_setValue is not defined, you may need to import it or include it in the @grants meta block");
+unsafeWindow.GM_setValue = typeof (GM_setValue) !== 'undefined' ? GM_setValue : function () {
+    console.error('GM_setValue is not defined, you may need to import it or include it in the @grants meta block');
 };
-unsafeWindow.GM_getValue = typeof (GM_getValue) !== "undefined" ? GM_getValue : function () {
-    console.error("GM_getValue is not defined, you may need to import it or include it in the @grants meta block");
+unsafeWindow.GM_getValue = typeof (GM_getValue) !== 'undefined' ? GM_getValue : function () {
+    console.error('GM_getValue is not defined, you may need to import it or include it in the @grants meta block');
 };
-unsafeWindow.GM_setClipboard = typeof (GM_setClipboard) !== "undefined" ? GM_setClipboard : function () {
-    console.error("GM_setClipboard is not defined, you may need to import it or include it in the @grants meta block");
+unsafeWindow.GM_setClipboard = typeof (GM_setClipboard) !== 'undefined' ? GM_setClipboard : function () {
+    console.error('GM_setClipboard is not defined, you may need to import it or include it in the @grants meta block');
 };
 
 // unsafeWindow.q = q;
@@ -246,7 +244,7 @@ unsafeWindow.getHostname = getHostname;
 /***/
 unsafeWindow.openAllLinks = function () {
     Array.from(document.links).forEach(function (link) {
-        if (link.hasAttribute("href")) {
+        if (link.hasAttribute('href')) {
             window.open(link.href);
         }
     });
@@ -288,7 +286,7 @@ function loadGitHubScript(url) {
             script.src = url;
             script.onload = resolve;
             script.onerror = function () {
-                console.warn("couldn't load script: ", url);
+                console.warn('couldn\'t load script: ', url);
                 if (typeof reject === 'function')
                     reject();
             }; // TODO Not sure it really works
@@ -309,7 +307,7 @@ unsafeWindow.addJs = function addJs(js, id) {
 unsafeWindow.observe = observe;
 unsafeWindow.gfycatPage2GifUrl = function (gfycatPageUrl) {
     if (!/https:\/\/gfycat\.com\/gifs\/detail\/.+/.test(gfycatPageUrl)) {
-        throw error("Not a gfycat home url:" + gfycatPageUrl);
+        throw error('Not a gfycat home url:' + gfycatPageUrl);
     }
     return `https://thumbs.gfycat.com/${gfycatPageUrl.split('/').pop()}-size_restricted.gif`;
 };
@@ -372,16 +370,16 @@ function createAndGetNavbar(callback) {
             font-family: inherit;
             font-stretch: extra-condensed;
             font-size: 20px;
-        }`, "navbar-css");
+        }`, 'navbar-css');
 
     function adjustTopMargin() {
         document.body.style.top = `${q('#topnav').offsetHeight}px`;
     }
 
     const navbar = document.createElement(`div`);
-    navbar.id = "topnav";
+    navbar.id = 'topnav';
     const navbarContentDiv = document.createElement('div');
-    navbarContentDiv.id = "topnav-content";
+    navbarContentDiv.id = 'topnav-content';
 
     navbar.appendChild(navbarContentDiv);
 
@@ -389,7 +387,7 @@ function createAndGetNavbar(callback) {
 
     window.addEventListener('resize', adjustTopMargin);
 
-    document.body.style.position = "relative";
+    document.body.style.position = 'relative';
 
     // keep trying to use the callback, works when the navbarContentDiv is finally added
     var interval = setInterval(function () {
@@ -481,8 +479,8 @@ unsafeWindow.nodeDepth = nodeDepth;
  * @return {number}
  */
 function nodeDepth(child, parent = document, currentDepth = 0) {
-    if (!child || !parent) throw "Both the child and parent must non-null.";
-    if (!parent.contains(child)) throw "The given parent does not contain the child.";
+    if (!child || !parent) throw 'Both the child and parent must non-null.';
+    if (!parent.contains(child)) throw 'The given parent does not contain the child.';
 
     currentDepth++;
     return child.parentNode == parent ?
@@ -491,7 +489,7 @@ function nodeDepth(child, parent = document, currentDepth = 0) {
 }
 
 unsafeWindow.regexBetween = function (precedingRegEx, betweenRegEx, proceedingRegEx, regexOptions) {
-    return new RegExp(`(?<=(${precedingRegEx}))(${!betweenRegEx ? ".+?" : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions);
+    return new RegExp(`(?<=(${precedingRegEx}))(${!betweenRegEx ? '.+?' : betweenRegEx})(?=(${proceedingRegEx}))`, regexOptions);
 };
 
 // if(typeof ($) !== 'undefined') {
@@ -536,7 +534,7 @@ function waitForElement(elementGetter, callback) {
         }
 
         var node = (typeof (elementGetter) === 'function') ? elementGetter() :
-            (typeof (elementGetter) === "string") ? document.querySelector(elementGetter) :
+            (typeof (elementGetter) === 'string') ? document.querySelector(elementGetter) :
                 elementGetter;
         try {
             if (node) {
@@ -567,6 +565,36 @@ function waitForElement(elementGetter, callback) {
     return observer;
 }
 
+function elementReady(selector, timeoutInMs = -1) {
+    return new Promise((resolve, reject) => {
+        var getter = typeof selector === 'function' ?
+            selector => selector() :
+            selector => document.querySelectorAll(selector)
+        ;
+        var els = getter();
+        if (els && els.length) {
+            resolve(els[0]);
+        }
+        if (timeoutInMs > 0)
+            var timeout = setTimeout(() => {
+                reject(`elementReady(${selector}) timed out at ${timeoutInMs}ms`);
+                console.debug(`elementReady(${selector}) timed out at ${timeoutInMs}ms`);
+            }, timeoutInMs);
+
+        new MutationObserver((mutationRecords, observer) => {
+            // Query for elements matching the specified selector
+            Array.from(getter(selector)).forEach((element) => {
+                clearTimeout(timeout);
+                resolve(element);
+                //Once we have resolved we don't need the observer anymore.
+                observer.disconnect();
+            });
+        }).observe(document.documentElement, {
+            childList: true,
+            subtree: true
+        });
+    });
+}
 /**
  * cross-browser wheel delta
  * Returns the mousewheel scroll delta as -1 (wheelUp) or 1 (wheelDown) (cross-browser support)
@@ -603,12 +631,12 @@ unsafeWindow.htmlToElements = function htmlToElements(html) {
 /* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
     let result = location.href.match(siteRegex);
-    if (!!result) console.debug("Site matched regex: " + siteRegex);
+    if (!!result) console.debug('Site matched regex: ' + siteRegex);
     return result;
 }
 function siteSearchUrl(query) {
     if (query) {
-        return gImgSearchURL + "site:" + encodeURIComponent(query.trim());
+        return gImgSearchURL + 'site:' + encodeURIComponent(query.trim());
     }
 }
 
@@ -649,10 +677,10 @@ function incrementUrl(href, incrAmount) {
     let IB = incrAmount ? incrAmount : 1;
 
     function isDigit(c) {
-        return ("0" <= c && c <= "9")
+        return ('0' <= c && c <= '9')
     }
     const tip = location.href.match(/([&?]|$).*$/)[0];
-    let L = href.replace(tip, "");
+    let L = href.replace(tip, '');
     let LL = L.length;
     for (e = LL - 1; e >= 0; --e) if (isDigit(L.charAt(e))) {
         for (s = e - 1; s >= 0; --s) if (!isDigit(L.charAt(s))) break;
@@ -663,11 +691,11 @@ function incrementUrl(href, incrAmount) {
     let oldNum = L.substring(s, e + 1);
     let newNum = (parseInt(oldNum, 10) + IB);
     if (newNum < 0) newNum = 0;
-    let newNumStr = "" + newNum;
+    let newNumStr = '' + newNum;
     while (newNumStr.length < oldNum.length)
-        newNumStr = "0" + newNumStr;
+        newNumStr = '0' + newNumStr;
 
-    return (L.substring(0, s) + "" + newNumStr + "" + L.slice(e + 1) + "" + tip);
+    return (L.substring(0, s) + '' + newNumStr + '' + L.slice(e + 1) + '' + tip);
 }
 
 unsafeWindow.printElementTextAttributes = printElementTextAttributes;
@@ -838,7 +866,7 @@ function onLoadDim(url, callback, imgNode, args) {
         console.warn('Url is invalid');
         return;
     }
-    if (typeof url !== "string") {
+    if (typeof url !== 'string') {
         url = !!url.src ? url.src : url.href;
     }
 
@@ -854,7 +882,7 @@ function onLoadDim(url, callback, imgNode, args) {
 
 /**@deprecated Opens the url via xmlhttpRequest, then performs a callback giving it the document element*/
 function xmlRequestElement(url, callback) {
-    if (typeof callback !== 'function') console.error("The callback is not a function", callback);
+    if (typeof callback !== 'function') console.error('The callback is not a function', callback);
     const req = new XMLHttpRequest();
     req.open('GET', url);
     req.send();
@@ -864,7 +892,7 @@ function xmlRequestElement(url, callback) {
             const doc = document.createElement('html');
             doc.innerHTML = pageHTML;
 
-            console.log('Recieved document for page ', url + ":", doc);
+            console.log('Recieved document for page ', url + ':', doc);
 
             callback(doc, url);
         }
@@ -873,9 +901,9 @@ function xmlRequestElement(url, callback) {
 unsafeWindow.fetchDoc = fetchDoc;
 function fetchDoc(url, callback) {
     fetch(url, {
-        mode: 'no-cors',
-        method: 'get'
-    }
+            mode: 'no-cors',
+            method: 'get'
+        }
     ).then((res) => res.text())
         .then((text) => {
             var doc = document.createElement('html');
@@ -893,7 +921,7 @@ function testUrls(urls, successUrls) {
         console.log('Sucessfully fetched url:', url);
         successUrls.add(url);
     }).catch((res) => {
-        console.error("Failed to fetch url:", url);
+        console.error('Failed to fetch url:', url);
     });
 }
 /**Opens the url, then performs a callback giving it the document element
@@ -909,17 +937,17 @@ function fetchElement(url, callback, args) {
         response => response.text() // .json(), etc.
         // same as function(response) {return response.text();}
     ).then(function (html) {
-        var doc = document.implementation.createHTMLDocument('');
-        doc.open();
-        doc.write(html);
-        doc.close();
-        try {
-            return callback(doc, url, args);
-        } catch (e) {
-            console.error(e);
-            return (html);
+            var doc = document.implementation.createHTMLDocument('');
+            doc.open();
+            doc.write(html);
+            doc.close();
+            try {
+                return callback(doc, url, args);
+            } catch (e) {
+                console.error(e);
+                return (html);
+            }
         }
-    }
     );
 }
 
@@ -1004,17 +1032,17 @@ unsafeWindow.SrcSet = class SrcSet {
 
 unsafeWindow.cookieUtils = {
     setCookie: function setCookie(name, value, days) {
-        var expires = "";
+        var expires = '';
         if (days) {
             var date = new Date();
             date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-            expires = "; expires=" + date.toUTCString();
+            expires = '; expires=' + date.toUTCString();
         }
-        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        document.cookie = name + '=' + (value || '') + expires + '; path=/';
         return document.cookie;
     },
     getCookie: function getCookie(name) {
-        var nameEQ = name + "=";
+        var nameEQ = name + '=';
         var ca = document.cookie.split(';');
         for (var i = 0; i < ca.length; i++) {
             var c = ca[i];
@@ -1044,7 +1072,7 @@ unsafeWindow.url2location = url2location;
  * }
  */
 function url2location(url) {
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     return {
         port: a.port,
@@ -1063,7 +1091,7 @@ function url2location(url) {
  *        if false:     www.example.com
  * @returns {string} Returns the hostname of the site URL */
 function getHostname(href, keepPrefix) {
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = href;
     // if (keepPrefix) console.debug("getHostname href =", href);
     return a.hostname;
@@ -1134,10 +1162,10 @@ function getIframeDoc(iframe) {
 unsafeWindow.removeClickListeners = removeClickListeners;
 function removeClickListeners(selector) {
     if (!!$) {
-        $(!selector ? "*" : selector)
-            .unbind("click")
-            .off("click")
-            .removeAttr("onclick");
+        $(!selector ? '*' : selector)
+            .unbind('click')
+            .off('click')
+            .removeAttr('onclick');
     } else {
         console.warn('unsafeWindow.$ is not defined');
     }
@@ -1146,7 +1174,7 @@ function removeClickListeners(selector) {
  * @WIP TODO: Complete this function
  */
 function removeEventListeners(eventTarget) {
-    var eventType = "click";
+    var eventType = 'click';
     eventTarget = window;
 
     for (const eventType in window.getEventListeners(eventTarget)) {
@@ -1164,7 +1192,7 @@ function removeEventListeners(eventTarget) {
     let listeners = eventTarget.getEventListeners(eventTarget);
     listeners.forEach(function (listener) {
         console.log('removing listener:', listener);
-        eventTarget.removeEventListener("click", listener, false);
+        eventTarget.removeEventListener('click', listener, false);
     });
 }
 
@@ -1175,7 +1203,7 @@ unsafeWindow.cleanDates = cleanDates;
 
 unsafeWindow.downloadScripts = function downloadScripts() {
     var scriptUrls = Array.from(document.querySelectorAll('script'))
-        .map(script => script.src ? script.src : window.URL.createObjectURL(new Blob([script.innerHTML], { type: 'text/plain' }))
+        .map(script => script.src ? script.src : window.URL.createObjectURL(new Blob([script.innerHTML], {type: 'text/plain'}))
         );
     zipFiles(scriptUrls);
 };
@@ -1198,7 +1226,7 @@ function isBase64ImageData(str) {
     return /^data:image\/.{1,5};base64/.test(str);
 }
 function removeDoubleSpaces(str) {
-    return !!str ? str.replace(/(\s{2,})/g, " ") : str;
+    return !!str ? str.replace(/(\s{2,})/g, ' ') : str;
 }
 
 function cleanDates(str) {
@@ -1207,7 +1235,7 @@ function cleanDates(str) {
 function cleanGibberish(str, minWgr, debug = false) {
     if (str) {
         const gibberishRegex = /(\W{2,})|(\d{3,})|(\d+\w{1,5}\d+){2,}/g;
-        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, " "));
+        let noGibberish = removeDoubleSpaces(str.replace(gibberishRegex, ' '));
         /**
          * The minimum word2gibberish ratio to exit the loop
          * @type {number|*}
@@ -1230,11 +1258,11 @@ function cleanGibberish(str, minWgr, debug = false) {
 
         return wgr > minWgr ?
             cleanGibberish(noGibberish, minWgr) :
-            (str.length > 3 ? str : "");
+            (str.length > 3 ? str : '');
     }
-    return "";
+    return '';
 }
-var getCssImage = (element) => !element ? null : element.style["background-image"].replace(/(['"]?\)$)|(^url\(["']?)/g, '');
+var getCssImage = (element) => !element ? null : element.style['background-image'].replace(/(['"]?\)$)|(^url\(["']?)/g, '');
 unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*="background-image"]')).map(getCssImage);
 
 
@@ -1251,8 +1279,21 @@ unsafeWindow.getCssImages = () => Array.from(document.querySelectorAll('[style*=
  * @param {boolean} [options.childList=false] Optional - Set to true to monitor the target node (and, if subtree is true, its descendants) for the addition or removal of new child nodes. The default is false.
  * @param {boolean} [options.subtree=false] Optional -
  */
-function observeDocument(callback, options) {
-    callback(document.body);
+
+/**
+ * @param {function} callback -
+ * @param {Object=} options
+ * @param {boolean} [options.singleCallbackPerMutation=false]
+ *
+ * @param {string[]} [options.attributeFilter=[]] Optional - An array of specific attribute names to be monitored. If this property isn't included, changes to all attributes cause mutation notifications. No default value.
+ * @param {boolean} [options.attributeOldValue=false] Optional - Set to true to record the previous value of any attribute that changes when monitoring the node or nodes for attribute changes; see Monitoring attribute values in MutationObserver for details on watching for attribute changes and value recording. No default value.
+ * @param {boolean} [options.attributes=false] Optional - Set to true to watch for changes to the value of attributes on the node or nodes being monitored. The default value is false.
+ * @param {boolean} [options.characterData=false] Optional - Set to true to monitor the specified target node or subtree for changes to the character data contained within the node or nodes. No default value.
+ * @param {boolean} [options.characterDataOldValue=false] Optional - Set to true to record the previous value of a node's text whenever the text changes on nodes being monitored. For details and an example, see Monitoring text content changes in MutationObserver. No default value.
+ * @param {boolean} [options.childList=false] Optional - Set to true to monitor the target node (and, if subtree is true, its descendants) for the addition or removal of new child nodes. The default is false.
+ * @param {boolean} [options.subtree=false] Optional -
+ */
+function observeDocument(callback, options={}) {
     if ($ && typeof ($.extend) === 'function') {
         options = $.extend({
             singleCallbackPerMutation: false,
@@ -1266,28 +1307,31 @@ function observeDocument(callback, options) {
             subtree: true,
         }, options);
     }
-    
-    var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
-    if (MutationObserver) {
-        var observer = new MutationObserver(
-            function mutationCallback(mutations) {
-                for (const mutation of mutations) {
-                    if (!mutation.addedNodes.length)
-                        continue;
-                    callback(mutation.target);
-                    if (options.singleCallbackPerMutation === true) {
-                        break;
+
+    elementReady('body').then((body)=> {
+        callback(document.body);
+
+        var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
+        if (MutationObserver) {
+            var observer = new MutationObserver(
+                function mutationCallback(mutations) {
+                    for (const mutation of mutations) {
+                        if (!mutation.addedNodes.length)
+                            continue;
+                        callback(mutation.target);
+                        if (options.singleCallbackPerMutation === true) {
+                            break;
+                        }
                     }
                 }
-            }
-        );
-        return observer.observe(document.body, options);
-    } else {
-        document.addEventListener('DOMAttrModified', callback, false);
-        document.addEventListener('DOMNodeInserted', callback, false);
-    }
+            );
+            return observer.observe(document.body, options);
+        } else {
+            document.addEventListener('DOMAttrModified', callback, false);
+            document.addEventListener('DOMNodeInserted', callback, false);
+        }
+    });
 }
-
 
 
 unsafeWindow.observeDocument = observeDocument;
@@ -1357,7 +1401,7 @@ function waitFor(condition, action, interval) {
 
     var checkExist = setInterval(function () {
         if (condition) {
-            console.log("Exists!");
+            console.log('Exists!');
             clearInterval(checkExist);
             action();
         }
@@ -1365,7 +1409,7 @@ function waitFor(condition, action, interval) {
 }
 
 function downloadUsingXmlhttpRequest(url, opts) {
-    var imgUrl = url || "http://static.jsbin.com/images/dave.min.svg?4.1.4";
+    var imgUrl = url || 'http://static.jsbin.com/images/dave.min.svg?4.1.4';
     GM_xmlhttpRequest({
         method: 'GET',
         url: imgUrl,
@@ -1377,7 +1421,7 @@ function downloadUsingXmlhttpRequest(url, opts) {
                 We could just as easily AJAX-off the data instead.
             */
             var zImgPara = document.createElement('p');
-            var zTargetNode = document.querySelector("body *"); //1st child
+            var zTargetNode = document.querySelector('body *'); //1st child
 
             zImgPara.innerHTML = 'Image: <img src="data:image/png;base64,'
                 + binResp + '">';
@@ -1394,9 +1438,9 @@ function downloadUsingXmlhttpRequest(url, opts) {
             inpLen = inputStr.length,
             inx = 0,
             jnx,
-            keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-                + "0123456789+/=",
-            output = "",
+            keyStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+                + '0123456789+/=',
+            output = '',
             paddingBytes = 0;
         var
             bytebuffer = new Array(bbLen),
@@ -1469,8 +1513,8 @@ unsafeWindow.iterateOverURLPattern = function iterateOverURLPattern(inputURL) {
 
     let urls = [];
     for (var i = start; i <= end; i++) {
-        var newNum = "" + i;
-        while (newNum.length < start.length) newNum = "0" + newNum;
+        var newNum = '' + i;
+        while (newNum.length < start.length) newNum = '0' + newNum;
         urls.push(inputURL.replace(/\[.+]/, newNum));
     }
     return urls;
@@ -1511,9 +1555,9 @@ function sanitizeElement(element) {
  */
 // noinspection ThisExpressionReferencesGlobalObjectJS
 var saveAs = saveAs || (function (view) {
-    "use strict";
+    'use strict';
     // IE <10 is explicitly unsupported
-    if (typeof view === "undefined" || typeof navigator !== "undefined" && /MSIE [1-9]\./.test(navigator.userAgent)) {
+    if (typeof view === 'undefined' || typeof navigator !== 'undefined' && /MSIE [1-9]\./.test(navigator.userAgent)) {
         return;
     }
     var
@@ -1523,10 +1567,10 @@ var saveAs = saveAs || (function (view) {
         get_URL = function () {
             return view.URL || view.webkitURL || view;
         },
-        save_link = doc.createElementNS("http://www.w3.org/1999/xhtml", "a"),
-        can_use_save_link = "download" in save_link,
+        save_link = doc.createElementNS('http://www.w3.org/1999/xhtml', 'a'),
+        can_use_save_link = 'download' in save_link,
         click = function (node) {
-            var event = new MouseEvent("click");
+            var event = new MouseEvent('click');
             node.dispatchEvent(event);
         },
         is_safari = /constructor/i.test(view.HTMLElement) || view.safari,
@@ -1537,14 +1581,14 @@ var saveAs = saveAs || (function (view) {
                 throw ex;
             }, 0);
         },
-        force_saveable_type = "application/octet-stream"
+        force_saveable_type = 'application/octet-stream'
         // the Blob API is fundamentally broken as there is no "downloadfinished" event to subscribe to
         ,
         arbitrary_revoke_timeout = 1000 * 40 // in ms
         ,
         revoke = function (file) {
             var revoker = function () {
-                if (typeof file === "string") { // file is an object URL
+                if (typeof file === 'string') { // file is an object URL
                     get_URL().revokeObjectURL(file);
                 } else { // file is a File
                     file.remove();
@@ -1556,8 +1600,8 @@ var saveAs = saveAs || (function (view) {
             event_types = [].concat(event_types);
             var i = event_types.length;
             while (i--) {
-                var listener = filesaver["on" + event_types[i]];
-                if (typeof listener === "function") {
+                var listener = filesaver['on' + event_types[i]];
+                if (typeof listener === 'function') {
                     try {
                         listener.call(filesaver, event || filesaver);
                     } catch (ex) {
@@ -1586,7 +1630,7 @@ var saveAs = saveAs || (function (view) {
                 type = blob.type,
                 force = type === force_saveable_type,
                 object_url, dispatch_all = function () {
-                    dispatch(filesaver, "writestart progress write writeend".split(" "));
+                    dispatch(filesaver, 'writestart progress write writeend'.split(' '));
                 }
                 // on any filesys errors revert to saving with object URLs
                 ,
@@ -1613,7 +1657,7 @@ var saveAs = saveAs || (function (view) {
                     if (force) {
                         view.location.href = object_url;
                     } else {
-                        var opened = view.open(object_url, "_blank");
+                        var opened = view.open(object_url, '_blank');
                         if (!opened) {
                             // Apple does not allow window.open, see https://developer.apple.com/library/safari/documentation/Tools/Conceptual/SafariExtensionGuide/WorkingwithWindowsandTabs/WorkingwithWindowsandTabs.html
                             view.location.href = object_url;
@@ -1642,13 +1686,13 @@ var saveAs = saveAs || (function (view) {
         },
         FS_proto = FileSaver.prototype,
         saveAs = function (blob, name, no_auto_bom) {
-            return new FileSaver(blob, name || blob.name || "download", no_auto_bom);
+            return new FileSaver(blob, name || blob.name || 'download', no_auto_bom);
         };
 
     // IE 10+ (native saveAs)
-    if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
+    if (typeof navigator !== 'undefined' && navigator.msSaveOrOpenBlob) {
         return function (blob, name, no_auto_bom) {
-            name = name || blob.name || "download";
+            name = name || blob.name || 'download';
 
             if (!no_auto_bom) {
                 blob = auto_bom(blob);
@@ -1668,21 +1712,21 @@ var saveAs = saveAs || (function (view) {
 
     FS_proto.error =
         FS_proto.onwritestart =
-        FS_proto.onprogress =
-        FS_proto.onwrite =
-        FS_proto.onabort =
-        FS_proto.onerror =
-        FS_proto.onwriteend =
-        null;
+            FS_proto.onprogress =
+                FS_proto.onwrite =
+                    FS_proto.onabort =
+                        FS_proto.onerror =
+                            FS_proto.onwriteend =
+                                null;
 
     return saveAs;
-}(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this));
+}(typeof self !== 'undefined' && self || typeof window !== 'undefined' && window || this));
 /*`self` is undefined in Firefox for Android content script context
 while `this` is nsIContentFrameMessageManager
 with an attribute `content` that corresponds to the window*/
-if (typeof module !== "undefined" && module.exports) {
+if (typeof module !== 'undefined' && module.exports) {
     module.exports.saveAs = saveAs;
-} else if ((typeof define !== "undefined" && define !== null) && (define.amd !== null)) {
+} else if ((typeof define !== 'undefined' && define !== null) && (define.amd !== null)) {
     define([], function () {
         return saveAs;
     });
@@ -2558,7 +2602,7 @@ unsafeWindow.saveAs = saveAs;
             self._callbacks[info.key] = self._callbacks[info.key] || [];
 
             // remove an existing match if there is one
-            _getMatches(info.key, info.modifiers, { type: info.action }, sequenceName, combination, level);
+            _getMatches(info.key, info.modifiers, {type: info.action}, sequenceName, combination, level);
 
             // add this call back to the array
             // if it is a sequence put it at the beginning
@@ -2776,33 +2820,33 @@ function fetchSimilarHeaders(callback) {
 }
 
 String.prototype.escapeSpecialChars = function () {
-    return this.replace(/\\n/g, "\\n")
-        .replace(/\\'/g, "\\'")
+    return this.replace(/\\n/g, '\\n')
+        .replace(/\\'/g, '\\\'')
         .replace(/\\"/g, '\\"')
-        .replace(/\\&/g, "\\&")
-        .replace(/\\r/g, "\\r")
-        .replace(/\\t/g, "\\t")
-        .replace(/\\b/g, "\\b")
-        .replace(/\\f/g, "\\f");
+        .replace(/\\&/g, '\\&')
+        .replace(/\\r/g, '\\r')
+        .replace(/\\t/g, '\\t')
+        .replace(/\\b/g, '\\b')
+        .replace(/\\f/g, '\\f');
 };
 function headers2Object(headers) {
     if (!headers) return {};
     const jsonParseEscape = function (str) {
-        return str.replace(/\n/g, "\\n")
-            .replace(/'/g, "\\'")
+        return str.replace(/\n/g, '\\n')
+            .replace(/'/g, '\\\'')
             .replace(/"/g, '\\"')
-            .replace(/&/g, "\\&")
-            .replace(/\r/g, "\\r")
-            .replace(/\t/g, "\\t")
-            .replace(/\f/g, "\\f");
+            .replace(/&/g, '\\&')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t')
+            .replace(/\f/g, '\\f');
     };
     var jsonStr = '{\n' +
-        headers.trim().split("\n").filter(line => line.length > 2)
+        headers.trim().split('\n').filter(line => line.length > 2)
             .map(
-                line => "   " + [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
+                line => '   ' + [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
                     .map(part => '"' + jsonParseEscape(part.trim()) + '"').join(':')
             )
-            .join(",\n") +
+            .join(',\n') +
         '\n}';
     console.log('jsonStr:', jsonStr);
     return JSON.parse(jsonStr);
@@ -2817,7 +2861,7 @@ unsafeWindow.fetchUsingProxy = fetchUsingProxy;
  * @see     https://cors-anywhere.herokuapp.com/
  */
 function fetchUsingProxy(url, callback) {
-    const proxyurl = "https://cors-anywhere.herokuapp.com/";
+    const proxyurl = 'https://cors-anywhere.herokuapp.com/';
     callback = callback || (contents => console.log(contents));
     fetch(proxyurl + url) // https://cors-anywhere.herokuapp.com/https://example.com
         .then(response => response.text())
@@ -2827,8 +2871,8 @@ function fetchUsingProxy(url, callback) {
 
 
 unsafeWindow.getUnusualWindowObjects = function getUnusualWindowObjects(compareWindow = window) {
-    const plainWindowKeylist = ["postMessage", "blur", "focus", "close", "frames", "self", "window", "parent", "opener", "top", "length", "closed", "location", "document", "origin", "name", "history", "locationbar", "menubar", "personalbar", "scrollbars", "statusbar", "toolbar", "status", "frameElement", "navigator", "customElements", "external", "screen", "innerWidth", "innerHeight", "scrollX", "pageXOffset", "scrollY", "pageYOffset", "screenX", "screenY", "outerWidth", "outerHeight", "devicePixelRatio", "clientInformation", "screenLeft", "screenTop", "defaultStatus", "defaultstatus", "styleMedia", "onanimationend", "onanimationiteration", "onanimationstart", "onsearch", "ontransitionend", "onwebkitanimationend", "onwebkitanimationiteration", "onwebkitanimationstart", "onwebkittransitionend", "isSecureContext", "onabort", "onblur", "oncancel", "oncanplay", "oncanplaythrough", "onchange", "onclick", "onclose", "oncontextmenu", "oncuechange", "ondblclick", "ondrag", "ondragend", "ondragenter", "ondragleave", "ondragover", "ondragstart", "ondrop", "ondurationchange", "onemptied", "onended", "onerror", "onfocus", "oninput", "oninvalid", "onkeydown", "onkeypress", "onkeyup", "onload", "onloadeddata", "onloadedmetadata", "onloadstart", "onmousedown", "onmouseenter", "onmouseleave", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onmousewheel", "onpause", "onplay", "onplaying", "onprogress", "onratechange", "onreset", "onresize", "onscroll", "onseeked", "onseeking", "onselect", "onstalled", "onsubmit", "onsuspend", "ontimeupdate", "ontoggle", "onvolumechange", "onwaiting", "onwheel", "onauxclick", "ongotpointercapture", "onlostpointercapture", "onpointerdown", "onpointermove", "onpointerup", "onpointercancel", "onpointerover", "onpointerout", "onpointerenter", "onpointerleave", "onafterprint", "onbeforeprint", "onbeforeunload", "onhashchange", "onlanguagechange", "onmessage", "onmessageerror", "onoffline", "ononline", "onpagehide", "onpageshow", "onpopstate", "onrejectionhandled", "onstorage", "onunhandledrejection", "onunload", "performance", "stop", "open", "alert", "confirm", "prompt", "print", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "captureEvents", "releaseEvents", "getComputedStyle", "matchMedia", "moveTo", "moveBy", "resizeTo", "resizeBy", "getSelection", "find", "webkitRequestAnimationFrame", "webkitCancelAnimationFrame", "fetch", "btoa", "atob", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "createImageBitmap", "scroll", "scrollTo", "scrollBy", "onappinstalled", "onbeforeinstallprompt", "crypto", "ondevicemotion", "ondeviceorientation", "ondeviceorientationabsolute", "indexedDB", "webkitStorageInfo", "sessionStorage", "localStorage", "chrome", "visualViewport", "speechSynthesis", "webkitRequestFileSystem", "webkitResolveLocalFileSystemURL", "openDatabase", "applicationCache", "caches", "global", "WebUIListener", "cr", "assert", "assertNotReached", "assertInstanceof", "$", "getSVGElement", "announceAccessibleMessage", "getUrlForCss", "parseQueryParams", "setQueryParam", "findAncestorByClass", "findAncestor", "swapDomNodes", "disableTextSelectAndDrag", "isRTL", "getRequiredElement", "queryRequiredElement", "appendParam", "createElementWithClassName", "ensureTransitionEndEvent", "scrollTopForDocument", "setScrollTopForDocument", "scrollLeftForDocument", "setScrollLeftForDocument", "HTMLEscape", "elide", "quoteString", "listenOnce", "hasKeyModifiers", "recomputeLayoutWidth", "ntp"];
-    const farisScriptKeylist = ["log", "JSZip", "URL_REGEX_STR", "IMAGE_URL_REGEX", "VID_URL_REGEX", "gImgSearchURL", "GIMG_REVERSE_SEARCH_URL", "setClipboard", "GM_setClipboard", "GM_xmlhttpRequest", "setLog", "matchSite", "createElement", "loadScript", "ddgProxy", "getOGZscalarUrl", "reverseDdgProxy", "isDdgUrl", "targetIsInput", "createAndAddAttribute", "getGImgReverseSearchURL", "toDdgProxy", "isIterable", "GM_setValue", "GM_getValue", "q", "qa", "siteSearchUrl", "getAbsoluteURI", "getHostname", "openAllLinks", "fetchElement", "xmlRequestElement", "onLoadDim", "addCss", "addJs", "observe", "gfycatPage2GifUrl", "preloader", "waitForElement", "includeJs", "disableStyles", "createAndGetNavbar", "setStyleInHTML", "nodeDepth", "regexBetween", "extend", "getWheelDelta", "elementUnderMouse", "clearElementFunctions", "getIncrementedUrl", "printElementTextAttributes", "loadModule", "getElementsWithText", "fetchDoc", "SrcSet", "cookieUtils", "url2location", "freezeGif", "removeClickListeners", "removeDoubleSpaces", "cleanGibberish", "isBase64ImageData", "cleanDates", "downloadScripts", "escapeEncodedChars", "getCssImages", "observeDocument", "observeIframe", "observeAllFrames", "iterateOverURLPattern", "saveAs", "Mousetrap", "fetchSimilarHeaders", "fetchUsingProxy", "getModKeys", "KeyEvent", "downloadSet", "storeDownloadHistory", "MAIN_DIRECTORY", "getDownloadCount", "setNameFilesByNumber", "download", "GM_download", "downloadBatch", "downloadImageBatch", "downloadImageWithCondition", "getFileExtension", "nameFile", "makeTextFile", "anchorClick", "saveByAnchor", "zipFiles", "zipImages", "vidkeysScriptLoaded"];
+    const plainWindowKeylist = ['postMessage', 'blur', 'focus', 'close', 'frames', 'self', 'window', 'parent', 'opener', 'top', 'length', 'closed', 'location', 'document', 'origin', 'name', 'history', 'locationbar', 'menubar', 'personalbar', 'scrollbars', 'statusbar', 'toolbar', 'status', 'frameElement', 'navigator', 'customElements', 'external', 'screen', 'innerWidth', 'innerHeight', 'scrollX', 'pageXOffset', 'scrollY', 'pageYOffset', 'screenX', 'screenY', 'outerWidth', 'outerHeight', 'devicePixelRatio', 'clientInformation', 'screenLeft', 'screenTop', 'defaultStatus', 'defaultstatus', 'styleMedia', 'onanimationend', 'onanimationiteration', 'onanimationstart', 'onsearch', 'ontransitionend', 'onwebkitanimationend', 'onwebkitanimationiteration', 'onwebkitanimationstart', 'onwebkittransitionend', 'isSecureContext', 'onabort', 'onblur', 'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu', 'oncuechange', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus', 'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload', 'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onpause', 'onplay', 'onplaying', 'onprogress', 'onratechange', 'onreset', 'onresize', 'onscroll', 'onseeked', 'onseeking', 'onselect', 'onstalled', 'onsubmit', 'onsuspend', 'ontimeupdate', 'ontoggle', 'onvolumechange', 'onwaiting', 'onwheel', 'onauxclick', 'ongotpointercapture', 'onlostpointercapture', 'onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onpointerover', 'onpointerout', 'onpointerenter', 'onpointerleave', 'onafterprint', 'onbeforeprint', 'onbeforeunload', 'onhashchange', 'onlanguagechange', 'onmessage', 'onmessageerror', 'onoffline', 'ononline', 'onpagehide', 'onpageshow', 'onpopstate', 'onrejectionhandled', 'onstorage', 'onunhandledrejection', 'onunload', 'performance', 'stop', 'open', 'alert', 'confirm', 'prompt', 'print', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'captureEvents', 'releaseEvents', 'getComputedStyle', 'matchMedia', 'moveTo', 'moveBy', 'resizeTo', 'resizeBy', 'getSelection', 'find', 'webkitRequestAnimationFrame', 'webkitCancelAnimationFrame', 'fetch', 'btoa', 'atob', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'createImageBitmap', 'scroll', 'scrollTo', 'scrollBy', 'onappinstalled', 'onbeforeinstallprompt', 'crypto', 'ondevicemotion', 'ondeviceorientation', 'ondeviceorientationabsolute', 'indexedDB', 'webkitStorageInfo', 'sessionStorage', 'localStorage', 'chrome', 'visualViewport', 'speechSynthesis', 'webkitRequestFileSystem', 'webkitResolveLocalFileSystemURL', 'openDatabase', 'applicationCache', 'caches', 'global', 'WebUIListener', 'cr', 'assert', 'assertNotReached', 'assertInstanceof', '$', 'getSVGElement', 'announceAccessibleMessage', 'getUrlForCss', 'parseQueryParams', 'setQueryParam', 'findAncestorByClass', 'findAncestor', 'swapDomNodes', 'disableTextSelectAndDrag', 'isRTL', 'getRequiredElement', 'queryRequiredElement', 'appendParam', 'createElementWithClassName', 'ensureTransitionEndEvent', 'scrollTopForDocument', 'setScrollTopForDocument', 'scrollLeftForDocument', 'setScrollLeftForDocument', 'HTMLEscape', 'elide', 'quoteString', 'listenOnce', 'hasKeyModifiers', 'recomputeLayoutWidth', 'ntp'];
+    const farisScriptKeylist = ['log', 'JSZip', 'URL_REGEX_STR', 'IMAGE_URL_REGEX', 'VID_URL_REGEX', 'gImgSearchURL', 'GIMG_REVERSE_SEARCH_URL', 'setClipboard', 'GM_setClipboard', 'GM_xmlhttpRequest', 'setLog', 'matchSite', 'createElement', 'loadScript', 'ddgProxy', 'getOGZscalarUrl', 'reverseDdgProxy', 'isDdgUrl', 'targetIsInput', 'createAndAddAttribute', 'getGImgReverseSearchURL', 'toDdgProxy', 'isIterable', 'GM_setValue', 'GM_getValue', 'q', 'qa', 'siteSearchUrl', 'getAbsoluteURI', 'getHostname', 'openAllLinks', 'fetchElement', 'xmlRequestElement', 'onLoadDim', 'addCss', 'addJs', 'observe', 'gfycatPage2GifUrl', 'preloader', 'waitForElement', 'includeJs', 'disableStyles', 'createAndGetNavbar', 'setStyleInHTML', 'nodeDepth', 'regexBetween', 'extend', 'getWheelDelta', 'elementUnderMouse', 'clearElementFunctions', 'getIncrementedUrl', 'printElementTextAttributes', 'loadModule', 'getElementsWithText', 'fetchDoc', 'SrcSet', 'cookieUtils', 'url2location', 'freezeGif', 'removeClickListeners', 'removeDoubleSpaces', 'cleanGibberish', 'isBase64ImageData', 'cleanDates', 'downloadScripts', 'escapeEncodedChars', 'getCssImages', 'observeDocument', 'observeIframe', 'observeAllFrames', 'iterateOverURLPattern', 'saveAs', 'Mousetrap', 'fetchSimilarHeaders', 'fetchUsingProxy', 'getModKeys', 'KeyEvent', 'downloadSet', 'storeDownloadHistory', 'MAIN_DIRECTORY', 'getDownloadCount', 'setNameFilesByNumber', 'download', 'GM_download', 'downloadBatch', 'downloadImageBatch', 'downloadImageWithCondition', 'getFileExtension', 'nameFile', 'makeTextFile', 'anchorClick', 'saveByAnchor', 'zipFiles', 'zipImages', 'vidkeysScriptLoaded'];
     const referenceKeylist = new Set(plainWindowKeylist.concat(farisScriptKeylist)); // combine both lists
 
     const unusualObjects = {};
@@ -3008,7 +3052,7 @@ function getObjOfType(targetInstance, parentObj) {
 
 function getNestedMembers(parentObject, targetType, list) {
     if (!parentObject) {
-        console.error("parentObject is not defined:", parent);
+        console.error('parentObject is not defined:', parent);
         return;
     }
     list = list || [];
@@ -3016,7 +3060,7 @@ function getNestedMembers(parentObject, targetType, list) {
 
         const typeofObj = typeof member;
 
-        if (typeofObj === "object") {
+        if (typeofObj === 'object') {
             getNestedMembers(member, targetType, list);
         } else if (typeofObj !== 'undefined') {
             if (targetType && typeofObj !== targetType)
@@ -3035,8 +3079,7 @@ function sortByFrequencyAndRemoveDuplicates(array) {
         value = array[i];
         if (value in frequency) {
             frequency[value]++;
-        }
-        else {
+        } else {
             frequency[value] = 1;
         }
     }
@@ -3055,25 +3098,3 @@ function sortByFrequencyAndRemoveDuplicates(array) {
     return uniques.sort(compareFrequency);
 }
 
-//TODO: test this out, try to use it, maybe it'll replace `waitForElement()`
-function elementReady(selector) {
-    return new Promise((resolve, reject) => {
-        let el = document.querySelector(selector);
-        if (el) {
-            resolve(el);
-        }
-
-        new MutationObserver((mutationRecords, observer) => {
-            // Query for elements matching the specified selector
-            Array.from(document.querySelectorAll(selector)).forEach((element) => {
-                resolve(element);
-                //Once we have resolved we don't need the observer anymore.
-                observer.disconnect();
-            });
-        })
-            .observe(document.documentElement, {
-                childList: true,
-                subtree: true
-            });
-    });
-}
