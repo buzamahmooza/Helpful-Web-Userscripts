@@ -570,55 +570,60 @@ function includeJs(src) {
 }
 
 /**@WIP
- * @param {function, string} elementGetter a function to get the wanted element (or event a condition function)
+ * @param {function|string} elementGetter - a function to get the wanted element (or event a condition function)
  * that will be called to test if the element has appeared yet. (should return true only when the element appears)
- * @param callback  the elementGetter will be passed as the first argument
- * @return {MutationObserver}
+ * @param callback - the result of elementGetter will be passed as the first argument
+ * @return {MutationObserver|null}
  */
 function waitForElement(elementGetter, callback) {
-    const observerCallback = function (mutations, me) {
-        function handleSuccess(node) {
-            callback(node);
-            me.disconnect();
+    var getter = (typeof (elementGetter) === 'function') ?
+        () => elementGetter() :
+        (typeof (elementGetter) === 'string') ? () => document.querySelectorAll(elementGetter) :
+            elementGetter;
+
+
+    const hasElementAppeared = function (mutations, me) {
+        function handleSuccess(el) {
+            callback(el);
+            if (me) me.disconnect();
         }
 
-        var node = (typeof (elementGetter) === 'function') ? elementGetter() :
-            (typeof (elementGetter) === 'string') ? document.querySelector(elementGetter) :
-                elementGetter;
+
+        var element = getter();
+
         try {
-            if (node) {
-                if (node.length) {
-                    for (const n of node)
-                        handleSuccess(n);
-                } else if (node.length === undefined) {
-                    handleSuccess(node);
+            if (element instanceof Element || element === true) {
+                handleSuccess(element);
+            } else if (element && element.length) {
+                for (const el of element) {
+                    handleSuccess(el);
                 }
-                return true;
+            } else {
+                console.warn('element is not an instance of Element, neither is it iterable :( ', element);
             }
-            return false;
         } catch (e) {
-            console.warn(e);
+            console.warn('element:', element, e);
         }
+        return element;
     };
 
-    const observer = new MutationObserver(observerCallback);
-    if (observerCallback(null, observer))
-        return;
-
-    observer.observe(document.body, {
-        childList: true
-        , subtree: true
-        , attributes: false
-        , characterData: false
-    });
-    return observer;
+    if (!hasElementAppeared(null)) { // if element didn't already appear
+        const observer = new MutationObserver(hasElementAppeared);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: false,
+            characterData: false
+        });
+        return observer;
+    }
 }
 
 function elementReady(selector, timeoutInMs = -1) {
     return new Promise((resolve, reject) => {
         var getter = typeof selector === 'function' ?
-            selector => selector() :
-            selector => document.querySelectorAll(selector)
+            () => selector() :
+            () => document.querySelectorAll(selector)
         ;
         var els = getter();
         if (els && els.length) {
@@ -630,12 +635,11 @@ function elementReady(selector, timeoutInMs = -1) {
                 console.debug(`elementReady(${selector}) timed out at ${timeoutInMs}ms`);
             }, timeoutInMs);
 
+
         new MutationObserver((mutationRecords, observer) => {
-            // Query for elements matching the specified selector
-            Array.from(getter(selector)).forEach((element) => {
+            Array.from(getter() || []).forEach((element) => {
                 clearTimeout(timeout);
                 resolve(element);
-                //Once we have resolved we don't need the observer anymore.
                 observer.disconnect();
             });
         }).observe(document.documentElement, {
@@ -1382,7 +1386,6 @@ function observeDocument(callback, options={}) {
     });
 }
 
-
 unsafeWindow.observeDocument = observeDocument;
 unsafeWindow.observeIframe = function observeIframe(iframe, observerInit, observerOptions, args) {
     // older browsers don't get responsive iframe height, for now
@@ -1785,6 +1788,316 @@ if (typeof module !== 'undefined' && module.exports) {
  *   saveAs(blob, "hello world.txt");
  */
 unsafeWindow.saveAs = saveAs;
+
+
+unsafeWindow.fetchSimilarHeaders = fetchSimilarHeaders;
+function fetchSimilarHeaders(callback) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function () {
+        if (request.readyState === 4) {
+            //
+            // The following headers may often be similar
+            // to those of the original page request...
+            //
+            if (callback && typeof callback === 'function') {
+                callback(request.getAllResponseHeaders());
+            }
+        }
+    };
+
+    //
+    // Re-request the same page (document.location)
+    // We hope to get the same or similar response headers to those which 
+    // came with the current page, but we have no guarantee.
+    // Since we are only after the headers, a HEAD request may be sufficient.
+    //
+    request.open('HEAD', document.location, true);
+    request.send(null);
+}
+
+String.prototype.escapeSpecialChars = function () {
+    return this.replace(/\\n/g, '\\n')
+        .replace(/\\'/g, '\\\'')
+        .replace(/\\"/g, '\\"')
+        .replace(/\\&/g, '\\&')
+        .replace(/\\r/g, '\\r')
+        .replace(/\\t/g, '\\t')
+        .replace(/\\b/g, '\\b')
+        .replace(/\\f/g, '\\f');
+};
+function headers2Object(headers) {
+    if (!headers) return {};
+    const jsonParseEscape = function (str) {
+        return str.replace(/\n/g, '\\n')
+            .replace(/'/g, '\\\'')
+            .replace(/"/g, '\\"')
+            .replace(/&/g, '\\&')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t')
+            .replace(/\f/g, '\\f');
+    };
+    var jsonStr = '{\n' +
+        headers.trim().split('\n').filter(line => line.length > 2)
+            .map(
+                line => '   ' + [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
+                    .map(part => '"' + jsonParseEscape(part.trim()) + '"').join(':')
+            )
+            .join(',\n') +
+        '\n}';
+    console.log('jsonStr:', jsonStr);
+    return JSON.parse(jsonStr);
+}
+
+
+unsafeWindow.fetchUsingProxy = fetchUsingProxy;
+/**
+ * @param url
+ * Found from:    https://stackoverflow.com/questions/43871637/no-access-control-allow-origin-header-is-present-on-the-requested-resource-whe
+ * @param callback
+ * @see     https://cors-anywhere.herokuapp.com/
+ */
+function fetchUsingProxy(url, callback) {
+    const proxyurl = 'https://cors-anywhere.herokuapp.com/';
+    callback = callback || (contents => console.log(contents));
+    fetch(proxyurl + url) // https://cors-anywhere.herokuapp.com/https://example.com
+        .then(response => response.text())
+        .then(callback)
+        .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
+}
+
+
+unsafeWindow.getUnusualWindowObjects = function getUnusualWindowObjects(compareWindow = window) {
+    const plainWindowKeylist = ['postMessage', 'blur', 'focus', 'close', 'frames', 'self', 'window', 'parent', 'opener', 'top', 'length', 'closed', 'location', 'document', 'origin', 'name', 'history', 'locationbar', 'menubar', 'personalbar', 'scrollbars', 'statusbar', 'toolbar', 'status', 'frameElement', 'navigator', 'customElements', 'external', 'screen', 'innerWidth', 'innerHeight', 'scrollX', 'pageXOffset', 'scrollY', 'pageYOffset', 'screenX', 'screenY', 'outerWidth', 'outerHeight', 'devicePixelRatio', 'clientInformation', 'screenLeft', 'screenTop', 'defaultStatus', 'defaultstatus', 'styleMedia', 'onanimationend', 'onanimationiteration', 'onanimationstart', 'onsearch', 'ontransitionend', 'onwebkitanimationend', 'onwebkitanimationiteration', 'onwebkitanimationstart', 'onwebkittransitionend', 'isSecureContext', 'onabort', 'onblur', 'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu', 'oncuechange', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus', 'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload', 'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onpause', 'onplay', 'onplaying', 'onprogress', 'onratechange', 'onreset', 'onresize', 'onscroll', 'onseeked', 'onseeking', 'onselect', 'onstalled', 'onsubmit', 'onsuspend', 'ontimeupdate', 'ontoggle', 'onvolumechange', 'onwaiting', 'onwheel', 'onauxclick', 'ongotpointercapture', 'onlostpointercapture', 'onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onpointerover', 'onpointerout', 'onpointerenter', 'onpointerleave', 'onafterprint', 'onbeforeprint', 'onbeforeunload', 'onhashchange', 'onlanguagechange', 'onmessage', 'onmessageerror', 'onoffline', 'ononline', 'onpagehide', 'onpageshow', 'onpopstate', 'onrejectionhandled', 'onstorage', 'onunhandledrejection', 'onunload', 'performance', 'stop', 'open', 'alert', 'confirm', 'prompt', 'print', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'captureEvents', 'releaseEvents', 'getComputedStyle', 'matchMedia', 'moveTo', 'moveBy', 'resizeTo', 'resizeBy', 'getSelection', 'find', 'webkitRequestAnimationFrame', 'webkitCancelAnimationFrame', 'fetch', 'btoa', 'atob', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'createImageBitmap', 'scroll', 'scrollTo', 'scrollBy', 'onappinstalled', 'onbeforeinstallprompt', 'crypto', 'ondevicemotion', 'ondeviceorientation', 'ondeviceorientationabsolute', 'indexedDB', 'webkitStorageInfo', 'sessionStorage', 'localStorage', 'chrome', 'visualViewport', 'speechSynthesis', 'webkitRequestFileSystem', 'webkitResolveLocalFileSystemURL', 'openDatabase', 'applicationCache', 'caches', 'global', 'WebUIListener', 'cr', 'assert', 'assertNotReached', 'assertInstanceof', '$', 'getSVGElement', 'announceAccessibleMessage', 'getUrlForCss', 'parseQueryParams', 'setQueryParam', 'findAncestorByClass', 'findAncestor', 'swapDomNodes', 'disableTextSelectAndDrag', 'isRTL', 'getRequiredElement', 'queryRequiredElement', 'appendParam', 'createElementWithClassName', 'ensureTransitionEndEvent', 'scrollTopForDocument', 'setScrollTopForDocument', 'scrollLeftForDocument', 'setScrollLeftForDocument', 'HTMLEscape', 'elide', 'quoteString', 'listenOnce', 'hasKeyModifiers', 'recomputeLayoutWidth', 'ntp'];
+    const farisScriptKeylist = ['log', 'JSZip', 'URL_REGEX_STR', 'IMAGE_URL_REGEX', 'VID_URL_REGEX', 'gImgSearchURL', 'GIMG_REVERSE_SEARCH_URL', 'setClipboard', 'GM_setClipboard', 'GM_xmlhttpRequest', 'setLog', 'matchSite', 'createElement', 'loadScript', 'ddgProxy', 'getOGZscalarUrl', 'reverseDdgProxy', 'isDdgUrl', 'targetIsInput', 'createAndAddAttribute', 'getGImgReverseSearchURL', 'toDdgProxy', 'isIterable', 'GM_setValue', 'GM_getValue', 'q', 'qa', 'siteSearchUrl', 'getAbsoluteURI', 'getHostname', 'openAllLinks', 'fetchElement', 'xmlRequestElement', 'onLoadDim', 'addCss', 'addJs', 'observe', 'gfycatPage2GifUrl', 'preloader', 'waitForElement', 'includeJs', 'disableStyles', 'createAndGetNavbar', 'setStyleInHTML', 'nodeDepth', 'regexBetween', 'extend', 'getWheelDelta', 'elementUnderMouse', 'clearElementFunctions', 'getIncrementedUrl', 'printElementTextAttributes', 'loadModule', 'getElementsWithText', 'fetchDoc', 'SrcSet', 'cookieUtils', 'url2location', 'freezeGif', 'removeClickListeners', 'removeDoubleSpaces', 'cleanGibberish', 'isBase64ImageData', 'cleanDates', 'downloadScripts', 'escapeEncodedChars', 'getCssImages', 'observeDocument', 'observeIframe', 'observeAllFrames', 'iterateOverURLPattern', 'saveAs', 'Mousetrap', 'fetchSimilarHeaders', 'fetchUsingProxy', 'getModKeys', 'KeyEvent', 'downloadSet', 'storeDownloadHistory', 'MAIN_DIRECTORY', 'getDownloadCount', 'setNameFilesByNumber', 'download', 'GM_download', 'downloadBatch', 'downloadImageBatch', 'downloadImageWithCondition', 'getFileExtension', 'nameFile', 'makeTextFile', 'anchorClick', 'saveByAnchor', 'zipFiles', 'zipImages', 'vidkeysScriptLoaded'];
+    const referenceKeylist = new Set(plainWindowKeylist.concat(farisScriptKeylist)); // combine both lists
+
+    const unusualObjects = {};
+    // iterate over window keys, if this key isn't in the plainWindowKeylist, then add it to the unusuals list
+    for (const key of Object.keys(compareWindow)) {
+        if (!referenceKeylist.has(key)) {
+            unusualObjects[key] = compareWindow[key]; // add to the unusualObjects
+        }
+    }
+    return unusualObjects;
+};
+
+unsafeWindow.getModKeys = getModifierKeys;
+unsafeWindow.KeyEvent = {
+    DOM_VK_BACKSPACE: 8,
+    DOM_VK_TAB: 9,
+    DOM_VK_ENTER: 13,
+    DOM_VK_SHIFT: 16,
+    DOM_VK_CTRL: 17,
+    DOM_VK_ALT: 18,
+    DOM_VK_PAUSE_BREAK: 19,
+    DOM_VK_CAPS_LOCK: 20,
+    DOM_VK_ESCAPE: 27,
+    DOM_VK_PGUP: 33, DOM_VK_PAGE_UP: 33,
+    DOM_VK_PGDN: 34, DOM_VK_PAGE_DOWN: 34,
+    DOM_VK_END: 35,
+    DOM_VK_HOME: 36,
+    DOM_VK_LEFT: 37, DOM_VK_LEFT_ARROW: 37,
+    DOM_VK_UP: 38, DOM_VK_UP_ARROW: 38,
+    DOM_VK_RIGHT: 39, DOM_VK_RIGHT_ARROW: 39,
+    DOM_VK_DOWN: 40, DOM_VK_DOWN_ARROW: 40,
+    DOM_VK_INSERT: 45,
+    DOM_VK_DEL: 46, DOM_VK_DELETE: 46,
+    DOM_VK_0: 48, DOM_VK_ALPHA0: 48,
+    DOM_VK_1: 49, DOM_VK_ALPHA1: 49,
+    DOM_VK_2: 50, DOM_VK_ALPHA2: 50,
+    DOM_VK_3: 51, DOM_VK_ALPHA3: 51,
+    DOM_VK_4: 52, DOM_VK_ALPHA4: 52,
+    DOM_VK_5: 53, DOM_VK_ALPHA5: 53,
+    DOM_VK_6: 54, DOM_VK_ALPHA6: 54,
+    DOM_VK_7: 55, DOM_VK_ALPHA7: 55,
+    DOM_VK_8: 56, DOM_VK_ALPHA8: 56,
+    DOM_VK_9: 57, DOM_VK_ALPHA9: 57,
+    DOM_VK_A: 65,
+    DOM_VK_B: 66,
+    DOM_VK_C: 67,
+    DOM_VK_D: 68,
+    DOM_VK_E: 69,
+    DOM_VK_F: 70,
+    DOM_VK_G: 71,
+    DOM_VK_H: 72,
+    DOM_VK_I: 73,
+    DOM_VK_J: 74,
+    DOM_VK_K: 75,
+    DOM_VK_L: 76,
+    DOM_VK_M: 77,
+    DOM_VK_N: 78,
+    DOM_VK_O: 79,
+    DOM_VK_P: 80,
+    DOM_VK_Q: 81,
+    DOM_VK_R: 82,
+    DOM_VK_S: 83,
+    DOM_VK_T: 84,
+    DOM_VK_U: 85,
+    DOM_VK_V: 86,
+    DOM_VK_W: 87,
+    DOM_VK_X: 88,
+    DOM_VK_Y: 89,
+    DOM_VK_Z: 90,
+    DOM_VK_LWIN: 91, DOM_VK_LEFT_WINDOW: 91,
+    DOM_VK_RWIN: 92, DOM_VK_RIGHT_WINDOW: 92,
+    DOM_VK_SELECT: 93,
+
+    DOM_VK_NUMPAD0: 96,
+    DOM_VK_NUMPAD1: 97,
+    DOM_VK_NUMPAD2: 98,
+    DOM_VK_NUMPAD3: 99,
+    DOM_VK_NUMPAD4: 100,
+    DOM_VK_NUMPAD5: 101,
+    DOM_VK_NUMPAD6: 102,
+    DOM_VK_NUMPAD7: 103,
+    DOM_VK_NUMPAD8: 104,
+    DOM_VK_NUMPAD9: 105,
+    DOM_VK_MULTIPLY: 106,
+
+    DOM_VK_ADD: 107,
+    DOM_VK_SUBTRACT: 109,
+    DOM_VK_DECIMAL_POINT: 110,
+    DOM_VK_DIVIDE: 111,
+    DOM_VK_F1: 112,
+    DOM_VK_F2: 113,
+    DOM_VK_F3: 114,
+    DOM_VK_F4: 115,
+    DOM_VK_F5: 116,
+    DOM_VK_F6: 117,
+    DOM_VK_F7: 118,
+    DOM_VK_F8: 119,
+    DOM_VK_F9: 120,
+    DOM_VK_F10: 121,
+    DOM_VK_F11: 122,
+    DOM_VK_F12: 123,
+    DOM_VK_NUM_LOCK: 144,
+    DOM_VK_SCROLL_LOCK: 145,
+    DOM_VK_SEMICOLON: 186,
+    DOM_VK_EQUALS: 187, DOM_VK_EQUAL_SIGN: 187,
+    DOM_VK_COMMA: 188,
+    DOM_VK_DASH: 189,
+    DOM_VK_PERIOD: 190,
+    DOM_VK_FORWARD_SLASH: 191,
+    DOM_VK_GRAVE_ACCENT: 192,
+    DOM_VK_OPEN_BRACKET: 219,
+    DOM_VK_BACK_SLASH: 220,
+    DOM_VK_CLOSE_BRACKET: 221,
+    DOM_VK_SINGLE_QUOTE: 222
+};
+/**
+ * Order of key strokes in naming convention:   Ctrl > Shift > Alt >  Meta
+ * @param keyEvent
+ * @returns {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, META_ONLY: boolean, NONE: boolean}}
+ */
+function getModifierKeys(keyEvent) {
+    /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
+    return {
+        CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_SHIFT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        CTRL_ALT_SHIFT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+
+        SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
+        ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
+        META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
+
+        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey,
+
+        targetIsInput: (function targetIsInput() {
+            const ignores = document.getElementsByTagName('input');
+            const target = keyEvent.target;
+            for (let ignore of ignores)
+                if (target === ignore || ignore.contains(target)) {
+                    // console.log('The target recieving the keycode is of type "input", so it will not recieve your keystroke', target);
+                    return true;
+                }
+            return false;
+        })()
+    };
+}
+
+function publicizeSymbols(...parameters) {
+    for (const parameter of parameters) {
+        unsafeWindow[parameter] = parameter;
+    }
+}
+
+function mapObject(o) {
+    var map = new Map();
+    for (const key in (o)) {
+        if (o.hasOwnProperty(key))
+            map.set(key, o[key]);
+    }
+    return map;
+}
+function object2Map(obj) {
+    const map = new Map();
+    for (const key in obj) {
+        map.set(key, obj[key]);
+    }
+    return map;
+}
+
+function getObjOfType(targetInstance, parentObj) {
+    var list = [];
+    for (const o in parentObj) if (o instanceof targetInstance) {
+        return o;
+    }
+    return list;
+}
+
+function getNestedMembers(parentObject, targetType, list) {
+    if (!parentObject) {
+        console.error('parentObject is not defined:', parent);
+        return;
+    }
+    list = list || [];
+    for (const member in parentObject) {
+
+        const typeofObj = typeof member;
+
+        if (typeofObj === 'object') {
+            getNestedMembers(member, targetType, list);
+        } else if (typeofObj !== 'undefined') {
+            if (targetType && typeofObj !== targetType)
+                continue;
+            list.push(member);
+        }
+    }
+    return list;
+}
+
+/** https://stackoverflow.com/a/3579651/7771202 */
+function sortByFrequencyAndRemoveDuplicates(array) {
+    var frequency = {}, value;
+
+    // compute frequencies of each value
+    for (var i = 0; i < array.length; i++) {
+        value = array[i];
+        if (value in frequency) {
+            frequency[value]++;
+        } else {
+            frequency[value] = 1;
+        }
+    }
+
+    // make array from the frequency object to de-duplicate
+    var uniques = [];
+    for (value in frequency) {
+        uniques.push(value);
+    }
+
+    // sort the uniques array in descending order by frequency
+    function compareFrequency(a, b) {
+        return frequency[b] - frequency[a];
+    }
+
+    return uniques.sort(compareFrequency);
+}
+
+
+// copied external libs
 
 
 /* mousetrap v1.6.2 craig.is/killing/mice */
@@ -2842,308 +3155,4 @@ unsafeWindow.saveAs = saveAs;
     }
 })(typeof window !== 'undefined' ? window : null, typeof window !== 'undefined' ? document : null);
 unsafeWindow.Mousetrap = Mousetrap;
-
-unsafeWindow.fetchSimilarHeaders = fetchSimilarHeaders;
-function fetchSimilarHeaders(callback) {
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = function () {
-        if (request.readyState === 4) {
-            //
-            // The following headers may often be similar
-            // to those of the original page request...
-            //
-            if (callback && typeof callback === 'function') {
-                callback(request.getAllResponseHeaders());
-            }
-        }
-    };
-
-    //
-    // Re-request the same page (document.location)
-    // We hope to get the same or similar response headers to those which 
-    // came with the current page, but we have no guarantee.
-    // Since we are only after the headers, a HEAD request may be sufficient.
-    //
-    request.open('HEAD', document.location, true);
-    request.send(null);
-}
-
-String.prototype.escapeSpecialChars = function () {
-    return this.replace(/\\n/g, '\\n')
-        .replace(/\\'/g, '\\\'')
-        .replace(/\\"/g, '\\"')
-        .replace(/\\&/g, '\\&')
-        .replace(/\\r/g, '\\r')
-        .replace(/\\t/g, '\\t')
-        .replace(/\\b/g, '\\b')
-        .replace(/\\f/g, '\\f');
-};
-function headers2Object(headers) {
-    if (!headers) return {};
-    const jsonParseEscape = function (str) {
-        return str.replace(/\n/g, '\\n')
-            .replace(/'/g, '\\\'')
-            .replace(/"/g, '\\"')
-            .replace(/&/g, '\\&')
-            .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t')
-            .replace(/\f/g, '\\f');
-    };
-    var jsonStr = '{\n' +
-        headers.trim().split('\n').filter(line => line.length > 2)
-            .map(
-                line => '   ' + [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 1)]
-                    .map(part => '"' + jsonParseEscape(part.trim()) + '"').join(':')
-            )
-            .join(',\n') +
-        '\n}';
-    console.log('jsonStr:', jsonStr);
-    return JSON.parse(jsonStr);
-}
-
-
-unsafeWindow.fetchUsingProxy = fetchUsingProxy;
-/**
- * @param url
- * Found from:    https://stackoverflow.com/questions/43871637/no-access-control-allow-origin-header-is-present-on-the-requested-resource-whe
- * @param callback
- * @see     https://cors-anywhere.herokuapp.com/
- */
-function fetchUsingProxy(url, callback) {
-    const proxyurl = 'https://cors-anywhere.herokuapp.com/';
-    callback = callback || (contents => console.log(contents));
-    fetch(proxyurl + url) // https://cors-anywhere.herokuapp.com/https://example.com
-        .then(response => response.text())
-        .then(callback)
-        .catch(() => console.error(`Can’t access ${url} response. Blocked by browser?`))
-}
-
-
-unsafeWindow.getUnusualWindowObjects = function getUnusualWindowObjects(compareWindow = window) {
-    const plainWindowKeylist = ['postMessage', 'blur', 'focus', 'close', 'frames', 'self', 'window', 'parent', 'opener', 'top', 'length', 'closed', 'location', 'document', 'origin', 'name', 'history', 'locationbar', 'menubar', 'personalbar', 'scrollbars', 'statusbar', 'toolbar', 'status', 'frameElement', 'navigator', 'customElements', 'external', 'screen', 'innerWidth', 'innerHeight', 'scrollX', 'pageXOffset', 'scrollY', 'pageYOffset', 'screenX', 'screenY', 'outerWidth', 'outerHeight', 'devicePixelRatio', 'clientInformation', 'screenLeft', 'screenTop', 'defaultStatus', 'defaultstatus', 'styleMedia', 'onanimationend', 'onanimationiteration', 'onanimationstart', 'onsearch', 'ontransitionend', 'onwebkitanimationend', 'onwebkitanimationiteration', 'onwebkitanimationstart', 'onwebkittransitionend', 'isSecureContext', 'onabort', 'onblur', 'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu', 'oncuechange', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus', 'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload', 'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onpause', 'onplay', 'onplaying', 'onprogress', 'onratechange', 'onreset', 'onresize', 'onscroll', 'onseeked', 'onseeking', 'onselect', 'onstalled', 'onsubmit', 'onsuspend', 'ontimeupdate', 'ontoggle', 'onvolumechange', 'onwaiting', 'onwheel', 'onauxclick', 'ongotpointercapture', 'onlostpointercapture', 'onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onpointerover', 'onpointerout', 'onpointerenter', 'onpointerleave', 'onafterprint', 'onbeforeprint', 'onbeforeunload', 'onhashchange', 'onlanguagechange', 'onmessage', 'onmessageerror', 'onoffline', 'ononline', 'onpagehide', 'onpageshow', 'onpopstate', 'onrejectionhandled', 'onstorage', 'onunhandledrejection', 'onunload', 'performance', 'stop', 'open', 'alert', 'confirm', 'prompt', 'print', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'captureEvents', 'releaseEvents', 'getComputedStyle', 'matchMedia', 'moveTo', 'moveBy', 'resizeTo', 'resizeBy', 'getSelection', 'find', 'webkitRequestAnimationFrame', 'webkitCancelAnimationFrame', 'fetch', 'btoa', 'atob', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'createImageBitmap', 'scroll', 'scrollTo', 'scrollBy', 'onappinstalled', 'onbeforeinstallprompt', 'crypto', 'ondevicemotion', 'ondeviceorientation', 'ondeviceorientationabsolute', 'indexedDB', 'webkitStorageInfo', 'sessionStorage', 'localStorage', 'chrome', 'visualViewport', 'speechSynthesis', 'webkitRequestFileSystem', 'webkitResolveLocalFileSystemURL', 'openDatabase', 'applicationCache', 'caches', 'global', 'WebUIListener', 'cr', 'assert', 'assertNotReached', 'assertInstanceof', '$', 'getSVGElement', 'announceAccessibleMessage', 'getUrlForCss', 'parseQueryParams', 'setQueryParam', 'findAncestorByClass', 'findAncestor', 'swapDomNodes', 'disableTextSelectAndDrag', 'isRTL', 'getRequiredElement', 'queryRequiredElement', 'appendParam', 'createElementWithClassName', 'ensureTransitionEndEvent', 'scrollTopForDocument', 'setScrollTopForDocument', 'scrollLeftForDocument', 'setScrollLeftForDocument', 'HTMLEscape', 'elide', 'quoteString', 'listenOnce', 'hasKeyModifiers', 'recomputeLayoutWidth', 'ntp'];
-    const farisScriptKeylist = ['log', 'JSZip', 'URL_REGEX_STR', 'IMAGE_URL_REGEX', 'VID_URL_REGEX', 'gImgSearchURL', 'GIMG_REVERSE_SEARCH_URL', 'setClipboard', 'GM_setClipboard', 'GM_xmlhttpRequest', 'setLog', 'matchSite', 'createElement', 'loadScript', 'ddgProxy', 'getOGZscalarUrl', 'reverseDdgProxy', 'isDdgUrl', 'targetIsInput', 'createAndAddAttribute', 'getGImgReverseSearchURL', 'toDdgProxy', 'isIterable', 'GM_setValue', 'GM_getValue', 'q', 'qa', 'siteSearchUrl', 'getAbsoluteURI', 'getHostname', 'openAllLinks', 'fetchElement', 'xmlRequestElement', 'onLoadDim', 'addCss', 'addJs', 'observe', 'gfycatPage2GifUrl', 'preloader', 'waitForElement', 'includeJs', 'disableStyles', 'createAndGetNavbar', 'setStyleInHTML', 'nodeDepth', 'regexBetween', 'extend', 'getWheelDelta', 'elementUnderMouse', 'clearElementFunctions', 'getIncrementedUrl', 'printElementTextAttributes', 'loadModule', 'getElementsWithText', 'fetchDoc', 'SrcSet', 'cookieUtils', 'url2location', 'freezeGif', 'removeClickListeners', 'removeDoubleSpaces', 'cleanGibberish', 'isBase64ImageData', 'cleanDates', 'downloadScripts', 'escapeEncodedChars', 'getCssImages', 'observeDocument', 'observeIframe', 'observeAllFrames', 'iterateOverURLPattern', 'saveAs', 'Mousetrap', 'fetchSimilarHeaders', 'fetchUsingProxy', 'getModKeys', 'KeyEvent', 'downloadSet', 'storeDownloadHistory', 'MAIN_DIRECTORY', 'getDownloadCount', 'setNameFilesByNumber', 'download', 'GM_download', 'downloadBatch', 'downloadImageBatch', 'downloadImageWithCondition', 'getFileExtension', 'nameFile', 'makeTextFile', 'anchorClick', 'saveByAnchor', 'zipFiles', 'zipImages', 'vidkeysScriptLoaded'];
-    const referenceKeylist = new Set(plainWindowKeylist.concat(farisScriptKeylist)); // combine both lists
-
-    const unusualObjects = {};
-    // iterate over window keys, if this key isn't in the plainWindowKeylist, then add it to the unusuals list
-    for (const key of Object.keys(compareWindow)) {
-        if (!referenceKeylist.has(key)) {
-            unusualObjects[key] = compareWindow[key]; // add to the unusualObjects
-        }
-    }
-    return unusualObjects;
-};
-
-unsafeWindow.getModKeys = getModifierKeys;
-unsafeWindow.KeyEvent = {
-    DOM_VK_BACKSPACE: 8,
-    DOM_VK_TAB: 9,
-    DOM_VK_ENTER: 13,
-    DOM_VK_SHIFT: 16,
-    DOM_VK_CTRL: 17,
-    DOM_VK_ALT: 18,
-    DOM_VK_PAUSE_BREAK: 19,
-    DOM_VK_CAPS_LOCK: 20,
-    DOM_VK_ESCAPE: 27,
-    DOM_VK_PGUP: 33, DOM_VK_PAGE_UP: 33,
-    DOM_VK_PGDN: 34, DOM_VK_PAGE_DOWN: 34,
-    DOM_VK_END: 35,
-    DOM_VK_HOME: 36,
-    DOM_VK_LEFT: 37, DOM_VK_LEFT_ARROW: 37,
-    DOM_VK_UP: 38, DOM_VK_UP_ARROW: 38,
-    DOM_VK_RIGHT: 39, DOM_VK_RIGHT_ARROW: 39,
-    DOM_VK_DOWN: 40, DOM_VK_DOWN_ARROW: 40,
-    DOM_VK_INSERT: 45,
-    DOM_VK_DEL: 46, DOM_VK_DELETE: 46,
-    DOM_VK_0: 48, DOM_VK_ALPHA0: 48,
-    DOM_VK_1: 49, DOM_VK_ALPHA1: 49,
-    DOM_VK_2: 50, DOM_VK_ALPHA2: 50,
-    DOM_VK_3: 51, DOM_VK_ALPHA3: 51,
-    DOM_VK_4: 52, DOM_VK_ALPHA4: 52,
-    DOM_VK_5: 53, DOM_VK_ALPHA5: 53,
-    DOM_VK_6: 54, DOM_VK_ALPHA6: 54,
-    DOM_VK_7: 55, DOM_VK_ALPHA7: 55,
-    DOM_VK_8: 56, DOM_VK_ALPHA8: 56,
-    DOM_VK_9: 57, DOM_VK_ALPHA9: 57,
-    DOM_VK_A: 65,
-    DOM_VK_B: 66,
-    DOM_VK_C: 67,
-    DOM_VK_D: 68,
-    DOM_VK_E: 69,
-    DOM_VK_F: 70,
-    DOM_VK_G: 71,
-    DOM_VK_H: 72,
-    DOM_VK_I: 73,
-    DOM_VK_J: 74,
-    DOM_VK_K: 75,
-    DOM_VK_L: 76,
-    DOM_VK_M: 77,
-    DOM_VK_N: 78,
-    DOM_VK_O: 79,
-    DOM_VK_P: 80,
-    DOM_VK_Q: 81,
-    DOM_VK_R: 82,
-    DOM_VK_S: 83,
-    DOM_VK_T: 84,
-    DOM_VK_U: 85,
-    DOM_VK_V: 86,
-    DOM_VK_W: 87,
-    DOM_VK_X: 88,
-    DOM_VK_Y: 89,
-    DOM_VK_Z: 90,
-    DOM_VK_LWIN: 91, DOM_VK_LEFT_WINDOW: 91,
-    DOM_VK_RWIN: 92, DOM_VK_RIGHT_WINDOW: 92,
-    DOM_VK_SELECT: 93,
-
-    DOM_VK_NUMPAD0: 96,
-    DOM_VK_NUMPAD1: 97,
-    DOM_VK_NUMPAD2: 98,
-    DOM_VK_NUMPAD3: 99,
-    DOM_VK_NUMPAD4: 100,
-    DOM_VK_NUMPAD5: 101,
-    DOM_VK_NUMPAD6: 102,
-    DOM_VK_NUMPAD7: 103,
-    DOM_VK_NUMPAD8: 104,
-    DOM_VK_NUMPAD9: 105,
-    DOM_VK_MULTIPLY: 106,
-
-    DOM_VK_ADD: 107,
-    DOM_VK_SUBTRACT: 109,
-    DOM_VK_DECIMAL_POINT: 110,
-    DOM_VK_DIVIDE: 111,
-    DOM_VK_F1: 112,
-    DOM_VK_F2: 113,
-    DOM_VK_F3: 114,
-    DOM_VK_F4: 115,
-    DOM_VK_F5: 116,
-    DOM_VK_F6: 117,
-    DOM_VK_F7: 118,
-    DOM_VK_F8: 119,
-    DOM_VK_F9: 120,
-    DOM_VK_F10: 121,
-    DOM_VK_F11: 122,
-    DOM_VK_F12: 123,
-    DOM_VK_NUM_LOCK: 144,
-    DOM_VK_SCROLL_LOCK: 145,
-    DOM_VK_SEMICOLON: 186,
-    DOM_VK_EQUALS: 187, DOM_VK_EQUAL_SIGN: 187,
-    DOM_VK_COMMA: 188,
-    DOM_VK_DASH: 189,
-    DOM_VK_PERIOD: 190,
-    DOM_VK_FORWARD_SLASH: 191,
-    DOM_VK_GRAVE_ACCENT: 192,
-    DOM_VK_OPEN_BRACKET: 219,
-    DOM_VK_BACK_SLASH: 220,
-    DOM_VK_CLOSE_BRACKET: 221,
-    DOM_VK_SINGLE_QUOTE: 222
-};
-/**
- * Order of key strokes in naming convention:   Ctrl > Shift > Alt >  Meta
- * @param keyEvent
- * @returns {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, META_ONLY: boolean, NONE: boolean}}
- */
-function getModifierKeys(keyEvent) {
-    /** @type {{CTRL_ONLY: boolean, SHIFT_ONLY: boolean, ALT_ONLY: boolean, NONE: boolean}} */
-    return {
-        CTRL_SHIFT: keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
-        CTRL_ALT: keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        ALT_SHIFT: !keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
-        CTRL_ONLY: keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        CTRL_ALT_SHIFT: keyEvent.ctrlKey && keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
-
-        SHIFT_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && keyEvent.shiftKey && !keyEvent.metaKey,
-        ALT_ONLY: !keyEvent.ctrlKey && keyEvent.altKey && !keyEvent.shiftKey && !keyEvent.metaKey,
-        META_ONLY: !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.shiftKey && keyEvent.metaKey,
-
-        NONE: !keyEvent.ctrlKey && !keyEvent.shiftKey && !keyEvent.altKey && !keyEvent.metaKey,
-
-        targetIsInput: (function targetIsInput() {
-            const ignores = document.getElementsByTagName('input');
-            const target = keyEvent.target;
-            for (let ignore of ignores)
-                if (target === ignore || ignore.contains(target)) {
-                    // console.log('The target recieving the keycode is of type "input", so it will not recieve your keystroke', target);
-                    return true;
-                }
-            return false;
-        })()
-    };
-}
-
-function publicizeSymbols(...parameters) {
-    for (const parameter of parameters) {
-        unsafeWindow[parameter] = parameter;
-    }
-}
-
-function mapObject(o) {
-    var map = new Map();
-    for (const key in (o)) {
-        if (o.hasOwnProperty(key))
-            map.set(key, o[key]);
-    }
-    return map;
-}
-function object2Map(obj) {
-    const map = new Map();
-    for (const key in obj) {
-        map.set(key, obj[key]);
-    }
-    return map;
-}
-function getObjOfType(targetInstance, parentObj) {
-    var list = [];
-    for (const o in parentObj) if (o instanceof targetInstance) {
-        return o;
-    }
-    return list;
-}
-
-function getNestedMembers(parentObject, targetType, list) {
-    if (!parentObject) {
-        console.error('parentObject is not defined:', parent);
-        return;
-    }
-    list = list || [];
-    for (const member in parentObject) {
-
-        const typeofObj = typeof member;
-
-        if (typeofObj === 'object') {
-            getNestedMembers(member, targetType, list);
-        } else if (typeofObj !== 'undefined') {
-            if (targetType && typeofObj !== targetType)
-                continue;
-            list.push(member);
-        }
-    }
-    return list;
-}
-/** https://stackoverflow.com/a/3579651/7771202 */
-function sortByFrequencyAndRemoveDuplicates(array) {
-    var frequency = {}, value;
-
-    // compute frequencies of each value
-    for (var i = 0; i < array.length; i++) {
-        value = array[i];
-        if (value in frequency) {
-            frequency[value]++;
-        } else {
-            frequency[value] = 1;
-        }
-    }
-
-    // make array from the frequency object to de-duplicate
-    var uniques = [];
-    for (value in frequency) {
-        uniques.push(value);
-    }
-
-    // sort the uniques array in descending order by frequency
-    function compareFrequency(a, b) {
-        return frequency[b] - frequency[a];
-    }
-
-    return uniques.sort(compareFrequency);
-}
 

@@ -1,30 +1,4 @@
 
-var sourceRegex = /^function\s*[a-zA-Z$_0-9]*\s*\(([^)]*)\)\s*{\s*([^*]*?)[\s;]*(?:return\s*(.*?)[;\s]*)?}$/;
-function parseJSFunc(jsfunc) {
-	// Match the body and the return value of a javascript function source
-	var parsed = jsfunc.toString().match(sourceRegex).slice(1);
-	return {arguments : parsed[0], body : parsed[1], returnValue: parsed[2]}
-}
-
-// ==
-
-function htmlToElements(html) {
-    return new DOMParser().parseFromString(html, 'text/html').body.childNodes
-}
-
-// https://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
-function htmlToElement(html) {
-    var template = document.createElement('template');
-    html = html.trim(); // Never return a text node of whitespace as the result
-    template.innerHTML = html;
-    return template.content.firstChild;
-}
-function htmlToElements(html) {
-    var template = document.createElement('template');
-    template.innerHTML = html;
-    return template.content.childNodes;
-}
-
 
 // == 
 
@@ -36,3 +10,43 @@ function getRedditDomainUrl(url) {
     return "https://www.reddit.com/domain/" + url.trim();
 }
 
+
+
+/**
+ * starting from the beginning, find the array segment that is equal
+ * @param lists
+ * @param equals
+ * @return {Array}
+ */
+function findLongestCommonSegment(lists, equals) {
+    if (typeof equals !== "function") equals = (a, b) => a == b;
+
+    const minLength = lists.map(list => list.length).reduce((l1, l2) => Math.min(l1, l2));
+    const result = [];
+
+    for (var i = 0; i < minLength; i++) { // iterate elements
+        var compareVal = lists[0][i];
+        for (var j = 0; j < lists.length; j++) { // check this element for each list
+            if (!equals(lists[j][i], compareVal)) {
+                return result;
+            }
+        }
+        result.push(compareVal);
+    }
+    return result;
+}
+
+
+
+
+function printAllUrls() {
+    return Array.from(new Set(Array.from(document.links).map(a=>a.href).concat(Array.from(document.images)).map(img=>img.src).filter(x=>!!x)));
+}
+
+
+// print them all in the console:
+JavaScript:(function printAllUrls() {
+    var urls = Array.from(new Set(Array.from(document.links).map(a=>a.href).concat(Array.from(document.images)).map(img=>img.src).filter(x=>!!x)));
+    console.log(urls.join('\n'));
+    return urls;
+})()void(0);

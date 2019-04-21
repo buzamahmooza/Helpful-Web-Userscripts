@@ -345,6 +345,10 @@ function addListenersToPages() {
     bindKeys();
     function bindKeys() {
 
+        Mousetrap.bind(["o o"], (keyEvent) => {
+            console.log('o o: displayImages();');
+            showImages.displayImages();
+        });
 
         // navigate to next & previous page
         if (bindPageNavigators) {
@@ -1196,17 +1200,52 @@ function urlToAnchor(url) {
  * @param options
  */
 function observeDocument(callback, options) {
-    callback(document.body);
-    new MutationObserver(function (mutations) {
-        for (var mutation of mutations) {
-            if (!mutation.addedNodes.length) continue;
-            callback(mutation.target, mutation);
-        }
-    }).observe(document.body, options || {
-        childList: true, subtree: true,
-        attributes: false, characterData: false
+    elementReady('body').then((body) => {
+        callback(document.body);
+        new MutationObserver(function (mutations) {
+            for (var mutation of mutations) {
+                if (!mutation.addedNodes.length) continue;
+                callback(mutation.target);
+            }
+        }).observe(document.body, options || {
+            childList: true,
+            subtree: true,
+            attributes: false,
+            characterData: false
+        });
     });
 }
+
+function elementReady(selector, timeoutInMs = -1) {
+    return new Promise((resolve, reject) => {
+        var getter = typeof selector === 'function' ?
+            () => selector() :
+            () => document.querySelectorAll(selector)
+        ;
+        var els = getter();
+        if (els && els.length) {
+            resolve(els[0]);
+        }
+        if (timeoutInMs > 0)
+            var timeout = setTimeout(() => {
+                reject(`elementReady(${selector}) timed out at ${timeoutInMs}ms`);
+                console.debug(`elementReady(${selector}) timed out at ${timeoutInMs}ms`);
+            }, timeoutInMs);
+
+
+        new MutationObserver((mutationRecords, observer) => {
+            Array.from(getter() || []).forEach((element) => {
+                clearTimeout(timeout);
+                resolve(element);
+                observer.disconnect();
+            });
+        }).observe(document.documentElement, {
+            childList: true,
+            subtree: true
+        });
+    });
+}
+
 function clickWhenBtnAppears(selector) {
     observeDocument(function (node) {
         var btns = node.querySelectorAll(selector);
