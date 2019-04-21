@@ -7,6 +7,13 @@
 // TODO: - [ ] image loads, it broadcasts the onload event to all other images with the same src
 // TODO: - [ ] Have the option of multiple urls for an image, and you'd try to load all of them at the same time, the one that loads first wins. This makes the process faster, instead of waiting for each one to fail
 
+/**
+ * @typedef {(Element)} ImgEl
+ * @property {number} handlerIndex
+ * @property {HTMLAnchorElement} anchor
+ * @property {string} oldSrc
+ */
+
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -126,7 +133,7 @@
      * wait for element to load
      * @author gilly3 - https://stackoverflow.com/a/33019709/7771202
      *
-     * @param {HTMLImageElement|Node} img the image you want to load
+     * @param {HTMLImageElement|Node|imgEl} img the image you want to load
      * @param src
      * @returns {Promise}
      */
@@ -161,54 +168,50 @@
 
 
     class ImageManager {
+        successfulUrls;
+        _images;
+        parent;
+        onErrorHandlers;
+        onSuccess;
+
+        /**
+         * @param {Object=} opts
+         * @param {ShowImages=} opts.parent - usually the ShowImage instance
+         * @param {Function=} opts.onSuccess
+         * @param {Function[]=} opts.onErrorHandlers - will be passed the img element
+         */
         constructor(opts) {
             var self = this;
+
             opts = extend({
                 parent: null,
                 onSuccess: function (img) {
                     self.successfulUrls.add(img.src);
                     if (img.anchor && /\.(gif)($|\?)/i.test(img.anchor.href) || img.oldSrc && /\.(gif)($|\?)/i.test(img.oldSrc)) {
-                        debug && console.log('that\'s a gif!:', { 'img.anchor': img.anchor, 'img.src': img.src, 'img.oldSrc': img.oldSrc });
+                        debug && console.log('that\'s a gif!:', {
+                            'img.anchor': img.anchor,
+                            'img.src': img.src,
+                            'img.oldSrc': img.oldSrc
+                        });
                         // language=CSS
                         setBorderWithColor(img, '#5d00b3');
                         img.classList.add(self.parent.ClassNames.DISPLAY_ORIGINAL_GIF);
-                    }
-                    else {
+                    } else {
                         // language=CSS
                         setBorderWithColor(img, '#04b300');
                         img.classList.add(self.parent.ClassNames.DISPLAY_ORIGINAL);
                     }
                 },
-                onLoad: function (e) {
-                },
                 onErrorHandlers: [],
             }, opts);
-            self._successfulUrls = new Set();
+
+            self.successfulUrls = new Set();
             self._images = new Set();
-            self._parent = opts.parent;
-            self._onErrorHandlers = opts.onErrorHandlers || [];
-            self._onSuccess = opts.onSuccess;
+            self.parent = opts.parent;
+            self.onErrorHandlers = opts.onErrorHandlers || [];
+            self.onSuccess = opts.onSuccess;
         }
 
-        get successfulUrls(){
-            return this._successfulUrls;
-        }
-        get images(){
-            return this._images;
-        }
-        get parent(){
-            return this._parent;
-        }
-        get onErrorHandlers(){
-            return this._onErrorHandlers;
-        }
-        get onSuccess(){
-            return this._onSuccess;
-        }
-        /**
-         * @typedef {HTMLImageElement} ImgEl
-         * @property {number} handlerIndex
-         */
 
         /**
          * Fires the next error handler depending on imgEl.handlerIndex and increments it.
@@ -240,11 +243,11 @@
                         // _im.fireNextErrorHandler.call(imgEl, event, _im);
                     }, TIMEOUT);
                 }
-            }
-            else {
+            } else {
                 imgEl.setAttribute('loaded', 'error');
             }
         }
+
         /**
          * TODO: turn this to a promise type function (returns a promise)
          *
@@ -252,16 +255,18 @@
          *  load = true:     image loaded successfully
          *  load = loading:    image still loading
          *  load = "error":  image failed to load
-         * @param imgEl
+         * @param {ImgEl|Element|HTMLImageElement|Node} imgEl
          * @param src - the new url to be used
          */
         addHandlers(imgEl, src) {
             var _im = this;
             if (!imgEl || imgEl.getAttribute('loaded') === 'loading' || imgEl.handlerIndex > 0)
                 return;
+
             this.enhanceImg(imgEl, src);
 
             const _isImageOk = (img) => img.complete && img.naturalWidth !== 0;
+
             var onload;
             var onerror;
             function tryNextHandler(img) {
@@ -278,8 +283,7 @@
                 debug && console.warn('onerror():', img.src, img);
                 try {
                     tryNextHandler(img).then(onload.bind(img));
-                }
-                catch (e) {
+                } catch (e) {
                     console.error(e);
                 }
                 img.setAttribute('handler-index', img.handlerIndex.toString());
@@ -291,8 +295,7 @@
                     img.setAttribute('loaded', 'true');
                     img.style.display = 'block';
                     _im.onSuccess(img);
-                }
-                else { // if it didn't load or width==0:
+                } else { // if it didn't load or width==0:
                     onerror.call(imgEl, event);
                 }
             };
@@ -319,22 +322,39 @@
             imgEl.setAttribute('loaded', 'loading');
         }
 
-        enhanceImg(imgEl, src) {
+        /**
+         * Prepares the image and initializes the extra fields
+         *
+         * - Add getters and setters for "oldSrc"
+         * - set handlerIndex=0
+         * - img.anchor
+         *
+         * @param {HTMLImageElement|ImgEl} imgEl
+         * @param {string=} newSrc - optional target src to set for the image
+         *  (oldSrc will be the current src, and this will be the new)
+         * @returns imgEl (the same object)
+         */
+        enhanceImg(imgEl, newSrc = '') {
+
             // So here's how it works:
             // 1- image object loads and calls onload
             // 2- it references imgEl and now we start working on imgEl
             // 3- for each onerror, there's an error handler, imgEl.handlerIndex indicates which handler is next
             // 4- until we get to the last handler, and that'd be to mark the image as [loaded="error"]
             var anchor = imgEl.anchor || imgEl.closest('a[href]');
+
             imgEl.__defineSetter__('oldSrc', function (value) {
                 this._oldSrc = value;
                 this.setAttribute('oldSrc', value);
             });
             imgEl.__defineGetter__('oldSrc', () => this._oldSrc);
+
             imgEl.oldSrc = imgEl.src;
             imgEl.handlerIndex = 0;
             imgEl.anchor = anchor;
-            imgEl.src = imgEl.src || src;
+            imgEl.src = newSrc || imgEl.src;
+
+            return imgEl;
         }
     }
 
@@ -347,6 +367,19 @@
      * @returns {ShowImages}
      */
     class ShowImages {
+        imageManager = new ImageManager();
+        imagesFilter;
+        ClassNames = {
+            DISPLAY_ORIGINAL: 'display-original-' + 'mainThumbnail',
+            DISPLAY_ORIGINAL_GIF: 'display-original-' + '-gif',
+            FAILED: 'display-original-' + '-failed',
+            FAILED_DDG: 'display-original-' + '-ddg-failed',
+        };
+
+        /**
+         * @param {Object} options
+         * @param {Function(img)=} options.imagesFilter
+         */
         constructor(options) {
             var self = this;
             // TODO: define the options and the default values
@@ -364,10 +397,8 @@
             this.imagesFilter = options.imagesFilter;
 
             //TODO: do dis
-            var im_options = {
+            self.imageManager = new ImageManager({
                 parent: self,
-                onLoad: function () {
-                },
                 onErrorHandlers: (function getDefaultHandlers() {
                     function handler1(event, imageManager) {
                         const img = this;
@@ -413,25 +444,16 @@
                         node.setAttribute('loaded', 'error');
                         // language=CSS
                         setBorderWithColor(node, '#b90004');
-                        self.ImageManager.successfulUrls.delete(node.src);
+                        self.imageManager.successfulUrls.delete(node.src);
                     }
                     return [handler1, handler2, handleProxyError];
                 })(),
-            };
-            self.ImageManager = new ImageManager(im_options);
+            });
         }
 
-        get ClassNames() {
-            return {
-                DISPLAY_ORIGINAL: 'display-original-' + 'mainThumbnail',
-                DISPLAY_ORIGINAL_GIF: 'display-original-' + '-gif',
-                FAILED: 'display-original-' + '-failed',
-                FAILED_DDG: 'display-original-' + '-ddg-failed',
-            }
-        };
         static replaceThumbWithVid(vidThumb) {
             const anchor = vidThumb.closest('[href], source');
-            const href = anchor.href;
+            const href = anchor.getAttribute('href');
             if (/\.(mov|mp4|avi|webm|flv|wmv)($|\?)/i.test(href)) { // if the link is to a video
                 console.log('Replacing video thumbnail with original video:', href, vidThumb);
                 vidThumb.src = href;
@@ -450,6 +472,7 @@
         displayOriginalImage(node) {
             var self = this;
             if (node.matches('a[href] img[src]')) {
+                /** @type {ImgEl} */
                 const img = node;
                 const result = this.replaceImgSrc(img);
                 if (result) {
@@ -476,7 +499,7 @@
         /**
          * This is the main method that takes an image and replaces its src with its anchors href
          * ShowImages.filter is applied here, only images that pass the filter will have `src` replaced
-         * @param {HTMLImageElement} img
+         * @param {ImgEl} img
          * @param {HTMLAnchorElement=} anchor - if the anchor isn't supplied, the closest parent anchor is used
          * @returns {boolean} false when `img` doesn't pass the filter
          */
@@ -490,10 +513,9 @@
             debug && console.debug('replaceImgSrc()', img);
 
             img.src = anchor.href;
-            img.anchor = anchor; // Storing the anchor object in case we need it later
             img.classList.add(this.ClassNames.DISPLAY_ORIGINAL);
 
-            this.ImageManager.addHandlers(img);
+            this.imageManager.addHandlers(img);
             return true;
         }
         /**
@@ -505,9 +527,8 @@
         }
     }
 
-    // // expose ShowImages to the global object
-    // window.ShowImages = ShowImages;
 
+    // helper functions
 
     function observeDocument(callback) {
         callback(document.body);
@@ -523,8 +544,6 @@
             // attributeFilter: ['src', 'href', 'srcset', 'data-src', 'datasrc']
         });
     }
-
-    // helper functions
 
     /** @param selector
      * @return {NodeListOf<HTMLElement>}*/
