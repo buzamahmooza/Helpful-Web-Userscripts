@@ -29,6 +29,7 @@ You should read the scripts `@description` for a brief summray, or check the com
 
 ## Ideas
 
+- [ ] Make a `FileNamingUtils.js` module for naming fiels from urls, cleaning and etc, (CHECK IF IT ALREADY EXISTS FIST)
 - [ ] Make a wrapper for `GM_xmlhttprequest()` as `GM_fetch()`
 - [x] [Highlighter script to highlight phrases on websites when redirected from a search engine](SearchResultsHighlighter.user.js)
 - [ ] A userscript to add a scrollbar at the top of the view that shows you're scroll progress

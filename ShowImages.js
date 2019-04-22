@@ -30,7 +30,7 @@
 }(this, function () {
     'use strict';
 
-    var debug = true;
+    var debug = false;
 
     // Options
     const options = {
@@ -303,7 +303,8 @@
             // setup the image object
             var image = new Image();
             image.src = src || imgEl.src || imgEl.anchor.href;
-            image.imgEl = imgEl; // just to reference the imgEl. we don't want the callbacks to be called on the Image object, rather the IMG element
+            // just to reference the imgEl. we don't want the callbacks to be called on the Image object, rather the IMG element
+            image.__defineGetter__('imgEl', () => imgEl);
             imgEl.image = image;
             image.onerror = onerror.bind(imgEl);
             image.onload = onload.bind(imgEl);
@@ -415,10 +416,11 @@
                         return loadPromise(img);
                     }
                     function useProxy(imgEl, proxy) {
-                        const anchor = imgEl.anchor || imgEl.closest('a[href]');
-                        const proxyUrl = proxy(anchor.href);
+                        const anchor = imgEl.anchor? imgEl.anchor: imgEl.closest('a[href]');
+                        var href = anchor ? anchor.href : imgEl.src;
+                        const proxyUrl = proxy(href); //occasional ERROR: Cannot read property 'href' of null
 
-                        console.log('useProxy(', anchor.href, ')=', proxyUrl);
+                        console.log('useProxy(', href, ')=', proxyUrl);
                         imgEl.classList.remove(self.ClassNames.FAILED);
 
                         anchor.href = proxyUrl;
@@ -500,7 +502,7 @@
          * This is the main method that takes an image and replaces its src with its anchors href
          * ShowImages.filter is applied here, only images that pass the filter will have `src` replaced
          * @param {ImgEl} img
-         * @param {HTMLAnchorElement=} anchor - if the anchor isn't supplied, the closest parent anchor is used
+         * @param {Element|HTMLAnchorElement=} anchor - if the anchor isn't supplied, the closest parent anchor is used
          * @returns {boolean} false when `img` doesn't pass the filter
          */
         replaceImgSrc(img, anchor) {
@@ -512,10 +514,11 @@
 
             debug && console.debug('replaceImgSrc()', img);
 
-            img.src = anchor.href;
+            var newSrc = img.getAttribute('fullres-src') || anchor.href;
+            this.imageManager.addHandlers(img, newSrc);
+
             img.classList.add(this.ClassNames.DISPLAY_ORIGINAL);
 
-            this.imageManager.addHandlers(img);
             return true;
         }
         /**

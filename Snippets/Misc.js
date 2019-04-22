@@ -1,4 +1,28 @@
 
+/**
+* watches for any attempt to access the property
+*/
+function snoopProperty(obj, props=[], onset=(val)=>null, onget=()=>null) {
+    if (props.length===0) { // default to all properties
+        props = Object.keys(obj);
+    }
+
+    for (const prop of props) {
+        obj['__'+prop] = obj[prop]; // actual value
+
+        obj.__defineSetter__(prop, function(val) {
+            console.log('someone just set the property:', prop, 'to value:', val, '\non:', obj);
+
+            obj['__'+prop] = val;
+        });
+        obj.__defineGetter__(prop, function() {
+            console.log('someone just accessed', prop, '\non:', obj);
+            return obj['__'+prop];
+        });
+    }
+
+    return obj;
+}
 
 // == 
 

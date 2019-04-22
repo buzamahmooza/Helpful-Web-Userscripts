@@ -680,7 +680,7 @@ function createElement(html, callback) {
 }
 unsafeWindow.htmlToElements = function htmlToElements(html) {
     return new DOMParser().parseFromString(html, 'text/html').body.childNodes
-}
+};
 /* todo: remove, this thing is terrible and has no point */
 function matchSite(siteRegex) {
     let result = location.href.match(siteRegex);
@@ -689,7 +689,7 @@ function matchSite(siteRegex) {
 }
 function siteSearchUrl(query) {
     if (query) {
-        return gImgSearchURL + 'site:' + encodeURIComponent(query.trim());
+        return GoogleUtils.gImgSearchURL + 'site:' + encodeURIComponent(query.trim());
     }
 }
 
@@ -2096,6 +2096,33 @@ function sortByFrequencyAndRemoveDuplicates(array) {
     return uniques.sort(compareFrequency);
 }
 
+/**
+ * Snoops on an object, monitors all attempts to access and set properties
+ * @param {Object} obj - the object to monitor
+ * @param {string[]=} props - list of properties to watch, watches all properties by default
+ * @param {Function=} onset - callback when the property is set (newValue is passed)
+ * @param {Function=} onget - callback when the property is accessed
+ */
+function snoopProperty(obj, props = [], onset = (val) => null, onget = () => null) {
+    if (props.length === 0) { // default to all properties
+        props = Object.keys(obj);
+    }
+
+    for (const prop of props) {
+        obj['__' + prop] = obj[prop]; // actual property
+
+        obj.__defineSetter__(prop, function (newValue) {
+            console.debug('someone just set the property:', prop, 'to value:', newValue, '\non:', obj);
+            onset.call(obj, newValue);
+            obj['__' + prop] = newValue;
+        });
+        obj.__defineGetter__(prop, function () {
+            console.debug('someone just accessed', prop, '\non:', obj);
+            onget.call(obj);
+            return obj['__' + prop];
+        });
+    }
+}
 
 // copied external libs
 
