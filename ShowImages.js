@@ -416,7 +416,7 @@
                         return loadPromise(img);
                     }
                     function useProxy(imgEl, proxy) {
-                        const anchor = imgEl.anchor? imgEl.anchor: imgEl.closest('a[href]');
+                        const anchor = imgEl.anchor ? imgEl.anchor : imgEl.closest('a');
                         var href = anchor ? anchor.href : imgEl.src;
                         const proxyUrl = proxy(href); //occasional ERROR: Cannot read property 'href' of null
 
@@ -448,6 +448,7 @@
                         setBorderWithColor(node, '#b90004');
                         self.imageManager.successfulUrls.delete(node.src);
                     }
+
                     return [handler1, handler2, handleProxyError];
                 })(),
             });
